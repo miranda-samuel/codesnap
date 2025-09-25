@@ -1,11 +1,11 @@
-// lib/main.dart
 import 'package:flutter/material.dart';
+import 'screens/splash_screen.dart'; // ADD THIS IMPORT
 import 'screens/login_page.dart';
 import 'screens/signup_page.dart';
 import 'screens/home_screen.dart';
 import 'screens/select_language_screen.dart';
 import 'screens/level_selection_screen.dart';
-import 'screens/profile_screen.dart'; // ADD THIS IMPORT
+import 'screens/profile_screen.dart';
 import 'screens/game_screen.dart';
 import 'screens/forgot_password_page.dart';
 
@@ -46,12 +46,13 @@ class CodeSnapApp extends StatelessWidget {
         primarySwatch: Colors.teal,
         useMaterial3: true,
       ),
-      initialRoute: '/',
+      initialRoute: '/splash', // CHANGE INITIAL ROUTE
       routes: {
+        '/splash': (context) => const SplashScreen(), // ADD SPLASH SCREEN ROUTE
         '/': (context) => const LoginPage(),
         '/signup': (context) => const SignupPage(),
         '/home': (context) => const HomeScreen(),
-        '/profile': (context) => const ProfileScreen(), // ADD THIS ROUTE
+        '/profile': (context) => const ProfileScreen(),
         '/select_language': (context) => const SelectLanguageScreen(),
         '/levels': (context) => const LevelSelectionScreen(),
         '/game': (context) => const GameScreen(),

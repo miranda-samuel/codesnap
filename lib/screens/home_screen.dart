@@ -14,15 +14,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? currentUser;
   bool _isLoading = true;
   String _errorMessage = '';
+  int _userPoints = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
-  }
-
-  // This will be called when the route is focused (navigated to)
-  void _onScreenFocused() {
     _loadData();
   }
 
@@ -36,14 +32,18 @@ class _HomeScreenState extends State<HomeScreen> {
       final user = await UserPreferences.getUser();
       setState(() => currentUser = user);
 
+      // Load user points
+      if (user['id'] != null) {
+        await _loadUserPoints(user['id']!);
+      }
+
       final response = await ApiService.getLeaderboard();
-      print('Leaderboard response: $response'); // Debug print
+      print('Leaderboard response: $response');
 
       if (response['success'] == true) {
         if (response['leaderboard'] != null && response['leaderboard'] is List) {
           final rawData = List<Map<String, dynamic>>.from(response['leaderboard']);
 
-          // Filter out users with 0 points or no points field
           final filteredData = rawData.where((user) {
             final points = (user['points'] as num?)?.toInt() ?? 0;
             return points > 0;
@@ -73,6 +73,21 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadUserPoints(int userId) async {
+    try {
+      final response = await ApiService.getUserStats(userId);
+      if (response['success'] == true && response['stats'] != null) {
+        final stats = response['stats'];
+        final totalPoints = (stats['totalPoints'] as num?)?.toInt() ?? 0;
+        setState(() {
+          _userPoints = totalPoints;
+        });
+      }
+    } catch (e) {
+      print('Error loading user points: $e');
     }
   }
 
@@ -132,23 +147,36 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Widget _buildDefaultAvatar() {
+    return Container(
+      color: Colors.tealAccent.shade400,
+      child: Center(
+        child: Text(
+          currentUser?['fullName']?.toString().substring(0, 1).toUpperCase() ?? 'U',
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Use FocusDetector or similar approach for automatic refresh
-    // For now, we'll use a simpler approach with RouteAware
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('CodeSnap'),
+        title: const Text(''),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          // In lib/screens/home_screen.dart, update the PopupMenuButton
           PopupMenuButton<String>(
             icon: const Icon(Icons.menu, color: Colors.white),
             onSelected: (value) {
               if (value == 'Profile') {
-                Navigator.pushNamed(context, '/profile'); // Add this
+                Navigator.pushNamed(context, '/profile');
               } else if (value == 'Settings') {
                 // Navigator.pushNamed(context, '/settings');
               } else if (value == 'Logout') {
@@ -201,24 +229,143 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             const SizedBox(height: 100),
-            const Icon(Icons.code, size: 90, color: Colors.white),
-            const SizedBox(height: 12),
-            Text(
-              'Welcome ${currentUser?['fullName'] ?? 'to CodeSnap'}',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'monospace',
-                color: Colors.white,
+
+            // App Name
+            RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'Code',
+                    style: TextStyle(
+                      fontSize: 42,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  TextSpan(
+                    text: 'S',
+                    style: TextStyle(
+                      fontSize: 46,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.tealAccent.shade400,
+                      fontFamily: 'monospace',
+                      shadows: [
+                        Shadow(
+                          blurRadius: 15,
+                          color: Colors.tealAccent.withOpacity(0.6),
+                          offset: const Offset(0, 0),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextSpan(
+                    text: 'nap',
+                    style: TextStyle(
+                      fontSize: 42,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Profile View Section
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  // Profile Avatar
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: ClipOval(
+                      child: currentUser?['profile_photo'] != null
+                          ? Image.network(
+                        currentUser!['profile_photo'],
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return _buildDefaultAvatar();
+                        },
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            color: Colors.grey[300],
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        },
+                      )
+                          : _buildDefaultAvatar(),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+
+                  // User Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          currentUser?['fullName'] ?? 'Guest User',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '@${currentUser?['username'] ?? 'guest'}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.tealAccent.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '$_userPoints Points',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.tealAccent.shade400,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 25),
+
+            // Start Coding Button
             ElevatedButton.icon(
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('Start Game', style: TextStyle(fontSize: 18)),
+              icon: const Icon(Icons.code),
+              label: const Text('Start Coding', style: TextStyle(fontSize: 18)),
               onPressed: () {
                 Navigator.pushNamed(context, '/select_language').then((_) {
-                  // Refresh data when returning from game
                   _loadData();
                 });
               },
@@ -229,28 +376,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 30),
 
             // Leaderboard Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: const [
-                      Icon(Icons.leaderboard, color: Colors.amberAccent),
-                      SizedBox(width: 10),
-                      Text(
-                        'Top Coders',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 1.1,
-                        ),
-                      ),
-                    ],
+                  Icon(Icons.leaderboard, color: Colors.amberAccent),
+                  SizedBox(width: 10),
+                  Text(
+                    'Top Coders',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 1.1,
+                    ),
                   ),
                 ],
               ),
@@ -333,7 +475,6 @@ class _HomeScreenState extends State<HomeScreen> {
           final rank = index + 1;
           final isCurrentUser = currentUser?['username'] == user['username'];
 
-          // Safely access properties with fallbacks
           final username = user['username']?.toString() ?? 'Unknown';
           final points = (user['points'] as num?)?.toInt() ?? 0;
           final levelsCompleted = (user['levels_completed'] as num?)?.toInt() ?? 0;
