@@ -46,10 +46,37 @@ class _PythonLevel1State extends State<PythonLevel1> {
   }
 
   void resetBlocks() {
-    allBlocks = [
+    // Correct blocks
+    List<String> correctBlocks = [
       'print',
       '("Hello World")',
       ';',
+    ];
+
+    // Incorrect/distractor blocks
+    List<String> incorrectBlocks = [
+      'printf',
+      'echo',
+      'cout',
+      'System.out.print',
+      '("Hi World")',
+      '("Hello")',
+      ':',
+      ',',
+      'log',
+      'console.log',
+      'puts',
+      'write',
+    ];
+
+    // Shuffle incorrect blocks and take 3 random ones
+    incorrectBlocks.shuffle();
+    List<String> selectedIncorrectBlocks = incorrectBlocks.take(3).toList();
+
+    // Combine correct and incorrect blocks, then shuffle
+    allBlocks = [
+      ...correctBlocks,
+      ...selectedIncorrectBlocks,
     ]..shuffle();
   }
 
@@ -78,6 +105,7 @@ class _PythonLevel1State extends State<PythonLevel1> {
           score = 0;
           timer.cancel();
           scoreReductionTimer?.cancel();
+          // SAVE ONLY WHEN TIME'S UP (game completed)
           saveScoreToDatabase(score);
           showDialog(
             context: context,
@@ -107,6 +135,7 @@ class _PythonLevel1State extends State<PythonLevel1> {
 
       setState(() {
         score--;
+        // DON'T save intermediate penalties
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
         );
@@ -136,7 +165,7 @@ class _PythonLevel1State extends State<PythonLevel1> {
         'Python',
         1,
         score,
-        score == 3,
+        score == 3, // Only completed if perfect score
       );
 
       if (response['success'] == true) {
@@ -205,8 +234,69 @@ class _PythonLevel1State extends State<PythonLevel1> {
     }
   }
 
+  // Check if a block is incorrect
+  bool isIncorrectBlock(String block) {
+    List<String> incorrectBlocks = [
+      'printf',
+      'echo',
+      'cout',
+      'System.out.print',
+      '("Hi World")',
+      '("Hello")',
+      ':',
+      ',',
+      'log',
+      'console.log',
+      'puts',
+      'write',
+    ];
+    return incorrectBlocks.contains(block);
+  }
+
   void checkAnswer() async {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
+
+    // Check if any incorrect blocks are used
+    bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
+
+    if (hasIncorrectBlock) {
+      if (score > 1) {
+        setState(() {
+          score--;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("❌ You used incorrect code! -1 point. Current score: $score"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        setState(() {
+          score = 0;
+        });
+        countdownTimer?.cancel();
+        scoreReductionTimer?.cancel();
+        // SAVE ONLY WHEN GAME IS OVER (score = 0)
+        saveScoreToDatabase(score);
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: Text("💀 Game Over"),
+            content: Text("You used incorrect code and lost all points!"),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  resetGame();
+                },
+                child: Text("Retry"),
+              )
+            ],
+          ),
+        );
+      }
+      return;
+    }
 
     String answer = droppedBlocks.join(' ');
     String normalizedAnswer = answer.replaceAll(' ', '').toLowerCase();
@@ -220,6 +310,7 @@ class _PythonLevel1State extends State<PythonLevel1> {
         isAnsweredCorrectly = true;
       });
 
+      // ONLY SAVE WHEN ANSWER IS CORRECT (GAME COMPLETED)
       saveScoreToDatabase(score);
 
       showDialog(
@@ -277,13 +368,13 @@ class _PythonLevel1State extends State<PythonLevel1> {
         ),
       );
     } else {
+      // DON'T SAVE INTERMEDIATE PENALTIES - just show message
       if (score > 1) {
         setState(() {
           score--;
         });
-        saveScoreToDatabase(score);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Incorrect. -1 point. Current score: $score")),
+          SnackBar(content: Text("❌ Incorrect arrangement. -1 point. Current score: $score")),
         );
       } else {
         setState(() {
@@ -291,6 +382,7 @@ class _PythonLevel1State extends State<PythonLevel1> {
         });
         countdownTimer?.cancel();
         scoreReductionTimer?.cancel();
+        // SAVE ONLY WHEN GAME IS OVER (score = 0)
         saveScoreToDatabase(score);
         showDialog(
           context: context,
@@ -366,7 +458,7 @@ class _PythonLevel1State extends State<PythonLevel1> {
           ElevatedButton.icon(
             onPressed: startGame,
             icon: Icon(Icons.play_arrow),
-            label: Text("Start Game"),
+            label: Text("Start Coding"),
             style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
           ),
@@ -425,42 +517,16 @@ class _PythonLevel1State extends State<PythonLevel1> {
                   ],
                 ),
               ),
-
-          SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () async {
-              if (currentUser?['id'] != null) {
-                try {
-                  final response = await ApiService.resetScores(currentUser!['id'], 'Python');
-                  if (response['success'] == true) {
-                    setState(() {
-                      level1Completed = false;
-                      hasPreviousScore = false;
-                      previousScore = 0;
-                      score = 3;
-                    });
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Progress reset successfully")),
-                    );
-
-                    await refreshScore();
-                  }
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Error resetting progress: $e")),
-                  );
-                }
-              }
-            },
-            child: Text("Reset Progress"),
-          ),
         ],
       ),
     );
   }
 
   Widget buildGameUI() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 360;
+    final isMediumScreen = screenWidth < 400;
+
     return SingleChildScrollView(
       padding: EdgeInsets.all(16),
       child: Column(
@@ -469,16 +535,19 @@ class _PythonLevel1State extends State<PythonLevel1> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('📖 Short Story',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Flexible(
+                child: Text('📖 Short Story',
+                    style: TextStyle(fontSize: isSmallScreen ? 16 : 18, fontWeight: FontWeight.bold)),
+              ),
               TextButton.icon(
                 onPressed: () {
                   setState(() {
                     isTagalog = !isTagalog;
                   });
                 },
-                icon: Icon(Icons.translate),
-                label: Text(isTagalog ? 'English' : 'Tagalog'),
+                icon: Icon(Icons.translate, size: isSmallScreen ? 16 : 20),
+                label: Text(isTagalog ? 'English' : 'Tagalog',
+                    style: TextStyle(fontSize: isSmallScreen ? 14 : 16)),
               ),
             ],
           ),
@@ -488,18 +557,20 @@ class _PythonLevel1State extends State<PythonLevel1> {
                 ? 'Si Zeke ay unang natututo ng Python! Gusto niyang ipakita ang kanyang unang output gamit ang print("Hello World"). Pwede mo ba siyang tulungan buuin ang tamang code?'
                 : 'Zeke is learning Python for the first time! He wants to display his first output using print("Hello World"). Can you help him build the correct code?',
             textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: 16),
+            style: TextStyle(fontSize: isSmallScreen ? 14 : 16),
           ),
           SizedBox(height: 20),
+
           Text('🧩 Arrange the puzzle blocks to form: print("Hello World");',
-              style: TextStyle(fontSize: 18), textAlign: TextAlign.center),
+              style: TextStyle(fontSize: isSmallScreen ? 16 : 18),
+              textAlign: TextAlign.center),
           SizedBox(height: 20),
 
-          // TARGET AREA - FIXED VERSION
+          // TARGET AREA
           Container(
-            height: 140,
+            height: isSmallScreen ? 120 : 140,
             width: double.infinity,
-            padding: EdgeInsets.all(16),
+            padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
             decoration: BoxDecoration(
               color: Colors.grey[100],
               border: Border.all(color: Colors.blueGrey, width: 2.5),
@@ -519,14 +590,16 @@ class _PythonLevel1State extends State<PythonLevel1> {
               },
               builder: (context, candidateData, rejectedData) {
                 return Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: Wrap(
+                    spacing: isSmallScreen ? 4 : 8,
+                    runSpacing: isSmallScreen ? 4 : 8,
+                    alignment: WrapAlignment.center,
                     children: droppedBlocks.map((block) {
                       return Draggable<String>(
                         data: block,
-                        feedback: puzzleBlock(block, Colors.greenAccent),
-                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.greenAccent),
+                        feedback: puzzleBlock(block, Colors.greenAccent, isSmallScreen, isMediumScreen),
+                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5), isSmallScreen, isMediumScreen),
+                        child: puzzleBlock(block, Colors.greenAccent, isSmallScreen, isMediumScreen),
                         onDragStarted: () {
                           setState(() {
                             currentlyDraggedBlock = block;
@@ -537,7 +610,6 @@ class _PythonLevel1State extends State<PythonLevel1> {
                             currentlyDraggedBlock = null;
                           });
 
-                          // ONLY return to source if NOT accepted by any DragTarget
                           if (!isAnsweredCorrectly && !details.wasAccepted) {
                             Future.delayed(Duration(milliseconds: 50), () {
                               if (mounted) {
@@ -560,34 +632,37 @@ class _PythonLevel1State extends State<PythonLevel1> {
           ),
 
           SizedBox(height: 20),
-          Text('📝 Preview:', style: TextStyle(fontWeight: FontWeight.bold)),
+          Text('📝 Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: isSmallScreen ? 16 : 18)),
           Container(
-            padding: EdgeInsets.all(10),
+            padding: EdgeInsets.all(isSmallScreen ? 8 : 10),
             width: double.infinity,
             color: Colors.grey[300],
             child: Text(
               getPreviewCode(),
-              style: TextStyle(fontFamily: 'monospace', fontSize: 18),
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: isSmallScreen ? 16 : 18,
+              ),
             ),
           ),
           SizedBox(height: 20),
 
-          // SOURCE AREA - FIXED VERSION
+          // SOURCE AREA
           Wrap(
-            spacing: 12,
-            runSpacing: 12,
+            spacing: isSmallScreen ? 8 : 12,
+            runSpacing: isSmallScreen ? 8 : 12,
             alignment: WrapAlignment.center,
             children: allBlocks.map((block) {
               return isAnsweredCorrectly
-                  ? puzzleBlock(block, Colors.grey)
+                  ? puzzleBlock(block, Colors.grey, isSmallScreen, isMediumScreen)
                   : Draggable<String>(
                 data: block,
-                feedback: puzzleBlock(block, Colors.blueAccent),
+                feedback: puzzleBlock(block, Colors.blueAccent, isSmallScreen, isMediumScreen),
                 childWhenDragging: Opacity(
                   opacity: 0.4,
-                  child: puzzleBlock(block, Colors.blueAccent),
+                  child: puzzleBlock(block, Colors.blueAccent, isSmallScreen, isMediumScreen),
                 ),
-                child: puzzleBlock(block, Colors.blueAccent),
+                child: puzzleBlock(block, Colors.blueAccent, isSmallScreen, isMediumScreen),
                 onDragStarted: () {
                   setState(() {
                     currentlyDraggedBlock = block;
@@ -598,12 +673,10 @@ class _PythonLevel1State extends State<PythonLevel1> {
                     currentlyDraggedBlock = null;
                   });
 
-                  // If dropped outside target area, ensure it stays in source
                   if (!isAnsweredCorrectly && !details.wasAccepted) {
                     Future.delayed(Duration(milliseconds: 50), () {
                       if (mounted) {
                         setState(() {
-                          // Make sure block is still in allBlocks
                           if (!allBlocks.contains(block)) {
                             allBlocks.add(block);
                           }
@@ -620,32 +693,57 @@ class _PythonLevel1State extends State<PythonLevel1> {
           ElevatedButton.icon(
             onPressed: isAnsweredCorrectly ? null : checkAnswer,
             icon: Icon(Icons.play_arrow),
-            label: Text("Run Code"),
+            label: Text("Run Code", style: TextStyle(fontSize: isSmallScreen ? 14 : 16)),
+            style: ElevatedButton.styleFrom(
+              padding: EdgeInsets.symmetric(
+                horizontal: isSmallScreen ? 20 : 24,
+                vertical: isSmallScreen ? 12 : 16,
+              ),
+            ),
           ),
           TextButton(
             onPressed: resetGame,
-            child: Text("🔁 Retry"),
+            child: Text("🔁 Retry", style: TextStyle(fontSize: isSmallScreen ? 14 : 16)),
           ),
         ],
       ),
     );
   }
 
-  Widget puzzleBlock(String text, Color color) {
+  Widget puzzleBlock(String text, Color color, bool isSmallScreen, bool isMediumScreen) {
+    // Calculate responsive font size based on screen size
+    double fontSize = isSmallScreen ? 12 : (isMediumScreen ? 14 : 16);
+
+    // Calculate responsive padding based on text length and screen size
+    double horizontalPadding = isSmallScreen ? 12 : 16;
+    double verticalPadding = isSmallScreen ? 8 : 12;
+
+    // Adjust padding for longer text blocks
+    if (text.length > 10) {
+      horizontalPadding = isSmallScreen ? 8 : 12;
+      fontSize = isSmallScreen ? 10 : (isMediumScreen ? 12 : 14);
+    } else if (text.length > 15) {
+      horizontalPadding = isSmallScreen ? 6 : 8;
+      fontSize = isSmallScreen ? 9 : (isMediumScreen ? 11 : 13);
+    }
+
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 6),
-      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      margin: EdgeInsets.symmetric(horizontal: isSmallScreen ? 2 : 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: verticalPadding,
+      ),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
+          topLeft: Radius.circular(isSmallScreen ? 20 : 30),
+          bottomRight: Radius.circular(isSmallScreen ? 20 : 30),
         ),
-        border: Border.all(color: Colors.black45, width: 1.5),
+        border: Border.all(color: Colors.black45, width: isSmallScreen ? 1.0 : 1.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black26,
-            blurRadius: 4,
+            blurRadius: isSmallScreen ? 3 : 4,
             offset: Offset(2, 2),
           )
         ],
@@ -655,8 +753,11 @@ class _PythonLevel1State extends State<PythonLevel1> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 16,
+          fontSize: fontSize,
         ),
+        textAlign: TextAlign.center,
+        softWrap: false,
+        overflow: TextOverflow.fade,
       ),
     );
   }

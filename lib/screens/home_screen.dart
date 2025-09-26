@@ -163,6 +163,23 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _handleMenuSelection(String value, BuildContext context) {
+    switch (value) {
+      case 'Profile':
+        Navigator.pushNamed(context, '/profile');
+        break;
+      case 'PointsInfo':
+        _showPointsInfo(context);
+        break;
+      case 'Settings':
+      // Navigator.pushNamed(context, '/settings');
+        break;
+      case 'Logout':
+        _logout(context);
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -173,18 +190,8 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         actions: [
           PopupMenuButton<String>(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onSelected: (value) {
-              if (value == 'Profile') {
-                Navigator.pushNamed(context, '/profile');
-              } else if (value == 'Settings') {
-                // Navigator.pushNamed(context, '/settings');
-              } else if (value == 'Logout') {
-                _logout(context);
-              } else if (value == 'PointsInfo') {
-                _showPointsInfo(context);
-              }
-            },
+            icon: const Icon(Icons.menu, color: Colors.white, size: 24),
+            onSelected: (value) => _handleMenuSelection(value, context),
             itemBuilder: (context) => [
               PopupMenuItem(
                 value: 'Profile',
@@ -207,6 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   title: Text('Settings'),
                 ),
               ),
+              const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'Logout',
                 child: ListTile(
@@ -218,190 +226,227 @@ class _HomeScreenState extends State<HomeScreen> {
           )
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF1e3c72), Color(0xFF2a5298)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Column(
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Stack(
           children: [
-            const SizedBox(height: 100),
-
-            // App Name
-            RichText(
-              text: TextSpan(
-                children: [
-                  TextSpan(
-                    text: 'Code',
-                    style: TextStyle(
-                      fontSize: 42,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                  TextSpan(
-                    text: 'S',
-                    style: TextStyle(
-                      fontSize: 46,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.tealAccent.shade400,
-                      fontFamily: 'monospace',
-                      shadows: [
-                        Shadow(
-                          blurRadius: 15,
-                          color: Colors.tealAccent.withOpacity(0.6),
-                          offset: const Offset(0, 0),
-                        ),
-                      ],
-                    ),
-                  ),
-                  TextSpan(
-                    text: 'nap',
-                    style: TextStyle(
-                      fontSize: 42,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Profile View Section
+            // Background - Same as login page
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withOpacity(0.3)),
+                gradient: LinearGradient(
+                  colors: [Colors.teal.shade100, Colors.blueGrey.shade100],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
               ),
-              child: Row(
-                children: [
-                  // Profile Avatar
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: ClipOval(
-                      child: currentUser?['profile_photo'] != null
-                          ? Image.network(
-                        currentUser!['profile_photo'],
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return _buildDefaultAvatar();
-                        },
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                            color: Colors.grey[300],
-                            child: const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                          );
-                        },
-                      )
-                          : _buildDefaultAvatar(),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
+            ),
 
-                  // User Info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            // Decorative elements - Same as login page
+            Positioned(
+              top: -80,
+              left: -40,
+              child: Container(
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(
+                  color: Colors.teal.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: -50,
+              right: -30,
+              child: Container(
+                width: 180,
+                height: 180,
+                decoration: BoxDecoration(
+                  color: Colors.teal.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+
+            // Content
+            SafeArea(
+              child: Column(
+                children: [
+                  const SizedBox(height: 60),
+
+                  // App Name
+                  RichText(
+                    text: TextSpan(
                       children: [
-                        Text(
-                          currentUser?['fullName'] ?? 'Guest User',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '@${currentUser?['username'] ?? 'guest'}',
+                        TextSpan(
+                          text: 'Code',
                           style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal[800],
+                            fontFamily: 'monospace',
                           ),
                         ),
-                        const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.tealAccent.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
+                        TextSpan(
+                          text: 'S',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green[800],
+                            fontFamily: 'monospace',
+                            shadows: [
+                              Shadow(
+                                blurRadius: 15,
+                                color: Colors.green.withOpacity(0.6),
+                                offset: const Offset(0, 0),
+                              ),
+                            ],
                           ),
-                          child: Text(
-                            '$_userPoints Points',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.tealAccent.shade400,
-                              fontWeight: FontWeight.w500,
-                            ),
+                        ),
+                        TextSpan(
+                          text: 'nap',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal[800],
+                            fontFamily: 'monospace',
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 25),
+                  const SizedBox(height: 20),
 
-            // Start Coding Button
-            ElevatedButton.icon(
-              icon: const Icon(Icons.code),
-              label: const Text('Start Coding', style: TextStyle(fontSize: 18)),
-              onPressed: () {
-                Navigator.pushNamed(context, '/select_language').then((_) {
-                  _loadData();
-                });
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.tealAccent.shade700,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-              ),
-            ),
-            const SizedBox(height: 30),
-
-            // Leaderboard Header
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: [
-                  Icon(Icons.leaderboard, color: Colors.amberAccent),
-                  SizedBox(width: 10),
-                  Text(
-                    'Top Coders',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 1.1,
+                  // Profile View Section
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 24),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.3)),
                     ),
+                    child: Row(
+                      children: [
+                        // Profile Avatar
+                        Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: ClipOval(
+                            child: currentUser?['profile_photo'] != null
+                                ? Image.network(
+                              currentUser!['profile_photo'],
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return _buildDefaultAvatar();
+                              },
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Container(
+                                  color: Colors.grey[300],
+                                  child: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              },
+                            )
+                                : _buildDefaultAvatar(),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+
+                        // User Info
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                currentUser?['fullName'] ?? 'Guest User',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '@${currentUser?['username'] ?? 'guest'}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.black.withOpacity(0.6),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.teal.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '$_userPoints Points',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.teal[800],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 25),
+
+                  // Start Coding Button
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.code, color: Colors.white),
+                    label: const Text('Start Coding', style: TextStyle(fontSize: 18, color: Colors.white)),
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/select_language').then((_) {
+                        _loadData();
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+
+                  // Leaderboard Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      children: [
+                        Icon(Icons.leaderboard, color: Colors.teal[800]),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Top Coders',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  Expanded(
+                    child: _buildLeaderboardContent(),
                   ),
                 ],
               ),
-            ),
-
-            const SizedBox(height: 12),
-
-            Expanded(
-              child: _buildLeaderboardContent(),
             ),
           ],
         ),
@@ -411,7 +456,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildLeaderboardContent() {
     if (_isLoading) {
-      return Center(child: CircularProgressIndicator(color: Colors.white));
+      return Center(child: CircularProgressIndicator(color: Colors.teal));
     }
 
     if (_errorMessage.isNotEmpty) {
@@ -419,21 +464,25 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 60, color: Colors.white.withOpacity(0.5)),
+            Icon(Icons.error_outline, size: 60, color: Colors.teal.withOpacity(0.5)),
             const SizedBox(height: 16),
             Text(
               'Error loading leaderboard',
-              style: TextStyle(color: Colors.white, fontSize: 16),
+              style: TextStyle(color: Colors.black87, fontSize: 16),
             ),
             const SizedBox(height: 8),
             Text(
               _errorMessage,
-              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
+              style: TextStyle(color: Colors.black.withOpacity(0.6), fontSize: 14),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _loadData,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
+                foregroundColor: Colors.white,
+              ),
               child: Text('Try Again'),
             ),
           ],
@@ -446,16 +495,16 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.leaderboard_outlined, size: 60, color: Colors.white.withOpacity(0.5)),
+            Icon(Icons.leaderboard_outlined, size: 60, color: Colors.teal.withOpacity(0.5)),
             const SizedBox(height: 16),
             Text(
               'No active players yet',
-              style: TextStyle(color: Colors.white, fontSize: 16),
+              style: TextStyle(color: Colors.black87, fontSize: 16),
             ),
             const SizedBox(height: 8),
             Text(
               'Be the first to play and earn points!',
-              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
+              style: TextStyle(color: Colors.black.withOpacity(0.6), fontSize: 14),
               textAlign: TextAlign.center,
             ),
           ],
@@ -488,7 +537,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   : Colors.white.withOpacity(0.95),
               borderRadius: BorderRadius.circular(16),
               border: isCurrentUser
-                  ? Border.all(color: Colors.tealAccent, width: 2)
+                  ? Border.all(color: Colors.teal, width: 2)
                   : null,
               boxShadow: [
                 BoxShadow(
@@ -532,7 +581,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
-                              color: isCurrentUser ? Colors.tealAccent : Colors.black,
+                              color: isCurrentUser ? Colors.teal : Colors.black,
                             ),
                           ),
                           if (isCurrentUser)

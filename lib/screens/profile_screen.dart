@@ -1,6 +1,4 @@
-// lib/screens/profile_screen.dart
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/user_preferences.dart';
 
@@ -242,15 +240,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
 
-          // HAMBURGER ICON (3 lines) with expanded menu
+          // HAMBURGER ICON with consistent design
           Positioned(
             top: 20,
             right: 20,
             child: PopupMenuButton<String>(
               icon: const Icon(Icons.menu, color: Colors.white, size: 24),
-              onSelected: (value) {
-                _handleMenuSelection(value);
-              },
+              onSelected: (value) => _handleMenuSelection(value),
               itemBuilder: (context) => [
                 const PopupMenuItem(
                   value: 'edit_profile',
