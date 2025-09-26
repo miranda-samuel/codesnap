@@ -46,10 +46,37 @@ class _PythonLevel1State extends State<PythonLevel1> {
   }
 
   void resetBlocks() {
-    allBlocks = [
+    // Correct blocks
+    List<String> correctBlocks = [
       'print',
       '("Hello World")',
       ';',
+    ];
+
+    // Incorrect/distractor blocks
+    List<String> incorrectBlocks = [
+      'printf',
+      'echo',
+      'cout',
+      'System.out.print',
+      '("Hi World")',
+      '("Hello")',
+      ':',
+      ',',
+      'log',
+      'console.log',
+      'puts',
+      'write',
+    ];
+
+    // Shuffle incorrect blocks and take 3 random ones
+    incorrectBlocks.shuffle();
+    List<String> selectedIncorrectBlocks = incorrectBlocks.take(3).toList();
+
+    // Combine correct and incorrect blocks, then shuffle
+    allBlocks = [
+      ...correctBlocks,
+      ...selectedIncorrectBlocks,
     ]..shuffle();
   }
 
@@ -78,6 +105,7 @@ class _PythonLevel1State extends State<PythonLevel1> {
           score = 0;
           timer.cancel();
           scoreReductionTimer?.cancel();
+          // SAVE ONLY WHEN TIME'S UP (game completed)
           saveScoreToDatabase(score);
           showDialog(
             context: context,
@@ -107,6 +135,7 @@ class _PythonLevel1State extends State<PythonLevel1> {
 
       setState(() {
         score--;
+        // DON'T save intermediate penalties
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
         );
@@ -136,7 +165,7 @@ class _PythonLevel1State extends State<PythonLevel1> {
         'Python',
         1,
         score,
-        score == 3,
+        score == 3, // Only completed if perfect score
       );
 
       if (response['success'] == true) {
@@ -205,8 +234,69 @@ class _PythonLevel1State extends State<PythonLevel1> {
     }
   }
 
+  // Check if a block is incorrect
+  bool isIncorrectBlock(String block) {
+    List<String> incorrectBlocks = [
+      'printf',
+      'echo',
+      'cout',
+      'System.out.print',
+      '("Hi World")',
+      '("Hello")',
+      ':',
+      ',',
+      'log',
+      'console.log',
+      'puts',
+      'write',
+    ];
+    return incorrectBlocks.contains(block);
+  }
+
   void checkAnswer() async {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
+
+    // Check if any incorrect blocks are used
+    bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
+
+    if (hasIncorrectBlock) {
+      if (score > 1) {
+        setState(() {
+          score--;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("❌ You used incorrect code! -1 point. Current score: $score"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        setState(() {
+          score = 0;
+        });
+        countdownTimer?.cancel();
+        scoreReductionTimer?.cancel();
+        // SAVE ONLY WHEN GAME IS OVER (score = 0)
+        saveScoreToDatabase(score);
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: Text("💀 Game Over"),
+            content: Text("You used incorrect code and lost all points!"),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  resetGame();
+                },
+                child: Text("Retry"),
+              )
+            ],
+          ),
+        );
+      }
+      return;
+    }
 
     String answer = droppedBlocks.join(' ');
     String normalizedAnswer = answer.replaceAll(' ', '').toLowerCase();
@@ -220,6 +310,7 @@ class _PythonLevel1State extends State<PythonLevel1> {
         isAnsweredCorrectly = true;
       });
 
+      // ONLY SAVE WHEN ANSWER IS CORRECT (GAME COMPLETED)
       saveScoreToDatabase(score);
 
       showDialog(
@@ -277,13 +368,13 @@ class _PythonLevel1State extends State<PythonLevel1> {
         ),
       );
     } else {
+      // DON'T SAVE INTERMEDIATE PENALTIES - just show message
       if (score > 1) {
         setState(() {
           score--;
         });
-        saveScoreToDatabase(score);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Incorrect. -1 point. Current score: $score")),
+          SnackBar(content: Text("❌ Incorrect arrangement. -1 point. Current score: $score")),
         );
       } else {
         setState(() {
@@ -291,6 +382,7 @@ class _PythonLevel1State extends State<PythonLevel1> {
         });
         countdownTimer?.cancel();
         scoreReductionTimer?.cancel();
+        // SAVE ONLY WHEN GAME IS OVER (score = 0)
         saveScoreToDatabase(score);
         showDialog(
           context: context,
@@ -425,36 +517,6 @@ class _PythonLevel1State extends State<PythonLevel1> {
                   ],
                 ),
               ),
-
-          SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () async {
-              if (currentUser?['id'] != null) {
-                try {
-                  final response = await ApiService.resetScores(currentUser!['id'], 'Python');
-                  if (response['success'] == true) {
-                    setState(() {
-                      level1Completed = false;
-                      hasPreviousScore = false;
-                      previousScore = 0;
-                      score = 3;
-                    });
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Progress reset successfully")),
-                    );
-
-                    await refreshScore();
-                  }
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Error resetting progress: $e")),
-                  );
-                }
-              }
-            },
-            child: Text("Reset Progress"),
-          ),
         ],
       ),
     );
@@ -491,11 +553,12 @@ class _PythonLevel1State extends State<PythonLevel1> {
             style: TextStyle(fontSize: 16),
           ),
           SizedBox(height: 20),
+
           Text('🧩 Arrange the puzzle blocks to form: print("Hello World");',
               style: TextStyle(fontSize: 18), textAlign: TextAlign.center),
           SizedBox(height: 20),
 
-          // TARGET AREA - FIXED VERSION
+          // TARGET AREA
           Container(
             height: 140,
             width: double.infinity,
@@ -537,7 +600,6 @@ class _PythonLevel1State extends State<PythonLevel1> {
                             currentlyDraggedBlock = null;
                           });
 
-                          // ONLY return to source if NOT accepted by any DragTarget
                           if (!isAnsweredCorrectly && !details.wasAccepted) {
                             Future.delayed(Duration(milliseconds: 50), () {
                               if (mounted) {
@@ -567,12 +629,15 @@ class _PythonLevel1State extends State<PythonLevel1> {
             color: Colors.grey[300],
             child: Text(
               getPreviewCode(),
-              style: TextStyle(fontFamily: 'monospace', fontSize: 18),
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 18,
+              ),
             ),
           ),
           SizedBox(height: 20),
 
-          // SOURCE AREA - FIXED VERSION
+          // SOURCE AREA
           Wrap(
             spacing: 12,
             runSpacing: 12,
@@ -598,12 +663,10 @@ class _PythonLevel1State extends State<PythonLevel1> {
                     currentlyDraggedBlock = null;
                   });
 
-                  // If dropped outside target area, ensure it stays in source
                   if (!isAnsweredCorrectly && !details.wasAccepted) {
                     Future.delayed(Duration(milliseconds: 50), () {
                       if (mounted) {
                         setState(() {
-                          // Make sure block is still in allBlocks
                           if (!allBlocks.contains(block)) {
                             allBlocks.add(block);
                           }

@@ -163,6 +163,23 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _handleMenuSelection(String value, BuildContext context) {
+    switch (value) {
+      case 'Profile':
+        Navigator.pushNamed(context, '/profile');
+        break;
+      case 'PointsInfo':
+        _showPointsInfo(context);
+        break;
+      case 'Settings':
+      // Navigator.pushNamed(context, '/settings');
+        break;
+      case 'Logout':
+        _logout(context);
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -173,18 +190,8 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         actions: [
           PopupMenuButton<String>(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onSelected: (value) {
-              if (value == 'Profile') {
-                Navigator.pushNamed(context, '/profile');
-              } else if (value == 'Settings') {
-                // Navigator.pushNamed(context, '/settings');
-              } else if (value == 'Logout') {
-                _logout(context);
-              } else if (value == 'PointsInfo') {
-                _showPointsInfo(context);
-              }
-            },
+            icon: const Icon(Icons.menu, color: Colors.white, size: 24),
+            onSelected: (value) => _handleMenuSelection(value, context),
             itemBuilder: (context) => [
               PopupMenuItem(
                 value: 'Profile',
@@ -207,6 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   title: Text('Settings'),
                 ),
               ),
+              const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'Logout',
                 child: ListTile(

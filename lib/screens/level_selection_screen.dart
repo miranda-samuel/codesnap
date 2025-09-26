@@ -58,10 +58,14 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
             Map<String, dynamic> scoresData = response['scores'];
             scoresData.forEach((level, data) {
               int levelNum = int.tryParse(level) ?? 0;
-              if (levelNum > 0) {
+              int scoreValue = data['score'] ?? 0;
+              bool completed = data['completed'] ?? false;
+
+              // Only show levels that have been completed (score > 0)
+              if (levelNum > 0 && scoreValue > 0) {
                 scores[levelNum] = {
-                  'score': data['score'] ?? 0,
-                  'completed': data['completed'] ?? false
+                  'score': scoreValue,
+                  'completed': completed
                 };
               }
             });
@@ -78,7 +82,6 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
     }
   }
 
-  // lib/screens/level_selection_screen.dart - UPDATE THE _resetScores METHOD
   Future<void> _resetScores() async {
     if (currentUser?['id'] == null) return;
 
@@ -86,13 +89,13 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
       final response = await ApiService.resetScores(currentUser!['id'], selectedLanguage);
 
       if (response['success'] == true) {
-        // I-clear ang local scores at i-update ang UI agad
+        // Clear local scores and update UI immediately
         setState(() {
-          scores = {}; // I-clear ang local scores
+          scores = {}; // Clear local scores
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('All scores reset to 0')),
+          const SnackBar(content: Text('All scores reset successfully')),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -115,7 +118,6 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-
           IconButton(
             icon: Icon(Icons.restart_alt, color: Colors.white),
             onPressed: _resetScores,
@@ -189,21 +191,14 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                             fontFamily: 'monospace',
                           ),
                         ),
-                        // In the level_selection_screen.dart, update the subtitle part
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Score: $score/3', // This shows the actual game score (1, 2, or 3)
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                                color: score == 3 ? Colors.green :
-                                score > 0 ? Colors.orange : Colors.grey,
-                              ),
-                            ),
-
-                          ],
+                        subtitle: Text(
+                          'Score: $score/3',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: score == 3 ? Colors.green :
+                            score > 0 ? Colors.orange : Colors.grey,
+                          ),
                         ),
                         trailing: Icon(Icons.arrow_forward_ios,
                             color: isUnlocked ? Colors.teal.shade700 : Colors.grey),

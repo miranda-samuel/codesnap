@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
+import '../../services/api_service.dart';
+import '../../services/user_preferences.dart';
 
 class CppLevel1 extends StatefulWidget {
   const CppLevel1({super.key});
@@ -20,27 +22,62 @@ class _CppLevel1State extends State<CppLevel1> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 120;
+  int remainingSeconds = 90;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
+  Map<String, dynamic>? currentUser;
+
+  // Track currently dragged block
+  String? currentlyDraggedBlock;
 
   @override
   void initState() {
     super.initState();
     resetBlocks();
-    loadScoreFromPrefs();
+    _loadUserData();
+  }
+
+  void _loadUserData() async {
+    final user = await UserPreferences.getUser();
+    setState(() {
+      currentUser = user;
+    });
+    loadScoreFromDatabase();
   }
 
   void resetBlocks() {
-    // Basic C++ program blocks for Level 1
-    allBlocks = [
+    // Correct blocks for C++
+    List<String> correctBlocks = [
       '#include <iostream>',
       'using namespace std;',
-      'int main()',
-      '{',
-      'cout << "Hello, World!";',
+      'int main() {',
+      'cout << "Hello World";',
       'return 0;',
       '}',
+    ];
+
+    // Incorrect/distractor blocks for C++
+    List<String> incorrectBlocks = [
+      '#include <stdio.h>',
+      'using namespace std',
+      'void main() {',
+      'printf("Hello World")',
+      'System.out.print("Hello World")',
+      'print("Hello World")',
+      'console.log("Hello World")',
+      'return 1;',
+      'return;',
+      'end',
+    ];
+
+    // Shuffle incorrect blocks and take 3 random ones
+    incorrectBlocks.shuffle();
+    List<String> selectedIncorrectBlocks = incorrectBlocks.take(3).toList();
+
+    // Combine correct and incorrect blocks, then shuffle
+    allBlocks = [
+      ...correctBlocks,
+      ...selectedIncorrectBlocks,
     ]..shuffle();
   }
 
@@ -48,7 +85,7 @@ class _CppLevel1State extends State<CppLevel1> {
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 120;
+      remainingSeconds = 90;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       resetBlocks();
@@ -57,7 +94,6 @@ class _CppLevel1State extends State<CppLevel1> {
   }
 
   void startTimers() {
-    // Main countdown timer
     countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (isAnsweredCorrectly) {
         timer.cancel();
@@ -70,7 +106,8 @@ class _CppLevel1State extends State<CppLevel1> {
           score = 0;
           timer.cancel();
           scoreReductionTimer?.cancel();
-          saveScoreToPrefs(score);
+          // SAVE ONLY WHEN TIME'S UP (game completed)
+          saveScoreToDatabase(score);
           showDialog(
             context: context,
             builder: (_) => AlertDialog(
@@ -91,7 +128,6 @@ class _CppLevel1State extends State<CppLevel1> {
       });
     });
 
-    // Score reduction timer (every 20 seconds)
     scoreReductionTimer = Timer.periodic(Duration(seconds: 20), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
@@ -100,6 +136,7 @@ class _CppLevel1State extends State<CppLevel1> {
 
       setState(() {
         score--;
+        // DON'T save intermediate penalties
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
         );
@@ -110,7 +147,7 @@ class _CppLevel1State extends State<CppLevel1> {
   void resetGame() {
     setState(() {
       score = 3;
-      remainingSeconds = 120;
+      remainingSeconds = 90;
       gameStarted = false;
       isAnsweredCorrectly = false;
       droppedBlocks.clear();
@@ -120,49 +157,160 @@ class _CppLevel1State extends State<CppLevel1> {
     });
   }
 
-  Future<void> saveScoreToPrefs(int score) async {
-    final prefs = await SharedPreferences.getInstance();
-    // FIXED: Use consistent key format with LevelSelectionScreen
-    await prefs.setInt('C++_level1_score', score);
-    // Only mark as completed if score is perfect
-    if (score == 3) {
-      await prefs.setBool('C++_level1_completed', true);
-      setState(() {
-        level1Completed = true;
-      });
-    } else {
-      await prefs.setBool('C++_level1_completed', false);
-      setState(() {
-        level1Completed = false;
-      });
+  Future<void> saveScoreToDatabase(int score) async {
+    if (currentUser?['id'] == null) return;
+
+    try {
+      final response = await ApiService.saveScore(
+        currentUser!['id'],
+        'C++',
+        1,
+        score,
+        score == 3, // Only completed if perfect score
+      );
+
+      if (response['success'] == true) {
+        setState(() {
+          level1Completed = score == 3;
+          previousScore = score;
+          hasPreviousScore = true;
+        });
+      } else {
+        print('Failed to save score: ${response['message']}');
+      }
+    } catch (e) {
+      print('Error saving score: $e');
     }
   }
 
-  Future<void> loadScoreFromPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    // FIXED: Use consistent key format with LevelSelectionScreen
-    final savedScore = prefs.getInt('C++_level1_score');
-    final completed = prefs.getBool('C++_level1_completed') ?? false;
+  Future<void> loadScoreFromDatabase() async {
+    if (currentUser?['id'] == null) return;
 
-    setState(() {
-      if (savedScore != null) {
-        score = savedScore;
-        previousScore = savedScore;
-        hasPreviousScore = true;
+    try {
+      final response = await ApiService.getScores(currentUser!['id'], 'C++');
+
+      if (response['success'] == true && response['scores'] != null) {
+        final scoresData = response['scores'];
+        final level1Data = scoresData['1'];
+
+        if (level1Data != null) {
+          setState(() {
+            previousScore = level1Data['score'] ?? 0;
+            level1Completed = level1Data['completed'] ?? false;
+            hasPreviousScore = true;
+            score = previousScore;
+          });
+        }
       }
-      // Only show as completed if score is perfect
-      level1Completed = completed && score == 3;
-    });
+    } catch (e) {
+      print('Error loading score: $e');
+    }
+  }
+
+  Future<void> refreshScore() async {
+    if (currentUser?['id'] != null) {
+      try {
+        final response = await ApiService.getScores(currentUser!['id'], 'C++');
+        if (response['success'] == true && response['scores'] != null) {
+          final scoresData = response['scores'];
+          final level1Data = scoresData['1'];
+
+          setState(() {
+            if (level1Data != null) {
+              previousScore = level1Data['score'] ?? 0;
+              level1Completed = level1Data['completed'] ?? false;
+              hasPreviousScore = true;
+              score = previousScore;
+            } else {
+              hasPreviousScore = false;
+              previousScore = 0;
+              level1Completed = false;
+              score = 3;
+            }
+          });
+        }
+      } catch (e) {
+        print('Error refreshing score: $e');
+      }
+    }
+  }
+
+  // Check if a block is incorrect
+  bool isIncorrectBlock(String block) {
+    List<String> incorrectBlocks = [
+      '#include <stdio.h>',
+      'using namespace std',
+      'void main() {',
+      'printf("Hello World")',
+      'System.out.print("Hello World")',
+      'print("Hello World")',
+      'console.log("Hello World")',
+      'return 1;',
+      'return;',
+      'end',
+    ];
+    return incorrectBlocks.contains(block);
   }
 
   void checkAnswer() async {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
-    String answer = droppedBlocks.join(' ');
-    String normalizedAnswer = answer.replaceAll(' ', '').toLowerCase();
-    String normalizedCorrect = '#include<iostream>usingnamespacestd;intmain(){cout<<"hello,world!";return0;}'.toLowerCase();
+    // Check if any incorrect blocks are used
+    bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
-    if (normalizedAnswer == normalizedCorrect) {
+    if (hasIncorrectBlock) {
+      if (score > 1) {
+        setState(() {
+          score--;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("❌ You used incorrect C++ code! -1 point. Current score: $score"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        setState(() {
+          score = 0;
+        });
+        countdownTimer?.cancel();
+        scoreReductionTimer?.cancel();
+        // SAVE ONLY WHEN GAME IS OVER (score = 0)
+        saveScoreToDatabase(score);
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: Text("💀 Game Over"),
+            content: Text("You used incorrect C++ code and lost all points!"),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  resetGame();
+                },
+                child: Text("Retry"),
+              )
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
+    // Check if the arrangement is correct
+    String userCode = droppedBlocks.join('\n');
+    String normalizedUserCode = userCode.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+    String correctCode = """
+#include <iostream>
+using namespace std;
+int main() {
+cout << "Hello World";
+return 0;
+}
+""";
+    String normalizedCorrectCode = correctCode.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+
+    if (normalizedUserCode == normalizedCorrectCode) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -170,7 +318,8 @@ class _CppLevel1State extends State<CppLevel1> {
         isAnsweredCorrectly = true;
       });
 
-      saveScoreToPrefs(score);
+      // ONLY SAVE WHEN ANSWER IS CORRECT (GAME COMPLETED)
+      saveScoreToDatabase(score);
 
       showDialog(
         context: context,
@@ -180,18 +329,18 @@ class _CppLevel1State extends State<CppLevel1> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Great job with your first C++ program!"),
+              Text("Well done C++ Programmer!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've completed Level 1!",
+                  "🎉 Perfect! You've unlocked Level 2!",
                   style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) to mark this level as completed!",
+                  "⚠️ Get a perfect score (3/3) to unlock the next level!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
@@ -200,7 +349,7 @@ class _CppLevel1State extends State<CppLevel1> {
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  "Hello, World!",
+                  "Hello World",
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
@@ -215,10 +364,8 @@ class _CppLevel1State extends State<CppLevel1> {
               onPressed: () {
                 Navigator.pop(context);
                 if (score == 3) {
-                  // Only navigate to next level if perfect score
                   Navigator.pushReplacementNamed(context, '/cpp_level2');
                 } else {
-                  // If not perfect score, go back to level selection
                   Navigator.pushReplacementNamed(context, '/levels',
                       arguments: 'C++');
                 }
@@ -229,13 +376,13 @@ class _CppLevel1State extends State<CppLevel1> {
         ),
       );
     } else {
+      // DON'T SAVE INTERMEDIATE PENALTIES - just show message
       if (score > 1) {
         setState(() {
           score--;
         });
-        saveScoreToPrefs(score);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Incorrect. -1 point. Current score: $score")),
+          SnackBar(content: Text("❌ Incorrect arrangement. -1 point. Current score: $score")),
         );
       } else {
         setState(() {
@@ -243,7 +390,8 @@ class _CppLevel1State extends State<CppLevel1> {
         });
         countdownTimer?.cancel();
         scoreReductionTimer?.cancel();
-        saveScoreToPrefs(score);
+        // SAVE ONLY WHEN GAME IS OVER (score = 0)
+        saveScoreToDatabase(score);
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
@@ -271,7 +419,7 @@ class _CppLevel1State extends State<CppLevel1> {
   }
 
   String getPreviewCode() {
-    return droppedBlocks.join(' ');
+    return droppedBlocks.join('\n');
   }
 
   @override
@@ -285,7 +433,7 @@ class _CppLevel1State extends State<CppLevel1> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("💻 C++ - Level 1: Hello World"),
+        title: Text("⚡ C++ - Level 1"),
         backgroundColor: Colors.blue,
         actions: gameStarted
             ? [
@@ -324,7 +472,6 @@ class _CppLevel1State extends State<CppLevel1> {
           ),
           SizedBox(height: 20),
 
-          // Show different messages based on previous performance
           if (level1Completed)
             Padding(
               padding: const EdgeInsets.only(top: 10),
@@ -336,7 +483,7 @@ class _CppLevel1State extends State<CppLevel1> {
                   ),
                   SizedBox(height: 5),
                   Text(
-                    "You've mastered the basics!",
+                    "You've unlocked Level 2!",
                     style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                   ),
                 ],
@@ -353,7 +500,7 @@ class _CppLevel1State extends State<CppLevel1> {
                   ),
                   SizedBox(height: 5),
                   Text(
-                    "Try again to get a perfect score!",
+                    "Try again to get a perfect score and unlock Level 2!",
                     style: TextStyle(color: Colors.orange),
                     textAlign: TextAlign.center,
                   ),
@@ -378,23 +525,6 @@ class _CppLevel1State extends State<CppLevel1> {
                   ],
                 ),
               ),
-
-          SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
-              // FIXED: Use consistent key format with LevelSelectionScreen
-              await prefs.remove('C++_level1_score');
-              await prefs.remove('C++_level1_completed');
-              setState(() {
-                level1Completed = false;
-                hasPreviousScore = false;
-                previousScore = 0;
-                score = 3;
-              });
-            },
-            child: Text("Reset Progress"),
-          ),
         ],
       ),
     );
@@ -425,18 +555,24 @@ class _CppLevel1State extends State<CppLevel1> {
           SizedBox(height: 10),
           Text(
             isTagalog
-                ? 'Si Zeke ay nagsisimula palang matuto ng C++! Gusto niyang gumawa ng kanyang unang programa na magpi-print ng "Hello, World!". Pwede mo ba siyang tulungan?'
-                : 'Zeke is just starting to learn C++! He wants to create his first program that prints "Hello, World!". Can you help him?',
+                ? 'Si Alex ay nagsisimula matuto ng C++! Gusto niyang gumawa ng kanyang unang program na magdi-display ng "Hello World". Pwede mo ba siyang tulungan buuin ang tamang C++ code?'
+                : 'Alex is starting to learn C++! He wants to create his first program that displays "Hello World". Can you help him build the correct C++ code?',
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16),
           ),
           SizedBox(height: 20),
-          Text('🧩 Arrange the puzzle blocks to form a complete C++ program:',
+
+          Text('🧩 Arrange the puzzle blocks to form a complete C++ Hello World program:',
               style: TextStyle(fontSize: 18), textAlign: TextAlign.center),
           SizedBox(height: 20),
+
+          // TARGET AREA - FIXED OVERFLOW ISSUE
           Container(
-            height: 200,
             width: double.infinity,
+            constraints: BoxConstraints(
+              minHeight: 140,
+              maxHeight: 300, // Increased max height to accommodate multiple lines
+            ),
             padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.grey[100],
@@ -444,6 +580,9 @@ class _CppLevel1State extends State<CppLevel1> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: DragTarget<String>(
+              onWillAccept: (data) {
+                return !droppedBlocks.contains(data);
+              },
               onAccept: (data) {
                 if (!isAnsweredCorrectly) {
                   setState(() {
@@ -453,25 +592,47 @@ class _CppLevel1State extends State<CppLevel1> {
                 }
               },
               builder: (context, candidateData, rejectedData) {
-                return Center(
+                return droppedBlocks.isEmpty
+                    ? Center(
+                  child: Text(
+                    'Drag C++ code blocks here...',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                )
+                    : SingleChildScrollView( // Added ScrollView to prevent overflow
                   child: Wrap(
                     alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: droppedBlocks.map((block) {
                       return Draggable<String>(
                         data: block,
                         feedback: puzzleBlock(block, Colors.greenAccent),
-                        childWhenDragging: Opacity(
-                          opacity: 0.4,
-                          child: puzzleBlock(block, Colors.greenAccent),
-                        ),
+                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
                         child: puzzleBlock(block, Colors.greenAccent),
-                        onDraggableCanceled: (velocity, offset) {
-                          if (!isAnsweredCorrectly) {
-                            setState(() {
-                              if (!allBlocks.contains(block)) {
-                                allBlocks.add(block);
+                        onDragStarted: () {
+                          setState(() {
+                            currentlyDraggedBlock = block;
+                          });
+                        },
+                        onDragEnd: (details) {
+                          setState(() {
+                            currentlyDraggedBlock = null;
+                          });
+
+                          if (!isAnsweredCorrectly && !details.wasAccepted) {
+                            Future.delayed(Duration(milliseconds: 50), () {
+                              if (mounted) {
+                                setState(() {
+                                  if (!allBlocks.contains(block)) {
+                                    allBlocks.add(block);
+                                  }
+                                  droppedBlocks.remove(block);
+                                });
                               }
-                              droppedBlocks.remove(block);
                             });
                           }
                         },
@@ -482,19 +643,27 @@ class _CppLevel1State extends State<CppLevel1> {
               },
             ),
           ),
+
           SizedBox(height: 20),
           Text('📝 Preview:', style: TextStyle(fontWeight: FontWeight.bold)),
           Container(
             padding: EdgeInsets.all(10),
             width: double.infinity,
+            height: 120,
             color: Colors.grey[300],
-            child: Text(
-              getPreviewCode(),
-              style: TextStyle(fontFamily: 'monospace', fontSize: 16),
+            child: SingleChildScrollView(
+              child: Text(
+                getPreviewCode(),
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 14,
+                ),
+              ),
             ),
           ),
           SizedBox(height: 20),
-          // Source area for blocks
+
+          // SOURCE AREA
           Wrap(
             spacing: 12,
             runSpacing: 12,
@@ -506,17 +675,41 @@ class _CppLevel1State extends State<CppLevel1> {
                 data: block,
                 feedback: puzzleBlock(block, Colors.blueAccent),
                 childWhenDragging: Opacity(
-                    opacity: 0.4,
-                    child: puzzleBlock(block, Colors.blueAccent)),
+                  opacity: 0.4,
+                  child: puzzleBlock(block, Colors.blueAccent),
+                ),
                 child: puzzleBlock(block, Colors.blueAccent),
+                onDragStarted: () {
+                  setState(() {
+                    currentlyDraggedBlock = block;
+                  });
+                },
+                onDragEnd: (details) {
+                  setState(() {
+                    currentlyDraggedBlock = null;
+                  });
+
+                  if (!isAnsweredCorrectly && !details.wasAccepted) {
+                    Future.delayed(Duration(milliseconds: 50), () {
+                      if (mounted) {
+                        setState(() {
+                          if (!allBlocks.contains(block)) {
+                            allBlocks.add(block);
+                          }
+                        });
+                      }
+                    });
+                  }
+                },
               );
             }).toList(),
           ),
+
           SizedBox(height: 30),
           ElevatedButton.icon(
             onPressed: isAnsweredCorrectly ? null : checkAnswer,
             icon: Icon(Icons.play_arrow),
-            label: Text("Run Code"),
+            label: Text("Compile & Run"),
           ),
           TextButton(
             onPressed: resetGame,
@@ -529,13 +722,13 @@ class _CppLevel1State extends State<CppLevel1> {
 
   Widget puzzleBlock(String text, Color color) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      margin: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
+          topLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
         ),
         border: Border.all(color: Colors.black45, width: 1.5),
         boxShadow: [
@@ -553,6 +746,7 @@ class _CppLevel1State extends State<CppLevel1> {
           fontFamily: 'monospace',
           fontSize: 14,
         ),
+        textAlign: TextAlign.center,
       ),
     );
   }
