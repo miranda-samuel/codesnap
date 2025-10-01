@@ -46,27 +46,16 @@ class _CppLevel1State extends State<CppLevel1> {
   }
 
   void resetBlocks() {
-    // Correct blocks for C++ Hello World
+    // Simple blocks for C++ cout << "Hello World";
     List<String> correctBlocks = [
-      '#include <iostream>',
-      'using namespace std;',
-      'int main()',
-      '{',
       'cout',
       '<<',
       '"Hello World"',
-      ';',
-      'return 0;',
-      '}'
+      ';'
     ];
 
-    // Incorrect/distractor blocks for C++
+    // Incorrect/distractor blocks
     List<String> incorrectBlocks = [
-      '#include <stdio.h>',
-      '#include <iostream.h>',
-      'using namespace std',
-      'void main()',
-      'main()',
       'printf',
       'cout >>',
       '<<<',
@@ -74,18 +63,16 @@ class _CppLevel1State extends State<CppLevel1> {
       'System.out.print',
       '"Hello"',
       '"Hi World"',
-      'return 1;',
-      'end',
-      '}',
-      '{',
-      'endl',
-      'cin',
+      'print',
+      'Console.WriteLine',
       'std::cout',
+      'cin',
+      'endl',
     ];
 
-    // Shuffle incorrect blocks and take 5 random ones
+    // Shuffle incorrect blocks and take 3 random ones
     incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(5).toList();
+    List<String> selectedIncorrectBlocks = incorrectBlocks.take(3).toList();
 
     // Combine correct and incorrect blocks, then shuffle
     allBlocks = [
@@ -249,11 +236,6 @@ class _CppLevel1State extends State<CppLevel1> {
   // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
-      '#include <stdio.h>',
-      '#include <iostream.h>',
-      'using namespace std',
-      'void main()',
-      'main()',
       'printf',
       'cout >>',
       '<<<',
@@ -261,11 +243,11 @@ class _CppLevel1State extends State<CppLevel1> {
       'System.out.print',
       '"Hello"',
       '"Hi World"',
-      'return 1;',
-      'end',
-      'endl',
-      'cin',
+      'print',
+      'Console.WriteLine',
       'std::cout',
+      'cin',
+      'endl',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -314,24 +296,17 @@ class _CppLevel1State extends State<CppLevel1> {
       return;
     }
 
-    // For C++, we need to check the logical structure rather than exact string match
-    // since there can be variations in formatting
+    // Simple check for: cout << "Hello World";
     String answer = droppedBlocks.join(' ');
     String normalizedAnswer = answer
         .replaceAll(' ', '')
         .replaceAll('\n', '')
         .toLowerCase();
 
-    // Expected structure variations
-    String expected1 = '#include<iostream>usingnamespacestd;intmain(){cout<<"helloworld";return0;}';
-    String expected2 = '#include<iostream>usingnamespacestd;intmain(){cout<<"helloworld";return0;}';
+    // Exact match for the simple version
+    String expected = 'cout<<"helloworld";';
 
-    if (normalizedAnswer.contains('include<iostream>') &&
-        normalizedAnswer.contains('usingnamespacestd') &&
-        normalizedAnswer.contains('intmain') &&
-        normalizedAnswer.contains('cout<<"helloworld"') &&
-        normalizedAnswer.contains('return0')) {
-
+    if (normalizedAnswer == expected) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -378,15 +353,15 @@ class _CppLevel1State extends State<CppLevel1> {
                 ),
               ),
               SizedBox(height: 10),
-              Text("Complete Code:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("Your Code:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.blue[50],
                 child: Text(
-                  getFormattedCode(),
+                  getPreviewCode(),
                   style: TextStyle(
                     fontFamily: 'monospace',
-                    fontSize: 12,
+                    fontSize: 14,
                   ),
                 ),
               ),
@@ -443,28 +418,160 @@ class _CppLevel1State extends State<CppLevel1> {
     }
   }
 
-  String getFormattedCode() {
-    // Format the code with proper indentation for display
-    List<String> formatted = [];
-    for (int i = 0; i < droppedBlocks.length; i++) {
-      String block = droppedBlocks[i];
-      if (block == '{') {
-        formatted.add(block);
-      } else if (block == '}') {
-        formatted.add('  $block');
-      } else if (block.startsWith('cout') || block.startsWith('return')) {
-        formatted.add('  $block');
-      } else {
-        formatted.add(block);
-      }
-    }
-    return formatted.join('\n');
-  }
-
   String formatTime(int seconds) {
     final m = (seconds ~/ 60).toString().padLeft(2, '0');
     final s = (seconds % 60).toString().padLeft(2, '0');
     return "$m:$s";
+  }
+
+  // BAGONG PREVIEW NA MAY CODE EDITOR STYLE
+  Widget getCodePreview() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Color(0xFF1E1E1E), // Dark background like VS Code
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[700]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Code editor header
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Color(0xFF2D2D2D),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(8),
+                topRight: Radius.circular(8),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.code, color: Colors.grey[400], size: 16),
+                SizedBox(width: 8),
+                Text(
+                  'main.cpp',
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 12,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Code content
+          Container(
+            padding: EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Line numbers and code
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Line numbers
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        _buildCodeLine(1, '#include <iostream>'),
+                        _buildCodeLine(2, 'using namespace std;'),
+                        _buildCodeLine(3, ''),
+                        _buildCodeLine(4, 'int main() {'),
+                        _buildCodeLine(5, '    ' + getPreviewCode()),
+                        _buildCodeLine(6, '    return 0;'),
+                        _buildCodeLine(7, '}'),
+                      ],
+                    ),
+                    SizedBox(width: 16),
+                    // Actual code with syntax highlighting
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSyntaxHighlightedLine('#include <iostream>', isPreprocessor: true),
+                          _buildSyntaxHighlightedLine('using namespace std;', isKeyword: true),
+                          SizedBox(height: 8),
+                          _buildSyntaxHighlightedLine('int main() {', isKeyword: true),
+                          _buildSyntaxHighlightedLine('    ' + getPreviewCode(), isNormal: true),
+                          _buildSyntaxHighlightedLine('    return 0;', isKeyword: true),
+                          _buildSyntaxHighlightedLine('}', isNormal: true),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCodeLine(int lineNumber, String code) {
+    return Container(
+      height: 20,
+      child: Text(
+        lineNumber.toString().padLeft(2, ' '),
+        style: TextStyle(
+          color: Colors.grey[600],
+          fontSize: 12,
+          fontFamily: 'monospace',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSyntaxHighlightedLine(String code, {bool isPreprocessor = false, bool isKeyword = false, bool isNormal = false}) {
+    Color textColor = Colors.white; // Default color
+
+    if (isPreprocessor) {
+      textColor = Color(0xFFCE9178); // Orange for preprocessor
+    } else if (isKeyword) {
+      textColor = Color(0xFF569CD6); // Blue for keywords
+    } else if (isNormal) {
+      textColor = Colors.white; // White for normal code
+    }
+
+    // Highlight the user's code in green
+    if (isNormal && code.contains(getPreviewCode()) && getPreviewCode().isNotEmpty) {
+      return Container(
+        height: 20,
+        child: RichText(
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: '    ', // Indentation
+                style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12),
+              ),
+              TextSpan(
+                text: getPreviewCode(),
+                style: TextStyle(
+                  color: Colors.greenAccent[400],
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 20,
+      child: Text(
+        code,
+        style: TextStyle(
+          color: textColor,
+          fontSize: 12,
+          fontFamily: 'monospace',
+        ),
+      ),
+    );
   }
 
   String getPreviewCode() {
@@ -593,10 +700,22 @@ class _CppLevel1State extends State<CppLevel1> {
                 ),
                 SizedBox(height: 10),
                 Text(
-                  "Create a complete C++ program that outputs 'Hello World' to the console. "
-                      "You'll need to include the necessary headers and main function structure.",
+                  "Arrange the code blocks to create: cout << \"Hello World\";",
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 14, color: Colors.blue[700]),
+                ),
+                SizedBox(height: 10),
+                Container(
+                  padding: EdgeInsets.all(10),
+                  color: Colors.black,
+                  child: Text(
+                    "cout << \"Hello World\";",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'monospace',
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -638,21 +757,21 @@ class _CppLevel1State extends State<CppLevel1> {
           SizedBox(height: 10),
           Text(
             isTagalog
-                ? 'Si Alex ay baguhan sa C++ programming! Kailangan niyang gumawa ng kanyang unang program na magdi-display ng "Hello World". Tulungan mo siyang buuin ang tamang C++ code!'
-                : 'Alex is new to C++ programming! He needs to create his first program that displays "Hello World". Help him build the correct C++ code!',
+                ? 'Si Alex ay baguhan sa C++ programming! Kailangan niyang gumamit ng cout para mag-display ng "Hello World". Tulungan mo siyang buuin ang tamang code!'
+                : 'Alex is new to C++ programming! He needs to use cout to display "Hello World". Help him build the correct code!',
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: isSmallScreen ? 14 : 16),
           ),
           SizedBox(height: 20),
 
-          Text('🧩 Arrange the blocks to form a complete C++ Hello World program:',
+          Text('🧩 Arrange the blocks to form: cout << "Hello World";',
               style: TextStyle(fontSize: isSmallScreen ? 16 : 18),
               textAlign: TextAlign.center),
           SizedBox(height: 20),
 
           // TARGET AREA
           Container(
-            height: isSmallScreen ? 180 : 200,
+            height: isSmallScreen ? 120 : 140,
             width: double.infinity,
             padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
             decoration: BoxDecoration(
@@ -716,22 +835,10 @@ class _CppLevel1State extends State<CppLevel1> {
           ),
 
           SizedBox(height: 20),
-          Text('📝 Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: isSmallScreen ? 16 : 18)),
-          Container(
-            padding: EdgeInsets.all(isSmallScreen ? 8 : 10),
-            width: double.infinity,
-            color: Colors.grey[300],
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Text(
-                getPreviewCode(),
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: isSmallScreen ? 14 : 16,
-                ),
-              ),
-            ),
-          ),
+          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: isSmallScreen ? 16 : 18)),
+          SizedBox(height: 10),
+          // BAGONG CODE PREVIEW NA MAY EDITOR STYLE
+          getCodePreview(),
           SizedBox(height: 20),
 
           // SOURCE AREA
@@ -799,18 +906,9 @@ class _CppLevel1State extends State<CppLevel1> {
   }
 
   Widget puzzleBlock(String text, Color color, bool isSmallScreen, bool isMediumScreen) {
-    double fontSize = isSmallScreen ? 10 : (isMediumScreen ? 12 : 14);
-    double horizontalPadding = isSmallScreen ? 10 : 14;
-    double verticalPadding = isSmallScreen ? 6 : 10;
-
-    // Adjust for longer C++ code blocks
-    if (text.length > 15) {
-      fontSize = isSmallScreen ? 8 : (isMediumScreen ? 10 : 12);
-      horizontalPadding = isSmallScreen ? 6 : 8;
-    } else if (text.length > 10) {
-      fontSize = isSmallScreen ? 9 : (isMediumScreen ? 11 : 13);
-      horizontalPadding = isSmallScreen ? 8 : 10;
-    }
+    double fontSize = isSmallScreen ? 12 : (isMediumScreen ? 14 : 16);
+    double horizontalPadding = isSmallScreen ? 12 : 16;
+    double verticalPadding = isSmallScreen ? 8 : 12;
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: isSmallScreen ? 2 : 3),
@@ -841,8 +939,6 @@ class _CppLevel1State extends State<CppLevel1> {
           fontSize: fontSize,
         ),
         textAlign: TextAlign.center,
-        softWrap: false,
-        overflow: TextOverflow.fade,
       ),
     );
   }

@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = "http://192.168.56.1/codesnap"; // For Android emulator
+  static const String baseUrl = "http://192.168.100.92/codesnap"; // For Android emulator
   // static const String baseUrl = "http://localhost/codesnap"; // For iOS simulator
 
   // Helper methods for safe type conversion

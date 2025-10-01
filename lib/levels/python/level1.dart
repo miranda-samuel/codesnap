@@ -46,11 +46,12 @@ class _PythonLevel1State extends State<PythonLevel1> {
   }
 
   void resetBlocks() {
-    // Correct blocks
+    // Simple blocks for Python Hello World - print("Hello World")
     List<String> correctBlocks = [
       'print',
-      '("Hello World")',
-      ';',
+      '(',
+      '"Hello World"',
+      ')',
     ];
 
     // Incorrect/distractor blocks
@@ -67,6 +68,9 @@ class _PythonLevel1State extends State<PythonLevel1> {
       'console.log',
       'puts',
       'write',
+      'print(',
+      'print()',
+      'println',
     ];
 
     // Shuffle incorrect blocks and take 3 random ones
@@ -105,7 +109,6 @@ class _PythonLevel1State extends State<PythonLevel1> {
           score = 0;
           timer.cancel();
           scoreReductionTimer?.cancel();
-          // SAVE ONLY WHEN TIME'S UP (game completed)
           saveScoreToDatabase(score);
           showDialog(
             context: context,
@@ -135,7 +138,6 @@ class _PythonLevel1State extends State<PythonLevel1> {
 
       setState(() {
         score--;
-        // DON'T save intermediate penalties
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
         );
@@ -249,6 +251,9 @@ class _PythonLevel1State extends State<PythonLevel1> {
       'console.log',
       'puts',
       'write',
+      'print(',
+      'print()',
+      'println',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -276,7 +281,6 @@ class _PythonLevel1State extends State<PythonLevel1> {
         });
         countdownTimer?.cancel();
         scoreReductionTimer?.cancel();
-        // SAVE ONLY WHEN GAME IS OVER (score = 0)
         saveScoreToDatabase(score);
         showDialog(
           context: context,
@@ -298,11 +302,17 @@ class _PythonLevel1State extends State<PythonLevel1> {
       return;
     }
 
+    // Simple check for: print("Hello World")
     String answer = droppedBlocks.join(' ');
-    String normalizedAnswer = answer.replaceAll(' ', '').toLowerCase();
-    String normalizedCorrect = 'print("HelloWorld");'.toLowerCase();
+    String normalizedAnswer = answer
+        .replaceAll(' ', '')
+        .replaceAll('\n', '')
+        .toLowerCase();
 
-    if (normalizedAnswer == normalizedCorrect) {
+    // Exact match for the simple version (Python doesn't need semicolon)
+    String expected = 'print("helloworld")';
+
+    if (normalizedAnswer == expected) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -310,7 +320,6 @@ class _PythonLevel1State extends State<PythonLevel1> {
         isAnsweredCorrectly = true;
       });
 
-      // ONLY SAVE WHEN ANSWER IS CORRECT (GAME COMPLETED)
       saveScoreToDatabase(score);
 
       showDialog(
@@ -349,6 +358,19 @@ class _PythonLevel1State extends State<PythonLevel1> {
                   ),
                 ),
               ),
+              SizedBox(height: 10),
+              Text("Your Code:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Container(
+                padding: EdgeInsets.all(10),
+                color: Colors.teal[50],
+                child: Text(
+                  getPreviewCode(),
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 14,
+                  ),
+                ),
+              ),
             ],
           ),
           actions: [
@@ -368,7 +390,6 @@ class _PythonLevel1State extends State<PythonLevel1> {
         ),
       );
     } else {
-      // DON'T SAVE INTERMEDIATE PENALTIES - just show message
       if (score > 1) {
         setState(() {
           score--;
@@ -382,7 +403,6 @@ class _PythonLevel1State extends State<PythonLevel1> {
         });
         countdownTimer?.cancel();
         scoreReductionTimer?.cancel();
-        // SAVE ONLY WHEN GAME IS OVER (score = 0)
         saveScoreToDatabase(score);
         showDialog(
           context: context,
@@ -408,6 +428,132 @@ class _PythonLevel1State extends State<PythonLevel1> {
     final m = (seconds ~/ 60).toString().padLeft(2, '0');
     final s = (seconds % 60).toString().padLeft(2, '0');
     return "$m:$s";
+  }
+
+  // BAGONG PREVIEW NA MAY CODE EDITOR STYLE (PYTHON VERSION)
+  Widget getCodePreview() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Color(0xFF1E1E1E), // Dark background like VS Code
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[700]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Code editor header
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Color(0xFF2D2D2D),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(8),
+                topRight: Radius.circular(8),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.code, color: Colors.grey[400], size: 16),
+                SizedBox(width: 8),
+                Text(
+                  'hello_world.py',
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 12,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Code content
+          Container(
+            padding: EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Line numbers and code
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Line numbers
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        _buildCodeLine(1, getPreviewCode()),
+                        _buildCodeLine(2, ''),
+                      ],
+                    ),
+                    SizedBox(width: 16),
+                    // Actual code with syntax highlighting
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildUserCodeLine(getPreviewCode()),
+                          SizedBox(height: 8),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCodeLine(int lineNumber, String code) {
+    return Container(
+      height: 20,
+      child: Text(
+        lineNumber.toString().padLeft(2, ' '),
+        style: TextStyle(
+          color: Colors.grey[600],
+          fontSize: 12,
+          fontFamily: 'monospace',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserCodeLine(String code) {
+    // Highlight the user's code in green
+    if (getPreviewCode().isNotEmpty) {
+      return Container(
+        height: 20,
+        child: RichText(
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: getPreviewCode(),
+                style: TextStyle(
+                  color: Colors.greenAccent[400],
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 20,
+      child: Text(
+        code,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontFamily: 'monospace',
+        ),
+      ),
+    );
   }
 
   String getPreviewCode() {
@@ -458,9 +604,10 @@ class _PythonLevel1State extends State<PythonLevel1> {
           ElevatedButton.icon(
             onPressed: startGame,
             icon: Icon(Icons.play_arrow),
-            label: Text("Start Coding"),
+            label: Text("Start Game"),
             style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                backgroundColor: Colors.teal),
           ),
           SizedBox(height: 20),
 
@@ -488,12 +635,12 @@ class _PythonLevel1State extends State<PythonLevel1> {
                 children: [
                   Text(
                     "📊 Your previous score: $previousScore/3",
-                    style: TextStyle(color: Colors.blue, fontSize: 16),
+                    style: TextStyle(color: Colors.teal, fontSize: 16),
                   ),
                   SizedBox(height: 5),
                   Text(
                     "Try again to get a perfect score and unlock Level 2!",
-                    style: TextStyle(color: Colors.orange),
+                    style: TextStyle(color: Colors.teal),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -511,12 +658,50 @@ class _PythonLevel1State extends State<PythonLevel1> {
                     SizedBox(height: 5),
                     Text(
                       "Don't give up! You can do better this time!",
-                      style: TextStyle(color: Colors.orange),
+                      style: TextStyle(color: Colors.teal),
                       textAlign: TextAlign.center,
                     ),
                   ],
                 ),
               ),
+
+          SizedBox(height: 30),
+          Container(
+            padding: EdgeInsets.all(16),
+            margin: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.teal[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.teal[200]!),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  "🎯 Level 1 Objective",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal[800]),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "Arrange the code blocks to create: print(\"Hello World\")",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.teal[700]),
+                ),
+                SizedBox(height: 10),
+                Container(
+                  padding: EdgeInsets.all(10),
+                  color: Colors.black,
+                  child: Text(
+                    "print(\"Hello World\")",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'monospace',
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -561,7 +746,7 @@ class _PythonLevel1State extends State<PythonLevel1> {
           ),
           SizedBox(height: 20),
 
-          Text('🧩 Arrange the puzzle blocks to form: print("Hello World");',
+          Text('🧩 Arrange the blocks to form: print("Hello World")',
               style: TextStyle(fontSize: isSmallScreen ? 16 : 18),
               textAlign: TextAlign.center),
           SizedBox(height: 20),
@@ -573,7 +758,7 @@ class _PythonLevel1State extends State<PythonLevel1> {
             padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
             decoration: BoxDecoration(
               color: Colors.grey[100],
-              border: Border.all(color: Colors.blueGrey, width: 2.5),
+              border: Border.all(color: Colors.teal, width: 2.5),
               borderRadius: BorderRadius.circular(20),
             ),
             child: DragTarget<String>(
@@ -632,24 +817,15 @@ class _PythonLevel1State extends State<PythonLevel1> {
           ),
 
           SizedBox(height: 20),
-          Text('📝 Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: isSmallScreen ? 16 : 18)),
-          Container(
-            padding: EdgeInsets.all(isSmallScreen ? 8 : 10),
-            width: double.infinity,
-            color: Colors.grey[300],
-            child: Text(
-              getPreviewCode(),
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: isSmallScreen ? 16 : 18,
-              ),
-            ),
-          ),
+          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: isSmallScreen ? 16 : 18)),
+          SizedBox(height: 10),
+          // BAGONG CODE PREVIEW NA MAY EDITOR STYLE
+          getCodePreview(),
           SizedBox(height: 20),
 
           // SOURCE AREA
           Wrap(
-            spacing: isSmallScreen ? 8 : 12,
+            spacing: isSmallScreen ? 6 : 10,
             runSpacing: isSmallScreen ? 8 : 12,
             alignment: WrapAlignment.center,
             children: allBlocks.map((block) {
@@ -657,12 +833,12 @@ class _PythonLevel1State extends State<PythonLevel1> {
                   ? puzzleBlock(block, Colors.grey, isSmallScreen, isMediumScreen)
                   : Draggable<String>(
                 data: block,
-                feedback: puzzleBlock(block, Colors.blueAccent, isSmallScreen, isMediumScreen),
+                feedback: puzzleBlock(block, Colors.tealAccent, isSmallScreen, isMediumScreen),
                 childWhenDragging: Opacity(
                   opacity: 0.4,
-                  child: puzzleBlock(block, Colors.blueAccent, isSmallScreen, isMediumScreen),
+                  child: puzzleBlock(block, Colors.tealAccent, isSmallScreen, isMediumScreen),
                 ),
-                child: puzzleBlock(block, Colors.blueAccent, isSmallScreen, isMediumScreen),
+                child: puzzleBlock(block, Colors.tealAccent, isSmallScreen, isMediumScreen),
                 onDragStarted: () {
                   setState(() {
                     currentlyDraggedBlock = block;
@@ -695,6 +871,7 @@ class _PythonLevel1State extends State<PythonLevel1> {
             icon: Icon(Icons.play_arrow),
             label: Text("Run Code", style: TextStyle(fontSize: isSmallScreen ? 14 : 16)),
             style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.teal,
               padding: EdgeInsets.symmetric(
                 horizontal: isSmallScreen ? 20 : 24,
                 vertical: isSmallScreen ? 12 : 16,
@@ -711,24 +888,12 @@ class _PythonLevel1State extends State<PythonLevel1> {
   }
 
   Widget puzzleBlock(String text, Color color, bool isSmallScreen, bool isMediumScreen) {
-    // Calculate responsive font size based on screen size
     double fontSize = isSmallScreen ? 12 : (isMediumScreen ? 14 : 16);
-
-    // Calculate responsive padding based on text length and screen size
     double horizontalPadding = isSmallScreen ? 12 : 16;
     double verticalPadding = isSmallScreen ? 8 : 12;
 
-    // Adjust padding for longer text blocks
-    if (text.length > 10) {
-      horizontalPadding = isSmallScreen ? 8 : 12;
-      fontSize = isSmallScreen ? 10 : (isMediumScreen ? 12 : 14);
-    } else if (text.length > 15) {
-      horizontalPadding = isSmallScreen ? 6 : 8;
-      fontSize = isSmallScreen ? 9 : (isMediumScreen ? 11 : 13);
-    }
-
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: isSmallScreen ? 2 : 4),
+      margin: EdgeInsets.symmetric(horizontal: isSmallScreen ? 2 : 3),
       padding: EdgeInsets.symmetric(
         horizontal: horizontalPadding,
         vertical: verticalPadding,
@@ -736,8 +901,8 @@ class _PythonLevel1State extends State<PythonLevel1> {
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(isSmallScreen ? 20 : 30),
-          bottomRight: Radius.circular(isSmallScreen ? 20 : 30),
+          topLeft: Radius.circular(isSmallScreen ? 15 : 20),
+          bottomRight: Radius.circular(isSmallScreen ? 15 : 20),
         ),
         border: Border.all(color: Colors.black45, width: isSmallScreen ? 1.0 : 1.5),
         boxShadow: [
@@ -756,8 +921,6 @@ class _PythonLevel1State extends State<PythonLevel1> {
           fontSize: fontSize,
         ),
         textAlign: TextAlign.center,
-        softWrap: false,
-        overflow: TextOverflow.fade,
       ),
     );
   }
