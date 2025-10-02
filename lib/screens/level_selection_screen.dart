@@ -112,191 +112,351 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      backgroundColor: Color(0xFF0D1B2A),
       appBar: AppBar(
-        title: Text('Select Level: $selectedLanguage'),
-        backgroundColor: Colors.transparent,
+        title: Text(
+          '$selectedLanguage - SELECT LEVEL',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'monospace',
+            fontSize: 18,
+          ),
+        ),
+        backgroundColor: Color(0xFF1B263B),
         elevation: 0,
+        centerTitle: true,
+        iconTheme: IconThemeData(color: Colors.tealAccent),
         actions: [
           IconButton(
-            icon: Icon(Icons.restart_alt, color: Colors.white),
+            icon: Icon(Icons.restart_alt, color: Colors.tealAccent),
             onPressed: _resetScores,
             tooltip: 'Reset All Scores',
           ),
         ],
       ),
-      body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: Stack(
-          children: [
-            // Background
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.teal.shade100, Colors.blueGrey.shade100],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-            ),
-
-            // Decorative elements
-            Positioned(
-              top: -80,
-              left: -40,
-              child: Container(
-                width: 200,
-                height: 200,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF0D1B2A),
+              Color(0xFF1B263B),
+              Color(0xFF415A77),
+            ],
+          ),
+        ),
+        child: _isLoading
+            ? Center(
+          child: CircularProgressIndicator(
+            color: Colors.tealAccent,
+          ),
+        )
+            : Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Container(
+                padding: EdgeInsets.all(16),
+                margin: EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
-                  color: Colors.teal.withOpacity(0.2),
-                  shape: BoxShape.circle,
+                  color: Color(0xFF1B263B).withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
                 ),
-              ),
-            ),
-            Positioned(
-              bottom: -50,
-              right: -30,
-              child: Container(
-                width: 180,
-                height: 180,
-                decoration: BoxDecoration(
-                  color: Colors.teal.withOpacity(0.15),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-
-            // Content
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 100),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    const Text(
-                      'Your Levels',
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+                    Icon(Icons.code, color: Colors.tealAccent, size: 32),
+                    SizedBox(width: 12),
                     Expanded(
-                      child: _isLoading
-                          ? Center(child: CircularProgressIndicator(color: Colors.teal))
-                          : ListView.builder(
-                        itemCount: levels.length,
-                        itemBuilder: (context, index) {
-                          final levelNumber = index + 1;
-                          final levelData = scores[levelNumber] ?? {'score': 0, 'completed': false};
-                          final score = levelData['score'];
-                          final isCompleted = levelData['completed'];
-
-                          bool isUnlocked = true;
-                          if (index > 0) {
-                            final prevLevelData = scores[index] ?? {'score': 0, 'completed': false};
-                            final prevCompleted = prevLevelData['completed'];
-                            if (!prevCompleted || prevLevelData['score'] < 3) {
-                              isUnlocked = false;
-                            }
-                          }
-
-                          return Opacity(
-                            opacity: isUnlocked ? 1.0 : 0.5,
-                            child: Card(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              elevation: 8,
-                              margin: const EdgeInsets.symmetric(vertical: 10),
-                              color: Colors.white.withOpacity(0.95),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: isCompleted
-                                      ? Colors.green.shade100
-                                      : isUnlocked
-                                      ? Colors.teal.shade100
-                                      : Colors.grey.shade100,
-                                  child: Icon(
-                                    isCompleted ? Icons.check_circle :
-                                    isUnlocked ? Icons.videogame_asset : Icons.lock,
-                                    color: isCompleted ? Colors.green :
-                                    isUnlocked ? Colors.teal.shade700 : Colors.grey,
-                                  ),
-                                ),
-                                title: Text(
-                                  levels[index],
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: 'monospace',
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  'Score: $score/3',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w400,
-                                    color: score == 3 ? Colors.green :
-                                    score > 0 ? Colors.orange : Colors.grey,
-                                  ),
-                                ),
-                                trailing: Icon(Icons.arrow_forward_ios,
-                                    color: isUnlocked ? Colors.teal.shade700 : Colors.grey),
-                                onTap: () {
-                                  if (!isUnlocked) {
-                                    showDialog(
-                                      context: context,
-                                      builder: (_) => AlertDialog(
-                                        title: const Text("🔒 Level Locked"),
-                                        content: Text(
-                                            "You need to complete ${levels[index - 1]} with a perfect score to unlock this level."),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(context),
-                                            child: const Text("OK"),
-                                          )
-                                        ],
-                                      ),
-                                    );
-                                    return;
-                                  }
-
-                                  String route = '';
-                                  switch (selectedLanguage) {
-                                    case 'Python':
-                                      route = '/python_level${index + 1}';
-                                      break;
-                                    case 'Java':
-                                      route = '/java_level${index + 1}';
-                                      break;
-                                    case 'C++':
-                                      route = '/cpp_level${index + 1}';
-                                      break;
-                                    case 'PHP':
-                                      route = '/php_level${index + 1}';
-                                      break;
-                                    case 'SQL':
-                                      route = '/sql_level${index + 1}';
-                                      break;
-                                  }
-
-                                  Navigator.pushNamed(context, route);
-                                },
-                              ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'CODE QUEST',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'monospace',
                             ),
-                          );
-                        },
+                          ),
+                          Text(
+                            'Complete levels to master $selectedLanguage',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
+
+              // Levels Grid
+              Expanded(
+                child: GridView.builder(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.2,
+                  ),
+                  itemCount: levels.length,
+                  itemBuilder: (context, index) {
+                    final levelNumber = index + 1;
+                    final levelData = scores[levelNumber] ?? {'score': 0, 'completed': false};
+                    final score = levelData['score'];
+                    final isCompleted = levelData['completed'];
+
+                    bool isUnlocked = levelNumber == 1 ||
+                        (scores[levelNumber - 1]?['completed'] == true &&
+                            scores[levelNumber - 1]?['score'] == 3);
+
+                    return _buildLevelCard(
+                      levelNumber: levelNumber,
+                      title: levels[index],
+                      score: score,
+                      isCompleted: isCompleted,
+                      isUnlocked: isUnlocked,
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLevelCard({
+    required int levelNumber,
+    required String title,
+    required int score,
+    required bool isCompleted,
+    required bool isUnlocked,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        if (!isUnlocked) {
+          _showLockedDialog(levelNumber);
+          return;
+        }
+
+        String route = '';
+        switch (selectedLanguage) {
+          case 'Python':
+            route = '/python_level$levelNumber';
+            break;
+          case 'Java':
+            route = '/java_level$levelNumber';
+            break;
+          case 'C++':
+            route = '/cpp_level$levelNumber';
+            break;
+          case 'PHP':
+            route = '/php_level$levelNumber';
+            break;
+          case 'SQL':
+            route = '/sql_level$levelNumber';
+            break;
+        }
+
+        Navigator.pushNamed(context, route);
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isUnlocked
+                ? [
+              Color(0xFF415A77).withOpacity(0.8),
+              Color(0xFF1B263B).withOpacity(0.8),
+            ]
+                : [
+              Colors.grey.withOpacity(0.3),
+              Colors.grey.withOpacity(0.1),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isCompleted
+                ? Colors.greenAccent.withOpacity(0.6)
+                : isUnlocked
+                ? Colors.tealAccent.withOpacity(0.4)
+                : Colors.grey.withOpacity(0.3),
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+            if (isUnlocked)
+              BoxShadow(
+                color: Colors.tealAccent.withOpacity(0.2),
+                blurRadius: 15,
+                spreadRadius: 1,
+              ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            // Background Pattern
+            Positioned(
+              right: 8,
+              top: 8,
+              child: Icon(
+                Icons.code,
+                size: 40,
+                color: Colors.white.withOpacity(0.1),
+              ),
+            ),
+
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Level Number
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isUnlocked ? Colors.tealAccent : Colors.grey,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'LVL $levelNumber',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                      if (!isUnlocked)
+                        Icon(Icons.lock, color: Colors.white54, size: 20),
+                      if (isCompleted)
+                        Icon(Icons.verified, color: Colors.greenAccent, size: 20),
+                    ],
+                  ),
+
+                  // Level Title
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: isUnlocked ? Colors.white : Colors.white54,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+
+                  // Score and Status
+                  Row(
+                    children: [
+                      if (score > 0) ...[
+                        Icon(Icons.star, color: Colors.amber, size: 16),
+                        SizedBox(width: 4),
+                        Text(
+                          '$score/3',
+                          style: TextStyle(
+                            color: Colors.amber,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Spacer(),
+                      ],
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isCompleted
+                              ? Colors.green.withOpacity(0.3)
+                              : isUnlocked
+                              ? Colors.tealAccent.withOpacity(0.3)
+                              : Colors.grey.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          isCompleted ? 'COMPLETED' : isUnlocked ? 'PLAY' : 'LOCKED',
+                          style: TextStyle(
+                            color: isCompleted
+                                ? Colors.greenAccent
+                                : isUnlocked
+                                ? Colors.tealAccent
+                                : Colors.grey,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showLockedDialog(int levelNumber) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: Color(0xFF1B263B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.tealAccent.withOpacity(0.3)),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.lock, color: Colors.orange),
+            SizedBox(width: 10),
+            Text(
+              "LEVEL LOCKED",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          "Complete Level ${levelNumber - 1} with a perfect score (3/3) to unlock this level.",
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              "UNDERSTOOD",
+              style: TextStyle(
+                color: Colors.tealAccent,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

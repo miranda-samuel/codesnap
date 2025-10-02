@@ -14,6 +14,7 @@ import 'levels/python/level1.dart';
 import 'levels/python/level2.dart';
 import 'levels/python/level3.dart';
 
+
 import 'levels/java/level1.dart';
 import 'levels/java/level2.dart';
 import 'levels/java/level3.dart';
@@ -21,6 +22,8 @@ import 'levels/java/level3.dart';
 import 'levels/cpp/level1.dart';
 import 'levels/cpp/level2.dart';
 import 'levels/cpp/level3.dart';
+import 'levels/cpp/level4.dart';
+import 'levels/cpp/level5.dart';
 
 import 'levels/php/level1.dart';
 import 'levels/php/level2.dart';
@@ -68,10 +71,13 @@ class CodeSnapApp extends StatelessWidget {
         '/java_level2': (context) => const JavaLevel2(),
         '/java_level3': (context) => const JavaLevel3(),
 
+
         // C++ levels
         '/cpp_level1': (context) => const CppLevel1(),
         '/cpp_level2': (context) => const CppLevel2(),
         '/cpp_level3': (context) => const CppLevel3(),
+        '/cpp_level4': (context) => const CppLevel4(),
+        '/cpp_level5': (context) => const CppLevel5(),
 
         // PHP levels
         '/php_level1': (context) => const PhpLevel1(),

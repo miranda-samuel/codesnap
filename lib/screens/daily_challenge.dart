@@ -19,49 +19,55 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
       'options': ['print', 'console.log', 'echo', 'System.out.println'],
       'correctAnswer': 'print',
       'language': 'Python',
-      'fullSolution': 'print("Hello World")'
+      'fullSolution': 'print("Hello World")',
+      'expectedOutput': 'Hello World'
     },
     {
       'question': 'Complete the JavaScript variable declaration',
       'incompleteCode': [
         {'text': '// Declare a variable', 'type': 'comment'},
         {'text': '______ x = 5;', 'type': 'blank'},
+        {'text': 'console.log(x);', 'type': 'code'},
       ],
       'options': ['variable', 'var', 'let', 'int'],
       'correctAnswer': 'var',
       'language': 'JavaScript',
-      'fullSolution': 'var x = 5;'
+      'fullSolution': 'var x = 5;\nconsole.log(x);',
+      'expectedOutput': '5'
     },
     {
       'question': 'Complete the for loop syntax',
       'incompleteCode': [
         {'text': '// Loop through numbers', 'type': 'comment'},
-        {'text': 'for (______ i = 0; i < 10; i++) {', 'type': 'blank'},
+        {'text': 'for (______ i = 0; i < 3; i++) {', 'type': 'blank'},
         {'text': '  console.log(i);', 'type': 'code'},
         {'text': '}', 'type': 'code'},
       ],
       'options': ['let', 'var', 'int', 'while'],
       'correctAnswer': 'let',
       'language': 'JavaScript',
-      'fullSolution': 'for (let i = 0; i < 10; i++) {\n  console.log(i);\n}'
+      'fullSolution': 'for (let i = 0; i < 3; i++) {\n  console.log(i);\n}',
+      'expectedOutput': '0\n1\n2'
     },
     {
       'question': 'Complete the if statement to check even number',
       'incompleteCode': [
-        {'text': '// Check if number is even', 'type': 'comment'},
-        {'text': 'if (x ______ 2 == 0) {', 'type': 'blank'},
-        {'text': '  print("Even");', 'type': 'code'},
-        {'text': '}', 'type': 'code'},
+        {'text': '# Check if number is even', 'type': 'comment'},
+        {'text': 'x = 4', 'type': 'code'},
+        {'text': 'if x ______ 2 == 0:', 'type': 'blank'},
+        {'text': '    print("Even")', 'type': 'code'},
+        {'text': 'else:', 'type': 'code'},
+        {'text': '    print("Odd")', 'type': 'code'},
       ],
       'options': ['%', '/', '+', '*'],
       'correctAnswer': '%',
       'language': 'Python',
-      'fullSolution': 'if (x % 2 == 0):\n  print("Even")'
+      'fullSolution': 'x = 4\nif x % 2 == 0:\n    print("Even")\nelse:\n    print("Odd")',
+      'expectedOutput': 'Even'
     }
   ];
 
   int currentChallengeIndex = 0;
-  String? draggedAnswer;
   String? currentAnswer;
   bool showResult = false;
   int score = 0;
@@ -76,6 +82,11 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
       if (answer == challenges[currentChallengeIndex]['correctAnswer']) {
         score++;
       }
+
+      // Auto-show the output dialog after answering
+      Future.delayed(Duration(milliseconds: 500), () {
+        _showCodeOutput();
+      });
     });
   }
 
@@ -83,7 +94,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     setState(() {
       if (currentChallengeIndex < challenges.length - 1) {
         currentChallengeIndex++;
-        draggedAnswer = null;
         currentAnswer = null;
         showResult = false;
       } else {
@@ -95,7 +105,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
   void resetChallenge() {
     setState(() {
       currentChallengeIndex = 0;
-      draggedAnswer = null;
       currentAnswer = null;
       showResult = false;
       score = 0;
@@ -103,12 +112,193 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     });
   }
 
+  void _showCodeOutput() {
+    var currentChallenge = challenges[currentChallengeIndex];
+    bool isCorrect = currentAnswer == currentChallenge['correctAnswer'];
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Color(0xFF1E1E1E),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.9,
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Icon(
+                      isCorrect ? Icons.check_circle : Icons.error,
+                      color: isCorrect ? Colors.green : Colors.red,
+                      size: 24,
+                    ),
+                    SizedBox(width: 10),
+                    Text(
+                      isCorrect ? 'Code Executed Successfully!' : 'Syntax Error',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: 20),
+
+                // Terminal Output
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[800]!),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Terminal Output:',
+                        style: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 10),
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[900],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: SelectableText(
+                          isCorrect
+                              ? currentChallenge['expectedOutput']
+                              : 'Error: Incorrect syntax\nExpected: ${currentChallenge['expectedOutput']}',
+                          style: TextStyle(
+                            color: isCorrect ? Colors.white : Colors.red,
+                            fontFamily: 'monospace',
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: 20),
+
+                // Complete Solution
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Color(0xFF252526),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.code, color: Colors.tealAccent, size: 16),
+                          SizedBox(width: 8),
+                          Text(
+                            'Complete Solution:',
+                            style: TextStyle(
+                              color: Colors.tealAccent,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 10),
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: SelectableText(
+                          currentChallenge['fullSolution'],
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: 20),
+
+                // Action Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      child: Text(
+                        'CLOSE',
+                        style: TextStyle(color: Colors.grey[400]),
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        if (currentChallengeIndex < challenges.length - 1) {
+                          nextChallenge();
+                        } else {
+                          _showFinalScore();
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.tealAccent,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: Text(
+                        currentChallengeIndex < challenges.length - 1
+                            ? 'NEXT CHALLENGE'
+                            : 'SEE RESULTS',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showFinalScore() {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: Colors.grey[900],
+          backgroundColor: Color(0xFF1E1E1E),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Text(
             'Challenge Completed! 🎉',
             style: TextStyle(color: Colors.white, fontSize: 20),
@@ -177,12 +367,22 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         builder: (context, candidateData, rejectedData) {
           return Container(
             margin: EdgeInsets.symmetric(vertical: 2),
-            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: currentAnswer != null ? Colors.green[900] : Colors.grey[800],
-              borderRadius: BorderRadius.circular(4),
+              color: currentAnswer != null
+                  ? (currentAnswer == challenges[currentChallengeIndex]['correctAnswer']
+                  ? Colors.green[900]!.withOpacity(0.3)
+                  : Colors.red[900]!.withOpacity(0.3))
+                  : Colors.grey[800]!.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(6),
               border: Border.all(
-                color: candidateData.isNotEmpty ? Colors.tealAccent : Colors.transparent,
+                color: candidateData.isNotEmpty
+                    ? Colors.tealAccent
+                    : (currentAnswer != null
+                    ? (currentAnswer == challenges[currentChallengeIndex]['correctAnswer']
+                    ? Colors.green
+                    : Colors.red)
+                    : Colors.grey[600]!),
                 width: 2,
               ),
             ),
@@ -196,7 +396,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                 ),
                 SizedBox(width: 8),
                 Text(
-                  currentAnswer ?? '______',
+                  currentAnswer ?? 'Drag answer here',
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
@@ -208,6 +408,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
             ),
           );
         },
+        onWillAccept: (data) => true,
         onAccept: (data) {
           checkAnswer(data);
         },
@@ -225,6 +426,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
 
       return Container(
         margin: EdgeInsets.symmetric(vertical: 2),
+        padding: EdgeInsets.symmetric(vertical: 4),
         child: Text(
           line['text'],
           style: TextStyle(
@@ -253,6 +455,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
           IconButton(
             icon: Icon(Icons.refresh, color: Colors.white),
             onPressed: resetChallenge,
+            tooltip: 'Restart Challenge',
           ),
         ],
       ),
@@ -283,6 +486,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
                       ),
                       child: Text(
                         'Question ${currentChallengeIndex + 1}/${challenges.length}',
@@ -294,10 +498,11 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
                       ),
                       child: Text(
                         'Score: $score',
-                        style: TextStyle(color: Colors.white, fontSize: 14),
+                        style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -311,11 +516,11 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                   decoration: BoxDecoration(
                     color: Colors.teal.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.teal),
+                    border: Border.all(color: Colors.tealAccent),
                   ),
                   child: Text(
                     currentChallenge['language'],
-                    style: TextStyle(color: Colors.tealAccent, fontSize: 12),
+                    style: TextStyle(color: Colors.tealAccent, fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 ),
 
@@ -357,36 +562,40 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                         Container(
                           padding: EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.grey[900],
+                            color: Color(0xFF2D2D2D),
                             borderRadius: BorderRadius.only(
                               topLeft: Radius.circular(12),
                               topRight: Radius.circular(12),
                             ),
+                            border: Border(bottom: BorderSide(color: Colors.grey[800]!)),
                           ),
                           child: Row(
                             children: [
                               Icon(Icons.code, color: Colors.tealAccent, size: 20),
                               SizedBox(width: 8),
                               Text(
-                                'main.${currentChallenge['language'].toLowerCase()}',
+                                'challenge.${currentChallenge['language'].toLowerCase()}',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
+                                  fontFamily: 'monospace',
                                 ),
                               ),
                               Spacer(),
                               Container(
-                                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: Colors.teal.withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: Colors.tealAccent.withOpacity(0.5)),
                                 ),
                                 child: Text(
                                   currentChallenge['language'],
                                   style: TextStyle(
                                     color: Colors.tealAccent,
                                     fontSize: 10,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
@@ -394,7 +603,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                           ),
                         ),
 
-                        // Code Area - FIXED: Made scrollable
+                        // Code Area
                         Expanded(
                           child: SingleChildScrollView(
                             padding: EdgeInsets.all(16),
@@ -404,54 +613,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                                 ...currentChallenge['incompleteCode'].map<Widget>((line) {
                                   return _buildCodeLine(line, currentChallenge['incompleteCode'].indexOf(line));
                                 }).toList(),
-
-                                SizedBox(height: 16),
-
-                                // Solution Preview when answered - FIXED: Smaller and scrollable
-                                if (showResult)
-                                  Container(
-                                    width: double.infinity,
-                                    padding: EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[800]!.withOpacity(0.5),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(Icons.lightbulb_outline, color: Colors.yellow, size: 16),
-                                            SizedBox(width: 6),
-                                            Text(
-                                              'Complete Solution:',
-                                              style: TextStyle(
-                                                color: Colors.grey[400],
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        SizedBox(height: 8),
-                                        Container(
-                                          padding: EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color: Colors.black.withOpacity(0.3),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: SelectableText(
-                                            currentChallenge['fullSolution'],
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontFamily: 'monospace',
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
                               ],
                             ),
                           ),
@@ -465,7 +626,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
 
                 // Draggable Options
                 Text(
-                  'Drag the correct code snippet:',
+                  'Drag the correct code snippet to the blank:',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -475,9 +636,9 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
 
                 SizedBox(height: 15),
 
-                // Options Grid - FIXED: Reduced flex value
+                // Options Grid
                 Expanded(
-                  flex: 1, // Changed from 2 to 1 to give more space
+                  flex: 1,
                   child: GridView.builder(
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
@@ -491,6 +652,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                       return Draggable<String>(
                         data: option,
                         feedback: Material(
+                          elevation: 4,
                           child: Container(
                             width: 150,
                             padding: EdgeInsets.all(12),
@@ -504,6 +666,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                                   offset: Offset(0, 5),
                                 )
                               ],
+                              border: Border.all(color: Colors.tealAccent.withOpacity(0.5)),
                             ),
                             child: Text(
                               option,
@@ -517,10 +680,13 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                             ),
                           ),
                         ),
-                        childWhenDragging: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.grey[700],
-                            borderRadius: BorderRadius.circular(8),
+                        childWhenDragging: Opacity(
+                          opacity: 0.5,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey[700],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                         ),
                         child: Container(
@@ -534,6 +700,9 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                                 offset: Offset(0, 3),
                               )
                             ],
+                            border: Border.all(
+                              color: Colors.tealAccent.withOpacity(0.3),
+                            ),
                           ),
                           child: Center(
                             child: Text(
@@ -552,33 +721,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                     },
                   ),
                 ),
-
-                SizedBox(height: 20),
-
-                // Next Button
-                if (showResult)
-                  Container(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: nextChallenge,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.teal,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        currentChallengeIndex < challenges.length - 1
-                            ? 'NEXT CHALLENGE'
-                            : 'SEE RESULTS',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-
-                SizedBox(height: 10),
               ],
             ),
           ),

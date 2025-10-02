@@ -18,27 +18,35 @@ class SelectLanguageScreen extends StatelessWidget {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Choose Language'),
+        title: const Text(
+          'Choose Language',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
+        iconTheme: IconThemeData(color: Colors.tealAccent),
       ),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: Stack(
           children: [
-            // Background
+            // Background - Dark blue gradient
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Colors.teal.shade100, Colors.blueGrey.shade100],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF0D1B2A),
+                    Color(0xFF1B263B),
+                    Color(0xFF415A77),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                 ),
               ),
             ),
 
-            // Decorative elements
+            // Decorative elements - Updated colors
             Positioned(
               top: -80,
               left: -40,
@@ -46,7 +54,7 @@ class SelectLanguageScreen extends StatelessWidget {
                 width: 200,
                 height: 200,
                 decoration: BoxDecoration(
-                  color: Colors.teal.withOpacity(0.2),
+                  color: Colors.tealAccent.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -58,7 +66,7 @@ class SelectLanguageScreen extends StatelessWidget {
                 width: 180,
                 height: 180,
                 decoration: BoxDecoration(
-                  color: Colors.teal.withOpacity(0.15),
+                  color: Colors.tealAccent.withOpacity(0.08),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -71,15 +79,16 @@ class SelectLanguageScreen extends StatelessWidget {
                   const SizedBox(height: 60),
 
                   // App Title
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
                       'CodeMaster Pro',
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: Colors.white,
                         letterSpacing: 1.5,
+                        fontFamily: 'monospace',
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -88,13 +97,13 @@ class SelectLanguageScreen extends StatelessWidget {
                   const SizedBox(height: 8),
 
                   // Subtitle
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
                       'Master Programming Through Challenges',
                       style: TextStyle(
                         fontSize: 16,
-                        color: Colors.grey,
+                        color: Colors.white70,
                         fontStyle: FontStyle.italic,
                       ),
                       textAlign: TextAlign.center,
@@ -105,7 +114,7 @@ class SelectLanguageScreen extends StatelessWidget {
 
                   // Daily Challenge Button - Prominent Feature
                   Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    margin: EdgeInsets.symmetric(horizontal: 20),
                     child: Card(
                       elevation: 8,
                       shape: RoundedRectangleBorder(
@@ -114,16 +123,24 @@ class SelectLanguageScreen extends StatelessWidget {
                       child: Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [Colors.purple.shade400, Colors.blue.shade600],
+                            colors: [
+                              Color(0xFF00B4D8).withOpacity(0.8),
+                              Color(0xFF0077B6).withOpacity(0.8),
+                            ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.tealAccent.withOpacity(0.6),
+                            width: 2,
+                          ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.purple.withOpacity(0.3),
+                              color: Colors.tealAccent.withOpacity(0.3),
                               blurRadius: 15,
-                              offset: const Offset(0, 5),
+                              spreadRadius: 2,
+                              offset: Offset(0, 5),
                             )
                           ],
                         ),
@@ -148,27 +165,31 @@ class SelectLanguageScreen extends StatelessWidget {
                                     decoration: BoxDecoration(
                                       color: Colors.white.withOpacity(0.2),
                                       shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.tealAccent.withOpacity(0.5),
+                                      ),
                                     ),
-                                    child: const Icon(
+                                    child: Icon(
                                       Icons.emoji_events,
-                                      color: Colors.white,
+                                      color: Colors.tealAccent,
                                       size: 30,
                                     ),
                                   ),
-                                  const SizedBox(width: 16),
+                                  SizedBox(width: 16),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        const Text(
+                                        Text(
                                           'Daily Challenge',
                                           style: TextStyle(
                                             fontSize: 20,
                                             fontWeight: FontWeight.bold,
                                             color: Colors.white,
+                                            fontFamily: 'monospace',
                                           ),
                                         ),
-                                        const SizedBox(height: 4),
+                                        SizedBox(height: 4),
                                         Text(
                                           'Solve today\'s coding puzzle!',
                                           style: TextStyle(
@@ -176,15 +197,15 @@ class SelectLanguageScreen extends StatelessWidget {
                                             color: Colors.white.withOpacity(0.9),
                                           ),
                                         ),
-                                        const SizedBox(height: 4),
+                                        SizedBox(height: 4),
                                         Row(
                                           children: [
                                             Icon(
                                               Icons.access_time_filled,
-                                              color: Colors.yellow.shade200,
+                                              color: Colors.tealAccent,
                                               size: 16,
                                             ),
-                                            const SizedBox(width: 4),
+                                            SizedBox(width: 4),
                                             Text(
                                               'New puzzle every day',
                                               style: TextStyle(
@@ -197,9 +218,9 @@ class SelectLanguageScreen extends StatelessWidget {
                                       ],
                                     ),
                                   ),
-                                  const Icon(
+                                  Icon(
                                     Icons.arrow_forward_ios,
-                                    color: Colors.white,
+                                    color: Colors.tealAccent,
                                     size: 20,
                                   ),
                                 ],
@@ -211,34 +232,39 @@ class SelectLanguageScreen extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 30),
+                  SizedBox(height: 30),
 
                   // Languages Section Header
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
                       children: [
-                        const Text(
+                        Text(
                           'Programming Languages',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Colors.white,
+                            fontFamily: 'monospace',
                           ),
                         ),
-                        const Spacer(),
+                        Spacer(),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.teal.withOpacity(0.1),
+                            color: Colors.tealAccent.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.tealAccent.withOpacity(0.3),
+                            ),
                           ),
                           child: Text(
                             '${languages.length} languages',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.teal.shade800,
+                              color: Colors.tealAccent,
                               fontWeight: FontWeight.w600,
+                              fontFamily: 'monospace',
                             ),
                           ),
                         ),
@@ -246,13 +272,13 @@ class SelectLanguageScreen extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20),
 
                   // Languages List
                   Expanded(
                     child: ListView.builder(
                       itemCount: languages.length,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      padding: EdgeInsets.symmetric(horizontal: 20),
                       itemBuilder: (context, index) {
                         return _buildLanguageCard(
                           context,
@@ -264,23 +290,23 @@ class SelectLanguageScreen extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20),
 
                   // Bottom Info
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
                       'Choose a language to start learning or try the daily challenge!',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color: Colors.white70,
                         fontStyle: FontStyle.italic,
                       ),
                       textAlign: TextAlign.center,
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20),
                 ],
               ),
             ),
@@ -292,32 +318,41 @@ class SelectLanguageScreen extends StatelessWidget {
 
   Widget _buildLanguageCard(BuildContext context, String language, IconData icon, int index) {
     List<Color> cardColors = [
-      Colors.blue.shade50,
-      Colors.green.shade50,
-      Colors.orange.shade50,
-      Colors.purple.shade50,
-      Colors.red.shade50,
+      Color(0xFF415A77).withOpacity(0.6),
+      Color(0xFF4A6FA5).withOpacity(0.6),
+      Color(0xFF5E81AC).withOpacity(0.6),
+      Color(0xFF6B8CBC).withOpacity(0.6),
+      Color(0xFF7A9CC6).withOpacity(0.6),
     ];
 
     List<Color> iconColors = [
-      Colors.blue.shade800,
-      Colors.green.shade800,
-      Colors.orange.shade800,
-      Colors.purple.shade800,
-      Colors.red.shade800,
+      Colors.tealAccent,
+      Colors.blueAccent,
+      Colors.greenAccent,
+      Colors.purpleAccent,
+      Colors.orangeAccent,
     ];
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
+      margin: EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         color: cardColors[index],
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.tealAccent.withOpacity(0.3),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.3),
             blurRadius: 8,
-            offset: const Offset(0, 3),
-          )
+            offset: Offset(0, 3),
+          ),
+          BoxShadow(
+            color: Colors.tealAccent.withOpacity(0.1),
+            blurRadius: 10,
+            spreadRadius: 1,
+          ),
         ],
       ),
       child: Material(
@@ -338,14 +373,22 @@ class SelectLanguageScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withOpacity(0.1),
                     shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.tealAccent.withOpacity(0.4),
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withOpacity(0.2),
                         blurRadius: 5,
-                        offset: const Offset(0, 2),
-                      )
+                        offset: Offset(0, 2),
+                      ),
+                      BoxShadow(
+                        color: iconColors[index].withOpacity(0.2),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      ),
                     ],
                   ),
                   child: Icon(
@@ -354,40 +397,44 @@ class SelectLanguageScreen extends StatelessWidget {
                     size: 24,
                   ),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         language,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                           fontFamily: 'monospace',
+                          color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Text(
                         _getLanguageDescription(language),
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade600,
+                          color: Colors.white70,
                         ),
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.tealAccent.withOpacity(0.3),
+                    ),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.arrow_forward_ios,
                     size: 16,
-                    color: Colors.grey,
+                    color: Colors.tealAccent,
                   ),
                 ),
               ],

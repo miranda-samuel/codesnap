@@ -4,25 +4,25 @@ import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
 
-class CppLevel2 extends StatefulWidget {
-  const CppLevel2({super.key});
+class CppLevel5 extends StatefulWidget {
+  const CppLevel5({super.key});
 
   @override
-  State<CppLevel2> createState() => _CppLevel2State();
+  State<CppLevel5> createState() => _CppLevel5State();
 }
 
-class _CppLevel2State extends State<CppLevel2> {
+class _CppLevel5State extends State<CppLevel5> {
   List<String> allBlocks = [];
   List<String> droppedBlocks = [];
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level2Completed = false;
+  bool level5Completed = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 120;
+  int remainingSeconds = 180; // 3 minutes for complex level
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -66,38 +66,26 @@ class _CppLevel2State extends State<CppLevel2> {
   }
 
   void resetBlocks() {
-    // Correct blocks for: int age = 25;
+    // Combined blocks for: int age; cin >> age; cout << age;
     List<String> correctBlocks = [
-      'int',
-      'age',
-      '=',
-      '25',
-      ';'
+      'int', 'age', ';',
+      'cin', '>>', 'age', ';',
+      'cout', '<<', 'age', ';'
     ];
 
-    // Incorrect/distractor blocks
+    // Incorrect/distractor blocks from all previous levels
     List<String> incorrectBlocks = [
-      'string',
-      'double',
-      'char',
-      'float',
-      'bool',
-      'name',
-      'height',
-      'score',
-      '==',
-      '!=',
-      '++',
-      '--',
-      '25.5',
-      '"25"',
-      'true',
-      "'A'",
+      'string', 'double', 'char', 'float', 'bool',
+      'name', 'height', 'score', '==', '!=', '++', '--',
+      '25.5', '"25"', 'true', "'A'",
+      'printf', 'cout >>', '<<<', '>>>', 'System.out.print',
+      '"Hello"', '"Hi World"', 'print', 'Console.WriteLine',
+      'std::cout', 'endl', 'scanf', 'input', ','
     ];
 
-    // Shuffle incorrect blocks and take 4 random ones
+    // Shuffle incorrect blocks and take 6 random ones
     incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(4).toList();
+    List<String> selectedIncorrectBlocks = incorrectBlocks.take(6).toList();
 
     // Combine correct and incorrect blocks, then shuffle
     allBlocks = [
@@ -110,7 +98,7 @@ class _CppLevel2State extends State<CppLevel2> {
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 120;
+      remainingSeconds = 180;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       resetBlocks();
@@ -152,7 +140,7 @@ class _CppLevel2State extends State<CppLevel2> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 20), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 60), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -170,7 +158,7 @@ class _CppLevel2State extends State<CppLevel2> {
   void resetGame() {
     setState(() {
       score = 3;
-      remainingSeconds = 120;
+      remainingSeconds = 180;
       gameStarted = false;
       isAnsweredCorrectly = false;
       droppedBlocks.clear();
@@ -187,14 +175,14 @@ class _CppLevel2State extends State<CppLevel2> {
       final response = await ApiService.saveScore(
         currentUser!['id'],
         'C++',
-        2,
+        5,
         score,
         score == 3,
       );
 
       if (response['success'] == true) {
         setState(() {
-          level2Completed = score == 3;
+          level5Completed = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
@@ -214,12 +202,12 @@ class _CppLevel2State extends State<CppLevel2> {
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level2Data = scoresData['2'];
+        final level5Data = scoresData['5'];
 
-        if (level2Data != null) {
+        if (level5Data != null) {
           setState(() {
-            previousScore = level2Data['score'] ?? 0;
-            level2Completed = level2Data['completed'] ?? false;
+            previousScore = level5Data['score'] ?? 0;
+            level5Completed = level5Data['completed'] ?? false;
             hasPreviousScore = true;
             score = previousScore;
           });
@@ -235,6 +223,9 @@ class _CppLevel2State extends State<CppLevel2> {
       'string', 'double', 'char', 'float', 'bool',
       'name', 'height', 'score', '==', '!=', '++', '--',
       '25.5', '"25"', 'true', "'A'",
+      'printf', 'cout >>', '<<<', '>>>', 'System.out.print',
+      '"Hello"', '"Hi World"', 'print', 'Console.WriteLine',
+      'std::cout', 'endl', 'scanf', 'input', ','
     ];
     return incorrectBlocks.contains(block);
   }
@@ -283,14 +274,15 @@ class _CppLevel2State extends State<CppLevel2> {
       return;
     }
 
-    // Check for: int age = 25;
+    // Check for: int age; cin >> age; cout << age;
     String answer = droppedBlocks.join(' ');
     String normalizedAnswer = answer
         .replaceAll(' ', '')
         .replaceAll('\n', '')
         .toLowerCase();
 
-    String expected = 'intage=25;';
+    // Expected: int age; cin >> age; cout << age;
+    String expected = 'intage;cin>>age;cout<<age;';
 
     if (normalizedAnswer == expected) {
       countdownTimer?.cancel();
@@ -310,13 +302,13 @@ class _CppLevel2State extends State<CppLevel2> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Great job! You created a variable!"),
+              Text("Excellent! You created a complete C++ program!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've mastered Level 2!",
+                  "🎉 Perfect! You've mastered Level 5!",
                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
               else
@@ -325,32 +317,33 @@ class _CppLevel2State extends State<CppLevel2> {
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
-              Text("Variable Created:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("Complete Program:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  "int age = 25;",
+                  "int age;\ncin >> age;\ncout << age;",
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
-                    fontSize: 16,
+                    fontSize: 14,
                   ),
                 ),
               ),
               SizedBox(height: 10),
-              Text("Explanation:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("Program Flow:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.blue[50],
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("• 'int' - data type for whole numbers"),
-                    Text("• 'age' - variable name"),
-                    Text("• '=' - assignment operator"),
-                    Text("• '25' - value assigned to variable"),
-                    Text("• ';' - end of statement"),
+                    Text("1. Declare variable: int age;"),
+                    Text("2. Get user input: cin >> age;"),
+                    Text("3. Display output: cout << age;"),
+                    SizedBox(height: 5),
+                    Text("This program asks for user's age and displays it!",
+                        style: TextStyle(fontStyle: FontStyle.italic)),
                   ],
                 ),
               ),
@@ -413,6 +406,9 @@ class _CppLevel2State extends State<CppLevel2> {
   }
 
   Widget getCodePreview() {
+    String previewCode = getPreviewCode();
+    List<String> lines = previewCode.split('\n');
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -449,47 +445,70 @@ class _CppLevel2State extends State<CppLevel2> {
           ),
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        _buildCodeLine(1, '#include <iostream>'),
-                        _buildCodeLine(2, 'using namespace std;'),
-                        _buildCodeLine(3, ''),
-                        _buildCodeLine(4, 'int main() {'),
-                        _buildCodeLine(5, '    ' + getPreviewCode()),
-                        _buildCodeLine(6, '    cout << age;'),
-                        _buildCodeLine(7, '    return 0;'),
-                        _buildCodeLine(8, '}'),
-                      ],
-                    ),
-                    SizedBox(width: 16 * _scaleFactor),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSyntaxHighlightedLine('#include <iostream>', isPreprocessor: true),
-                          _buildSyntaxHighlightedLine('using namespace std;', isKeyword: true),
-                          SizedBox(height: 8 * _scaleFactor),
-                          _buildSyntaxHighlightedLine('int main() {', isKeyword: true),
-                          _buildSyntaxHighlightedLine('    ' + getPreviewCode(), isNormal: true),
-                          _buildSyntaxHighlightedLine('    cout << age;', isNormal: true),
-                          _buildSyntaxHighlightedLine('    return 0;', isKeyword: true),
-                          _buildSyntaxHighlightedLine('}', isNormal: true),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Line numbers
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      _buildCodeLine(1, '#include <iostream>'),
+                      _buildCodeLine(2, 'using namespace std;'),
+                      _buildCodeLine(3, ''),
+                      _buildCodeLine(4, 'int main() {'),
+                      ...List.generate(lines.length, (index) => _buildCodeLine(5 + index, '')),
+                      _buildCodeLine(5 + lines.length, '    return 0;'),
+                      _buildCodeLine(6 + lines.length, '}'),
+                    ],
+                  ),
+                  SizedBox(width: 16 * _scaleFactor),
+                  // Actual code with syntax highlighting
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSyntaxHighlightedLine('#include <iostream>', isPreprocessor: true),
+                      _buildSyntaxHighlightedLine('using namespace std;', isKeyword: true),
+                      SizedBox(height: 8 * _scaleFactor),
+                      _buildSyntaxHighlightedLine('int main() {', isKeyword: true),
+                      ...lines.map((line) => _buildUserCodeLine(line)),
+                      _buildSyntaxHighlightedLine('    return 0;', isKeyword: true),
+                      _buildSyntaxHighlightedLine('}', isNormal: true),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildUserCodeLine(String code) {
+    if (code.isEmpty) return SizedBox(height: 20 * _scaleFactor);
+
+    return Container(
+      height: 20 * _scaleFactor,
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '    ',
+              style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12 * _scaleFactor),
+            ),
+            TextSpan(
+              text: code,
+              style: TextStyle(
+                color: Colors.greenAccent[400],
+                fontFamily: 'monospace',
+                fontSize: 12 * _scaleFactor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -519,31 +538,6 @@ class _CppLevel2State extends State<CppLevel2> {
       textColor = Colors.white;
     }
 
-    if (isNormal && code.contains(getPreviewCode()) && getPreviewCode().isNotEmpty) {
-      return Container(
-        height: 20 * _scaleFactor,
-        child: RichText(
-          text: TextSpan(
-            children: [
-              TextSpan(
-                text: '    ',
-                style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12 * _scaleFactor),
-              ),
-              TextSpan(
-                text: getPreviewCode(),
-                style: TextStyle(
-                  color: Colors.blueAccent[400],
-                  fontFamily: 'monospace',
-                  fontSize: 12 * _scaleFactor,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Container(
       height: 20 * _scaleFactor,
       child: Text(
@@ -558,7 +552,27 @@ class _CppLevel2State extends State<CppLevel2> {
   }
 
   String getPreviewCode() {
-    return droppedBlocks.join(' ');
+    if (droppedBlocks.isEmpty) return '';
+
+    // Format the code with line breaks for better readability
+    List<String> lines = [];
+    String currentLine = '';
+
+    for (String block in droppedBlocks) {
+      if (block == ';') {
+        currentLine += block;
+        lines.add(currentLine);
+        currentLine = '';
+      } else {
+        currentLine += (currentLine.isEmpty ? '' : ' ') + block;
+      }
+    }
+
+    if (currentLine.isNotEmpty) {
+      lines.add(currentLine);
+    }
+
+    return lines.join('\n');
   }
 
   @override
@@ -583,7 +597,7 @@ class _CppLevel2State extends State<CppLevel2> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("⚡ C++ - Level 2", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        title: Text("⚡ C++ - Level 5", style: TextStyle(fontSize: 18 * _scaleFactor)),
         backgroundColor: Colors.blue,
         actions: gameStarted
             ? [
@@ -631,7 +645,7 @@ class _CppLevel2State extends State<CppLevel2> {
             ElevatedButton.icon(
               onPressed: startGame,
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Level 2", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text("Start Level 5", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
                 backgroundColor: Colors.blue,
@@ -639,20 +653,20 @@ class _CppLevel2State extends State<CppLevel2> {
             ),
             SizedBox(height: 20 * _scaleFactor),
 
-            if (level2Completed)
+            if (level5Completed)
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Level 2 completed with perfect score!",
-                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
+                      "✅ Level 5 completed with perfect score!",
+                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "You've mastered variables!",
-                      style: TextStyle(color: Colors.lightGreen, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "You've mastered C++ fundamentals!",
+                      style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -665,13 +679,13 @@ class _CppLevel2State extends State<CppLevel2> {
                   children: [
                     Text(
                       "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
                       "Try again to get a perfect score!",
-                      style: TextStyle(color: Colors.lightGreen, fontSize: 14 * _scaleFactor),
+                      style: TextStyle(color: Colors.redAccent, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -683,29 +697,29 @@ class _CppLevel2State extends State<CppLevel2> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.blue[50]!.withOpacity(0.9),
+                color: Colors.red[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.blue[200]!),
+                border: Border.all(color: Colors.red[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎯 Level 2 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.blue[800]),
+                    "🎯 Level 5 Objective",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.red[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create a variable to store age: int age = 25;",
+                    "Create a complete program: Variable + Input + Output",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.green[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.red[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Container(
                     padding: EdgeInsets.all(10 * _scaleFactor),
                     color: Colors.black,
                     child: Text(
-                      "int age = 25;",
+                      "int age;\ncin >> age;\ncout << age;",
                       style: TextStyle(
                         color: Colors.white,
                         fontFamily: 'monospace',
@@ -715,9 +729,27 @@ class _CppLevel2State extends State<CppLevel2> {
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Learn about variables and data types!",
+                    "Combine everything you learned in Levels 1-3!",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12 * _scaleFactor, color: Colors.green[600], fontStyle: FontStyle.italic),
+                    style: TextStyle(fontSize: 12 * _scaleFactor, color: Colors.red[600], fontStyle: FontStyle.italic),
+                  ),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Container(
+                    padding: EdgeInsets.all(8 * _scaleFactor),
+                    color: Colors.blue[50],
+                    child: Column(
+                      children: [
+                        Text(
+                          "What you'll practice:",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12 * _scaleFactor),
+                        ),
+                        SizedBox(height: 5 * _scaleFactor),
+                        Text(
+                          "• Variable declaration (Level 2)\n• User input (Level 3)\n• Output display (Level 1)",
+                          style: TextStyle(fontSize: 11 * _scaleFactor),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -756,31 +788,32 @@ class _CppLevel2State extends State<CppLevel2> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Si Maria ay gustong mag-store ng kanyang edad sa program! Gamitin ang "int" data type para gumawa ng variable na "age" at i-assign ang value na 25.'
-                : 'Maria wants to store her age in the program! Use the "int" data type to create an "age" variable and assign the value 25.',
+                ? 'Si Juan ay gustong gumawa ng complete program! Kailangan niyang mag-declare ng variable, kumuha ng input mula sa user, at i-display ang result. Tulungan siyang buuin ang program!'
+                : 'Juan wants to create a complete program! He needs to declare a variable, get input from the user, and display the result. Help him build the program!',
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the blocks to create: int age = 25;',
+          Text('🧩 Arrange the blocks to create: int age; cin >> age; cout << age;',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          // TARGET AREA
+          // TARGET AREA - Fully scrollable with no limits
           Container(
-            height: 140 * _scaleFactor,
             width: double.infinity,
+            height: 250 * _scaleFactor, // Fixed height with scrolling
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.green, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.red, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
               onWillAccept: (data) {
-                return !droppedBlocks.contains(data);
+                // ALWAYS ACCEPT BLOCKS - NO LIMIT
+                return true;
               },
               onAccept: (data) {
                 if (!isAnsweredCorrectly) {
@@ -791,17 +824,30 @@ class _CppLevel2State extends State<CppLevel2> {
                 }
               },
               builder: (context, candidateData, rejectedData) {
-                return Center(
+                return droppedBlocks.isEmpty
+                    ? Center(
+                  child: Text(
+                    'Drop blocks here\n(No limit on number of blocks)',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16 * _scaleFactor,
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                )
+                    : SingleChildScrollView(
                   child: Wrap(
-                    spacing: 8 * _scaleFactor,
-                    runSpacing: 8 * _scaleFactor,
-                    alignment: WrapAlignment.center,
+                    spacing: 6 * _scaleFactor,
+                    runSpacing: 6 * _scaleFactor,
+                    alignment: WrapAlignment.start,
+                    crossAxisAlignment: WrapCrossAlignment.start,
                     children: droppedBlocks.map((block) {
                       return Draggable<String>(
                         data: block,
-                        feedback: puzzleBlock(block, Colors.lightGreenAccent),
-                        childWhenDragging: puzzleBlock(block, Colors.lightGreenAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.lightGreenAccent),
+                        feedback: puzzleBlock(block, Colors.redAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.redAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.redAccent),
                         onDragStarted: () {
                           setState(() {
                             currentlyDraggedBlock = block;
@@ -840,45 +886,52 @@ class _CppLevel2State extends State<CppLevel2> {
           SizedBox(height: 20 * _scaleFactor),
 
           // SOURCE AREA
-          Wrap(
-            spacing: 10 * _scaleFactor,
-            runSpacing: 12 * _scaleFactor,
-            alignment: WrapAlignment.center,
-            children: allBlocks.map((block) {
-              return isAnsweredCorrectly
-                  ? puzzleBlock(block, Colors.grey)
-                  : Draggable<String>(
-                data: block,
-                feedback: puzzleBlock(block, Colors.lightGreen),
-                childWhenDragging: Opacity(
-                  opacity: 0.4,
-                  child: puzzleBlock(block, Colors.lightGreen),
-                ),
-                child: puzzleBlock(block, Colors.lightGreen),
-                onDragStarted: () {
-                  setState(() {
-                    currentlyDraggedBlock = block;
-                  });
-                },
-                onDragEnd: (details) {
-                  setState(() {
-                    currentlyDraggedBlock = null;
-                  });
-
-                  if (!isAnsweredCorrectly && !details.wasAccepted) {
-                    Future.delayed(Duration(milliseconds: 50), () {
-                      if (mounted) {
-                        setState(() {
-                          if (!allBlocks.contains(block)) {
-                            allBlocks.add(block);
-                          }
-                        });
-                      }
+          Container(
+            padding: EdgeInsets.all(12 * _scaleFactor),
+            decoration: BoxDecoration(
+              color: Colors.grey[800]!.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12 * _scaleFactor),
+            ),
+            child: Wrap(
+              spacing: 8 * _scaleFactor,
+              runSpacing: 10 * _scaleFactor,
+              alignment: WrapAlignment.center,
+              children: allBlocks.map((block) {
+                return isAnsweredCorrectly
+                    ? puzzleBlock(block, Colors.grey)
+                    : Draggable<String>(
+                  data: block,
+                  feedback: puzzleBlock(block, Colors.red),
+                  childWhenDragging: Opacity(
+                    opacity: 0.4,
+                    child: puzzleBlock(block, Colors.red),
+                  ),
+                  child: puzzleBlock(block, Colors.red),
+                  onDragStarted: () {
+                    setState(() {
+                      currentlyDraggedBlock = block;
                     });
-                  }
-                },
-              );
-            }).toList(),
+                  },
+                  onDragEnd: (details) {
+                    setState(() {
+                      currentlyDraggedBlock = null;
+                    });
+
+                    if (!isAnsweredCorrectly && !details.wasAccepted) {
+                      Future.delayed(Duration(milliseconds: 50), () {
+                        if (mounted) {
+                          setState(() {
+                            if (!allBlocks.contains(block)) {
+                              allBlocks.add(block);
+                            }
+                          });
+                        }
+                      });
+                    }
+                  },
+                );
+              }).toList(),
+            ),
           ),
 
           SizedBox(height: 30 * _scaleFactor),
@@ -887,7 +940,7 @@ class _CppLevel2State extends State<CppLevel2> {
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Compile & Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: Colors.red,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -905,22 +958,22 @@ class _CppLevel2State extends State<CppLevel2> {
 
   Widget puzzleBlock(String text, Color color) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
+      margin: EdgeInsets.symmetric(horizontal: 2 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 16 * _scaleFactor,
-        vertical: 12 * _scaleFactor,
+        horizontal: 12 * _scaleFactor,
+        vertical: 10 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20 * _scaleFactor),
-          bottomRight: Radius.circular(20 * _scaleFactor),
+          topLeft: Radius.circular(15 * _scaleFactor),
+          bottomRight: Radius.circular(15 * _scaleFactor),
         ),
         border: Border.all(color: Colors.black45, width: 1.5 * _scaleFactor),
         boxShadow: [
           BoxShadow(
             color: Colors.black26,
-            blurRadius: 4 * _scaleFactor,
+            blurRadius: 3 * _scaleFactor,
             offset: Offset(2 * _scaleFactor, 2 * _scaleFactor),
           )
         ],
@@ -930,7 +983,7 @@ class _CppLevel2State extends State<CppLevel2> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
+          fontSize: 12 * _scaleFactor,
         ),
         textAlign: TextAlign.center,
       ),
