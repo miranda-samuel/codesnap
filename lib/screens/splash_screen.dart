@@ -242,7 +242,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          'v1.0.0 • © 2024 CodeSnap',
+                          'v1.0.0 • © 2025 CodeSnap',
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.5),
                             fontSize: 12,
