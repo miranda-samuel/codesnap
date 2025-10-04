@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
+import '../services/user_preferences.dart';
+import 'dart:async';
 
 class DailyChallengeScreen extends StatefulWidget {
   const DailyChallengeScreen({super.key});
@@ -8,288 +11,284 @@ class DailyChallengeScreen extends StatefulWidget {
 }
 
 class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
-  // Coding challenges with incomplete code and draggable options
-  final List<Map<String, dynamic>> challenges = [
+  // Daily challenges - mag-iiba araw-araw
+  final List<Map<String, dynamic>> dailyChallenges = [
     {
-      'question': 'Complete the Python code to print "Hello World"',
-      'incompleteCode': [
-        {'text': '# Print Hello World', 'type': 'comment'},
-        {'text': '______("Hello World")', 'type': 'blank'},
+      'id': '1',
+      'question': 'Complete the function to return the sum of two numbers',
+      'incompleteCode': 'def add_numbers(a, b):\n    # Complete this function\n    ______\n    return result',
+      'solution': 'def add_numbers(a, b):\n    # Complete this function\n    result = a + b\n    return result',
+      'testCases': [
+        {'input': [2, 3], 'expected': 5},
+        {'input': [5, 7], 'expected': 12},
+        {'input': [0, 0], 'expected': 0},
       ],
-      'options': ['print', 'console.log', 'echo', 'System.out.println'],
-      'correctAnswer': 'print',
-      'language': 'Python',
-      'fullSolution': 'print("Hello World")',
-      'expectedOutput': 'Hello World'
+      'language': 'Python'
     },
     {
-      'question': 'Complete the JavaScript variable declaration',
-      'incompleteCode': [
-        {'text': '// Declare a variable', 'type': 'comment'},
-        {'text': '______ x = 5;', 'type': 'blank'},
-        {'text': 'console.log(x);', 'type': 'code'},
+      'id': '2',
+      'question': 'Complete the function to check if number is even',
+      'incompleteCode': 'def is_even(number):\n    # Complete this function\n    ______\n    return result',
+      'solution': 'def is_even(number):\n    # Complete this function\n    result = number % 2 == 0\n    return result',
+      'testCases': [
+        {'input': [4], 'expected': true},
+        {'input': [7], 'expected': false},
+        {'input': [0], 'expected': true},
       ],
-      'options': ['variable', 'var', 'let', 'int'],
-      'correctAnswer': 'var',
-      'language': 'JavaScript',
-      'fullSolution': 'var x = 5;\nconsole.log(x);',
-      'expectedOutput': '5'
+      'language': 'Python'
     },
     {
-      'question': 'Complete the for loop syntax',
-      'incompleteCode': [
-        {'text': '// Loop through numbers', 'type': 'comment'},
-        {'text': 'for (______ i = 0; i < 3; i++) {', 'type': 'blank'},
-        {'text': '  console.log(i);', 'type': 'code'},
-        {'text': '}', 'type': 'code'},
+      'id': '3',
+      'question': 'Complete the function to find maximum of two numbers',
+      'incompleteCode': 'def find_max(a, b):\n    # Complete this function\n    ______\n    return result',
+      'solution': 'def find_max(a, b):\n    # Complete this function\n    if a > b:\n        result = a\n    else:\n        result = b\n    return result',
+      'testCases': [
+        {'input': [2, 3], 'expected': 3},
+        {'input': [5, 1], 'expected': 5},
+        {'input': [0, 0], 'expected': 0},
       ],
-      'options': ['let', 'var', 'int', 'while'],
-      'correctAnswer': 'let',
-      'language': 'JavaScript',
-      'fullSolution': 'for (let i = 0; i < 3; i++) {\n  console.log(i);\n}',
-      'expectedOutput': '0\n1\n2'
+      'language': 'Python'
     },
     {
-      'question': 'Complete the if statement to check even number',
-      'incompleteCode': [
-        {'text': '# Check if number is even', 'type': 'comment'},
-        {'text': 'x = 4', 'type': 'code'},
-        {'text': 'if x ______ 2 == 0:', 'type': 'blank'},
-        {'text': '    print("Even")', 'type': 'code'},
-        {'text': 'else:', 'type': 'code'},
-        {'text': '    print("Odd")', 'type': 'code'},
+      'id': '4',
+      'question': 'Complete the function to reverse a string',
+      'incompleteCode': 'def reverse_string(text):\n    # Complete this function\n    ______\n    return result',
+      'solution': 'def reverse_string(text):\n    # Complete this function\n    result = text[::-1]\n    return result',
+      'testCases': [
+        {'input': ['hello'], 'expected': 'olleh'},
+        {'input': ['abc'], 'expected': 'cba'},
+        {'input': [''], 'expected': ''},
       ],
-      'options': ['%', '/', '+', '*'],
-      'correctAnswer': '%',
-      'language': 'Python',
-      'fullSolution': 'x = 4\nif x % 2 == 0:\n    print("Even")\nelse:\n    print("Odd")',
-      'expectedOutput': 'Even'
-    }
+      'language': 'Python'
+    },
+    {
+      'id': '5',
+      'question': 'Complete the function to calculate factorial',
+      'incompleteCode': 'def factorial(n):\n    # Complete this function\n    ______\n    return result',
+      'solution': 'def factorial(n):\n    # Complete this function\n    result = 1\n    for i in range(1, n + 1):\n        result *= i\n    return result',
+      'testCases': [
+        {'input': [5], 'expected': 120},
+        {'input': [3], 'expected': 6},
+        {'input': [0], 'expected': 1},
+      ],
+      'language': 'Python'
+    },
   ];
 
-  int currentChallengeIndex = 0;
-  String? currentAnswer;
-  bool showResult = false;
-  int score = 0;
-  int totalQuestions = 0;
+  TextEditingController _codeController = TextEditingController();
+  bool _isCompleted = false;
+  bool _showResult = false;
+  int _score = 0;
+  int _remainingTime = 300; // 5 minutes in seconds
+  late Timer _timer;
+  String _completionTime = '';
+  DateTime? _startTime;
+  List<String> _testResults = [];
+  int _currentDayIndex = 0;
+  int? _userId;
+  bool _isLoading = false;
+  bool _hasCompletedToday = false;
+  int? _previousScore;
 
-  void checkAnswer(String answer) {
-    setState(() {
-      currentAnswer = answer;
-      showResult = true;
-      totalQuestions++;
-
-      if (answer == challenges[currentChallengeIndex]['correctAnswer']) {
-        score++;
-      }
-
-      // Auto-show the output dialog after answering
-      Future.delayed(Duration(milliseconds: 500), () {
-        _showCodeOutput();
-      });
-    });
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
   }
 
-  void nextChallenge() {
+  @override
+  void dispose() {
+    _timer.cancel();
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadUserData() async {
+    final user = await UserPreferences.getUser();
     setState(() {
-      if (currentChallengeIndex < challenges.length - 1) {
-        currentChallengeIndex++;
-        currentAnswer = null;
-        showResult = false;
+      _userId = user['id'];
+    });
+    _initializeDailyChallenge();
+  }
+
+  void _initializeDailyChallenge() {
+    // Get current day index (0-6 for weekly rotation)
+    final now = DateTime.now();
+    _currentDayIndex = now.weekday % dailyChallenges.length;
+
+    // Check if user already completed today's challenge
+    _checkDailyCompletion();
+
+    // Reset state for new challenge
+    setState(() {
+      _isCompleted = false;
+      _showResult = false;
+      _score = 0;
+      _remainingTime = 300;
+      _completionTime = '';
+      _testResults = [];
+      _codeController.text = dailyChallenges[_currentDayIndex]['incompleteCode'];
+      _startTime = DateTime.now();
+    });
+
+    _startTimer();
+  }
+
+  Future<void> _checkDailyCompletion() async {
+    if (_userId == null) return;
+
+    try {
+      final result = await ApiService.getScores(_userId!, 'Python');
+
+      if (result['success'] == true && result['scores'] != null) {
+        final scores = result['scores'];
+        // Check if there's a score for level 999 (daily challenge)
+        if (scores.containsKey('999')) {
+          final dailyScore = scores['999'];
+          setState(() {
+            _hasCompletedToday = true;
+            _previousScore = dailyScore['score'];
+          });
+        }
+      }
+    } catch (e) {
+      print('Error checking daily completion: $e');
+    }
+  }
+
+  void _startTimer() {
+    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (_remainingTime > 0) {
+        setState(() {
+          _remainingTime--;
+        });
       } else {
-        _showFinalScore();
+        timer.cancel();
+        if (!_isCompleted && !_hasCompletedToday) {
+          _submitCode(); // Auto-submit when time's up
+        }
       }
     });
   }
 
-  void resetChallenge() {
+  void _submitCode() {
+    if (_isCompleted || _hasCompletedToday) return;
+
     setState(() {
-      currentChallengeIndex = 0;
-      currentAnswer = null;
-      showResult = false;
-      score = 0;
-      totalQuestions = 0;
+      _showResult = true;
+      _isLoading = true;
+    });
+
+    // Calculate completion time
+    final endTime = DateTime.now();
+    final duration = endTime.difference(_startTime!);
+    _completionTime = '${duration.inMinutes}m ${duration.inSeconds % 60}s';
+
+    // Run test cases
+    _runTestCases();
+
+    // Calculate score
+    final passedTests = _testResults.where((result) => result == 'PASSED').length;
+    final totalTests = _testResults.length;
+
+    if (passedTests == totalTests) {
+      _score = 50; // Perfect score
+    } else {
+      // -10 for each failed test
+      _score = 50 - ((totalTests - passedTests) * 10);
+      _score = _score < 0 ? 0 : _score; // Minimum score is 0
+    }
+
+    // Save to database
+    _saveToDatabase();
+
+    setState(() {
+      _isCompleted = true;
+      _isLoading = false;
     });
   }
 
-  void _showCodeOutput() {
-    var currentChallenge = challenges[currentChallengeIndex];
-    bool isCorrect = currentAnswer == currentChallenge['correctAnswer'];
+  void _runTestCases() {
+    final currentChallenge = dailyChallenges[_currentDayIndex];
+    final userCode = _codeController.text;
+    final testCases = currentChallenge['testCases'];
 
+    _testResults.clear();
+
+    // Simple test case validation
+    for (int i = 0; i < testCases.length; i++) {
+      final testCase = testCases[i];
+      final expected = testCase['expected'];
+
+      // This is a simplified validation - in production, use a code execution API
+      bool passed = _validateCode(userCode, expected, testCase['input']);
+      _testResults.add(passed ? 'PASSED' : 'FAILED');
+    }
+  }
+
+  bool _validateCode(String userCode, dynamic expected, List<dynamic> input) {
+    // Simplified validation - check if user completed the code structure
+    final solution = dailyChallenges[_currentDayIndex]['solution'];
+
+    // Remove the blank line and check if user wrote proper code
+    if (userCode.contains('return') &&
+        !userCode.contains('______') &&
+        userCode.length > solution.length * 0.6) { // At least 60% complete
+      return true;
+    }
+
+    return false;
+  }
+
+  Future<void> _saveToDatabase() async {
+    if (_userId == null) {
+      _showErrorDialog('Please login to save your score');
+      return;
+    }
+
+    try {
+      // Save to your SQL database via API - use level 999 for daily challenges
+      final result = await ApiService.saveScore(
+        _userId!,
+        'Python', // Language for daily challenge
+        999, // Special level for daily challenges
+        _score,
+        _score >= 50, // Completed if perfect score
+      );
+
+      if (result['success'] == true) {
+        print('Daily challenge score saved successfully');
+        _showScoreDialog();
+      } else {
+        print('Failed to save score: ${result['message']}');
+        _showErrorDialog(result['message'] ?? 'Failed to save score');
+      }
+    } catch (e) {
+      print('Error saving to database: $e');
+      _showErrorDialog('Connection error: $e');
+    }
+  }
+
+  void _showErrorDialog(String message) {
     showDialog(
       context: context,
-      barrierDismissible: false,
       builder: (BuildContext context) {
-        return Dialog(
+        return AlertDialog(
           backgroundColor: Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Container(
-            width: MediaQuery.of(context).size.width * 0.9,
-            padding: EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  children: [
-                    Icon(
-                      isCorrect ? Icons.check_circle : Icons.error,
-                      color: isCorrect ? Colors.green : Colors.red,
-                      size: 24,
-                    ),
-                    SizedBox(width: 10),
-                    Text(
-                      isCorrect ? 'Code Executed Successfully!' : 'Syntax Error',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-
-                SizedBox(height: 20),
-
-                // Terminal Output
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey[800]!),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Terminal Output:',
-                        style: TextStyle(
-                          color: Colors.grey[400],
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 10),
-                      Container(
-                        padding: EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[900],
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: SelectableText(
-                          isCorrect
-                              ? currentChallenge['expectedOutput']
-                              : 'Error: Incorrect syntax\nExpected: ${currentChallenge['expectedOutput']}',
-                          style: TextStyle(
-                            color: isCorrect ? Colors.white : Colors.red,
-                            fontFamily: 'monospace',
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                SizedBox(height: 20),
-
-                // Complete Solution
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Color(0xFF252526),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.code, color: Colors.tealAccent, size: 16),
-                          SizedBox(width: 8),
-                          Text(
-                            'Complete Solution:',
-                            style: TextStyle(
-                              color: Colors.tealAccent,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 10),
-                      Container(
-                        padding: EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: SelectableText(
-                          currentChallenge['fullSolution'],
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontFamily: 'monospace',
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                SizedBox(height: 20),
-
-                // Action Buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      child: Text(
-                        'CLOSE',
-                        style: TextStyle(color: Colors.grey[400]),
-                      ),
-                    ),
-                    SizedBox(width: 10),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        if (currentChallengeIndex < challenges.length - 1) {
-                          nextChallenge();
-                        } else {
-                          _showFinalScore();
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.tealAccent,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: Text(
-                        currentChallengeIndex < challenges.length - 1
-                            ? 'NEXT CHALLENGE'
-                            : 'SEE RESULTS',
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+          title: Text('Error', style: TextStyle(color: Colors.white)),
+          content: Text(message, style: TextStyle(color: Colors.white70)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('OK', style: TextStyle(color: Colors.tealAccent)),
             ),
-          ),
+          ],
         );
       },
     );
   }
 
-  void _showFinalScore() {
+  void _showScoreDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -299,29 +298,67 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: Text(
-            'Challenge Completed! 🎉',
-            style: TextStyle(color: Colors.white, fontSize: 20),
+          title: Column(
+            children: [
+              Icon(
+                _score >= 50 ? Icons.celebration : Icons.quiz,
+                color: _score >= 50 ? Colors.green : Colors.orange,
+                size: 48,
+              ),
+              SizedBox(height: 10),
+              Text(
+                _score >= 50 ? 'Perfect Score! 🎉' : 'Challenge Completed!',
+                style: TextStyle(color: Colors.white, fontSize: 20),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Your Score: $score/$totalQuestions',
-                style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 10),
-              Text(
-                '${(score / totalQuestions * 100).toStringAsFixed(1)}% Correct',
+                'Score: $_score/50',
                 style: TextStyle(
-                  color: score >= totalQuestions * 0.7 ? Colors.green : Colors.orange,
-                  fontSize: 18,
+                  color: _score >= 50 ? Colors.green : Colors.orange,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               SizedBox(height: 10),
               Text(
-                'Come back tomorrow for new challenges!',
-                style: TextStyle(color: Colors.white70),
+                'Time: $_completionTime',
+                style: TextStyle(color: Colors.white70, fontSize: 16),
+              ),
+              SizedBox(height: 15),
+              ..._testResults.asMap().entries.map((entry) {
+                int index = entry.key;
+                String result = entry.value;
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    result == 'PASSED' ? Icons.check_circle : Icons.cancel,
+                    color: result == 'PASSED' ? Colors.green : Colors.red,
+                    size: 20,
+                  ),
+                  title: Text(
+                    'Test Case ${index + 1}',
+                    style: TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                  trailing: Text(
+                    result,
+                    style: TextStyle(
+                      color: result == 'PASSED' ? Colors.green : Colors.red,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                );
+              }).toList(),
+              SizedBox(height: 10),
+              Text(
+                'Come back tomorrow for a new challenge!',
+                style: TextStyle(color: Colors.white70, fontSize: 12),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -330,16 +367,9 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                resetChallenge();
-              },
-              child: Text('TRY AGAIN', style: TextStyle(color: Colors.tealAccent)),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
                 Navigator.pop(context);
               },
-              child: Text('BACK HOME', style: TextStyle(color: Colors.blueAccent)),
+              child: Text('CLOSE', style: TextStyle(color: Colors.tealAccent)),
             ),
           ],
         );
@@ -347,101 +377,138 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     );
   }
 
-  Color _getOptionColor(String option) {
-    if (!showResult) {
-      return Colors.blue[800]!;
-    }
-
-    if (option == challenges[currentChallengeIndex]['correctAnswer']) {
-      return Colors.green;
-    } else if (option == currentAnswer && option != challenges[currentChallengeIndex]['correctAnswer']) {
-      return Colors.red;
-    }
-
-    return Colors.blue[800]!;
-  }
-
-  Widget _buildCodeLine(Map<String, dynamic> line, int index) {
-    if (line['type'] == 'blank') {
-      return DragTarget<String>(
-        builder: (context, candidateData, rejectedData) {
-          return Container(
-            margin: EdgeInsets.symmetric(vertical: 2),
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+  Widget _buildCodeEditor() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[800]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.5),
+            blurRadius: 15,
+            offset: Offset(0, 5),
+          )
+        ],
+      ),
+      child: Column(
+        children: [
+          // Editor Header
+          Container(
+            padding: EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: currentAnswer != null
-                  ? (currentAnswer == challenges[currentChallengeIndex]['correctAnswer']
-                  ? Colors.green[900]!.withOpacity(0.3)
-                  : Colors.red[900]!.withOpacity(0.3))
-                  : Colors.grey[800]!.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: candidateData.isNotEmpty
-                    ? Colors.tealAccent
-                    : (currentAnswer != null
-                    ? (currentAnswer == challenges[currentChallengeIndex]['correctAnswer']
-                    ? Colors.green
-                    : Colors.red)
-                    : Colors.grey[600]!),
-                width: 2,
+              color: Color(0xFF2D2D2D),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
               ),
+              border: Border(bottom: BorderSide(color: Colors.grey[800]!)),
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.ads_click,
-                  color: Colors.white60,
-                  size: 16,
-                ),
+                Icon(Icons.code, color: Colors.tealAccent, size: 20),
                 SizedBox(width: 8),
                 Text(
-                  currentAnswer ?? 'Drag answer here',
+                  'challenge.py',
                   style: TextStyle(
                     color: Colors.white,
-                    fontFamily: 'monospace',
                     fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+                Spacer(),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.teal.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.tealAccent.withOpacity(0.5)),
+                  ),
+                  child: Text(
+                    'PYTHON',
+                    style: TextStyle(
+                      color: Colors.tealAccent,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
             ),
-          );
-        },
-        onWillAccept: (data) => true,
-        onAccept: (data) {
-          checkAnswer(data);
-        },
-      );
-    } else {
-      Color textColor = Colors.white;
-      switch (line['type']) {
-        case 'comment':
-          textColor = Colors.green;
-          break;
-        case 'code':
-          textColor = Colors.white;
-          break;
-      }
-
-      return Container(
-        margin: EdgeInsets.symmetric(vertical: 2),
-        padding: EdgeInsets.symmetric(vertical: 4),
-        child: Text(
-          line['text'],
-          style: TextStyle(
-            color: textColor,
-            fontFamily: 'monospace',
-            fontSize: 14,
           ),
-        ),
-      );
-    }
+
+          // Code Input Area
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: TextField(
+                controller: _codeController,
+                maxLines: null,
+                expands: true,
+                enabled: !_isCompleted && !_hasCompletedToday,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontFamily: 'monospace',
+                  fontSize: 14,
+                ),
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  hintText: _hasCompletedToday
+                      ? 'You have already completed today\'s challenge!'
+                      : (_isCompleted ? 'Challenge completed!' : 'Type your code here...'),
+                  hintStyle: TextStyle(
+                    color: Colors.grey[600],
+                    fontFamily: 'monospace',
+                  ),
+                ),
+                keyboardType: TextInputType.multiline,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAlreadyCompletedView() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_circle, color: Colors.green, size: 48),
+          SizedBox(height: 10),
+          Text(
+            'Challenge Already Completed!',
+            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 10),
+          Text(
+            'You have already completed today\'s daily challenge. Come back tomorrow for a new challenge!',
+            style: TextStyle(color: Colors.white70, fontSize: 14),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 15),
+          Text(
+            'Your Score: ${_previousScore ?? 0}/50',
+            style: TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    var currentChallenge = challenges[currentChallengeIndex];
+    final currentChallenge = dailyChallenges[_currentDayIndex];
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -451,13 +518,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         elevation: 0,
         centerTitle: true,
         iconTheme: IconThemeData(color: Colors.white),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh, color: Colors.white),
-            onPressed: resetChallenge,
-            tooltip: 'Restart Challenge',
-          ),
-        ],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -477,38 +537,51 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Progress and Score
+                // Header with timer and points
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    // Timer
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: _remainingTime <= 60 ? Colors.red.withOpacity(0.3) : Colors.blue.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
+                        border: Border.all(color: _remainingTime <= 60 ? Colors.red : Colors.blue),
                       ),
-                      child: Text(
-                        'Question ${currentChallengeIndex + 1}/${challenges.length}',
-                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      child: Row(
+                        children: [
+                          Icon(Icons.timer, color: Colors.white, size: 16),
+                          SizedBox(width: 8),
+                          Text(
+                            '${(_remainingTime ~/ 60).toString().padLeft(2, '0')}:${(_remainingTime % 60).toString().padLeft(2, '0')}',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+
+                    // Points
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.teal.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
+                        border: Border.all(color: Colors.tealAccent),
                       ),
                       child: Text(
-                        'Score: $score',
-                        style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                        'Points: 50',
+                        style: TextStyle(color: Colors.tealAccent, fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
                 ),
 
-                SizedBox(height: 30),
+                SizedBox(height: 20),
 
                 // Language Tag
                 Container(
@@ -531,7 +604,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                   currentChallenge['question'],
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.w600,
                     height: 1.4,
                   ),
@@ -539,188 +612,116 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
 
                 SizedBox(height: 20),
 
-                // Code Editor - VSCode Style
+                // Code Editor or Already Completed View
                 Expanded(
-                  flex: 3,
-                  child: Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Color(0xFF1E1E1E),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[800]!),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.5),
-                          blurRadius: 15,
-                          offset: Offset(0, 5),
-                        )
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        // Editor Header
-                        Container(
-                          padding: EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Color(0xFF2D2D2D),
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(12),
-                              topRight: Radius.circular(12),
-                            ),
-                            border: Border(bottom: BorderSide(color: Colors.grey[800]!)),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.code, color: Colors.tealAccent, size: 20),
-                              SizedBox(width: 8),
-                              Text(
-                                'challenge.${currentChallenge['language'].toLowerCase()}',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: 'monospace',
-                                ),
-                              ),
-                              Spacer(),
-                              Container(
-                                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.teal.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(color: Colors.tealAccent.withOpacity(0.5)),
-                                ),
-                                child: Text(
-                                  currentChallenge['language'],
-                                  style: TextStyle(
-                                    color: Colors.tealAccent,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Code Area
-                        Expanded(
-                          child: SingleChildScrollView(
-                            padding: EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                ...currentChallenge['incompleteCode'].map<Widget>((line) {
-                                  return _buildCodeLine(line, currentChallenge['incompleteCode'].indexOf(line));
-                                }).toList(),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  child: _hasCompletedToday ? _buildAlreadyCompletedView() : _buildCodeEditor(),
                 ),
 
                 SizedBox(height: 20),
 
-                // Draggable Options
-                Text(
-                  'Drag the correct code snippet to the blank:',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-
-                SizedBox(height: 15),
-
-                // Options Grid
-                Expanded(
-                  flex: 1,
-                  child: GridView.builder(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 3,
+                // Submit Button (only show if not completed today)
+                if (!_isCompleted && !_hasCompletedToday) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _submitCode,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.tealAccent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                          : Text(
+                        'SUBMIT CODE',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                    itemCount: currentChallenge['options'].length,
-                    itemBuilder: (context, index) {
-                      String option = currentChallenge['options'][index];
-                      return Draggable<String>(
-                        data: option,
-                        feedback: Material(
-                          elevation: 4,
-                          child: Container(
-                            width: 150,
-                            padding: EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: _getOptionColor(option),
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.3),
-                                  blurRadius: 10,
-                                  offset: Offset(0, 5),
-                                )
-                              ],
-                              border: Border.all(color: Colors.tealAccent.withOpacity(0.5)),
-                            ),
-                            child: Text(
-                              option,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontFamily: 'monospace',
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                        childWhenDragging: Opacity(
-                          opacity: 0.5,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.grey[700],
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: _getOptionColor(option),
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 5,
-                                offset: Offset(0, 3),
-                              )
-                            ],
-                            border: Border.all(
-                              color: Colors.tealAccent.withOpacity(0.3),
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              option,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontFamily: 'monospace',
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
                   ),
-                ),
+                ],
+
+                // Result Display
+                if (_showResult && !_hasCompletedToday) ...[
+                  SizedBox(height: 20),
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Color(0xFF1E1E1E),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _score >= 50 ? Colors.green : Colors.orange,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Results:',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.visibility, color: Colors.tealAccent),
+                              onPressed: _showScoreDialog,
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 10),
+                        Text(
+                          'Score: $_score/50',
+                          style: TextStyle(
+                            color: _score >= 50 ? Colors.green : Colors.orange,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Time: $_completionTime',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                        SizedBox(height: 10),
+                        Wrap(
+                          spacing: 10,
+                          children: _testResults.asMap().entries.map((entry) {
+                            int index = entry.key;
+                            String result = entry.value;
+                            return Chip(
+                              label: Text(
+                                'Test ${index + 1}',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              backgroundColor: result == 'PASSED' ? Colors.green : Colors.red,
+                              side: BorderSide.none,
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

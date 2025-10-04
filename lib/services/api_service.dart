@@ -1,11 +1,8 @@
-// lib/services/api_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
   static const String baseUrl = "https://codesnap.fun";
-
-
 
   // Helper methods for safe type conversion
   static int _safeIntConversion(dynamic value) {
@@ -376,5 +373,4 @@ class ApiService {
       return {'success': false, 'message': 'Connection error: $e'};
     }
   }
-
 }
