@@ -30,11 +30,31 @@ class _PythonLevel1State extends State<PythonLevel1> {
   // Track currently dragged block
   String? currentlyDraggedBlock;
 
+  // Scaling factors
+  double _scaleFactor = 1.0;
+  final double _baseScreenWidth = 360.0; // Base width for scaling
+
   @override
   void initState() {
     super.initState();
     resetBlocks();
     _loadUserData();
+    _calculateScaleFactor();
+  }
+
+  void _calculateScaleFactor() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final mediaQuery = MediaQuery.of(context);
+      final screenWidth = mediaQuery.size.width;
+
+      setState(() {
+        if (screenWidth < _baseScreenWidth) {
+          _scaleFactor = screenWidth / _baseScreenWidth;
+        } else {
+          _scaleFactor = 1.0;
+        }
+      });
+    });
   }
 
   void _loadUserData() async {
@@ -46,36 +66,35 @@ class _PythonLevel1State extends State<PythonLevel1> {
   }
 
   void resetBlocks() {
-    // Simple blocks for Python Hello World - print("Hello World")
+    // Simple blocks for Python: print("Hello World")
     List<String> correctBlocks = [
       'print',
       '(',
       '"Hello World"',
-      ')',
+      ')'
     ];
 
     // Incorrect/distractor blocks
     List<String> incorrectBlocks = [
-      'printf',
       'echo',
+      'printf',
       'cout',
-      'System.out.print',
-      '("Hi World")',
-      '("Hello")',
-      ':',
-      ',',
-      'log',
-      'console.log',
-      'puts',
-      'write',
-      'print(',
-      'print()',
+      'System.out.println',
+      'Console.WriteLine',
       'println',
+      '"Hello"',
+      '"Hi World"',
+      ';',
+      ':',
+      '<<',
+      '>>',
+      'write',
+      'puts',
     ];
 
-    // Shuffle incorrect blocks and take 3 random ones
+    // Shuffle incorrect blocks and take 4 random ones
     incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(3).toList();
+    List<String> selectedIncorrectBlocks = incorrectBlocks.take(4).toList();
 
     // Combine correct and incorrect blocks, then shuffle
     allBlocks = [
@@ -239,21 +258,20 @@ class _PythonLevel1State extends State<PythonLevel1> {
   // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
-      'printf',
       'echo',
+      'printf',
       'cout',
-      'System.out.print',
-      '("Hi World")',
-      '("Hello")',
-      ':',
-      ',',
-      'log',
-      'console.log',
-      'puts',
-      'write',
-      'print(',
-      'print()',
+      'System.out.println',
+      'Console.WriteLine',
       'println',
+      '"Hello"',
+      '"Hi World"',
+      ';',
+      ':',
+      '<<',
+      '>>',
+      'write',
+      'puts',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -302,14 +320,14 @@ class _PythonLevel1State extends State<PythonLevel1> {
       return;
     }
 
-    // Simple check for: print("Hello World")
+    // Check for: print("Hello World")
     String answer = droppedBlocks.join(' ');
     String normalizedAnswer = answer
         .replaceAll(' ', '')
         .replaceAll('\n', '')
         .toLowerCase();
 
-    // Exact match for the simple version (Python doesn't need semicolon)
+    // Exact match for Python syntax
     String expected = 'print("helloworld")';
 
     if (normalizedAnswer == expected) {
@@ -330,14 +348,14 @@ class _PythonLevel1State extends State<PythonLevel1> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Well done Pythonista!"),
+              Text("Well done Python Developer!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
                   "🎉 Perfect! You've unlocked Level 2!",
-                  style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
@@ -362,13 +380,28 @@ class _PythonLevel1State extends State<PythonLevel1> {
               Text("Your Code:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
-                color: Colors.teal[50],
+                color: Colors.blue[50],
                 child: Text(
                   getPreviewCode(),
                   style: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 14,
                   ),
+                ),
+              ),
+              SizedBox(height: 10),
+              Text("Python Syntax:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Container(
+                padding: EdgeInsets.all(10),
+                color: Colors.green[50],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("• print - built-in function for output"),
+                    Text("• ( ) - parentheses for function parameters"),
+                    Text("• \" \" - double quotes for strings"),
+                    Text("• No semicolon needed in Python!"),
+                  ],
                 ),
               ),
             ],
@@ -430,13 +463,12 @@ class _PythonLevel1State extends State<PythonLevel1> {
     return "$m:$s";
   }
 
-  // BAGONG PREVIEW NA MAY CODE EDITOR STYLE (PYTHON VERSION)
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: Color(0xFF1E1E1E), // Dark background like VS Code
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(8 * _scaleFactor),
         border: Border.all(color: Colors.grey[700]!),
       ),
       child: Column(
@@ -444,23 +476,23 @@ class _PythonLevel1State extends State<PythonLevel1> {
         children: [
           // Code editor header
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
             decoration: BoxDecoration(
               color: Color(0xFF2D2D2D),
               borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
+                topLeft: Radius.circular(8 * _scaleFactor),
+                topRight: Radius.circular(8 * _scaleFactor),
               ),
             ),
             child: Row(
               children: [
-                Icon(Icons.code, color: Colors.grey[400], size: 16),
-                SizedBox(width: 8),
+                Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
+                SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'hello_world.py',
+                  'hello_world.py', // Changed to Python file
                   style: TextStyle(
                     color: Colors.grey[400],
-                    fontSize: 12,
+                    fontSize: 12 * _scaleFactor,
                     fontFamily: 'monospace',
                   ),
                 ),
@@ -469,7 +501,7 @@ class _PythonLevel1State extends State<PythonLevel1> {
           ),
           // Code content
           Container(
-            padding: EdgeInsets.all(12),
+            padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -482,17 +514,15 @@ class _PythonLevel1State extends State<PythonLevel1> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         _buildCodeLine(1, getPreviewCode()),
-                        _buildCodeLine(2, ''),
                       ],
                     ),
-                    SizedBox(width: 16),
+                    SizedBox(width: 16 * _scaleFactor),
                     // Actual code with syntax highlighting
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildUserCodeLine(getPreviewCode()),
-                          SizedBox(height: 8),
                         ],
                       ),
                     ),
@@ -506,50 +536,49 @@ class _PythonLevel1State extends State<PythonLevel1> {
     );
   }
 
-  Widget _buildCodeLine(int lineNumber, String code) {
-    return Container(
-      height: 20,
-      child: Text(
-        lineNumber.toString().padLeft(2, ' '),
-        style: TextStyle(
-          color: Colors.grey[600],
-          fontSize: 12,
-          fontFamily: 'monospace',
-        ),
-      ),
-    );
-  }
-
   Widget _buildUserCodeLine(String code) {
-    // Highlight the user's code in green
-    if (getPreviewCode().isNotEmpty) {
+    if (code.isEmpty) {
       return Container(
-        height: 20,
-        child: RichText(
-          text: TextSpan(
-            children: [
-              TextSpan(
-                text: getPreviewCode(),
-                style: TextStyle(
-                  color: Colors.greenAccent[400],
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
+        height: 20 * _scaleFactor,
+        child: Text(
+          '', // Empty line
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 12 * _scaleFactor,
+            fontFamily: 'monospace',
           ),
         ),
       );
     }
 
     return Container(
-      height: 20,
+      height: 20 * _scaleFactor,
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: code,
+              style: TextStyle(
+                color: Colors.greenAccent[400],
+                fontFamily: 'monospace',
+                fontSize: 12 * _scaleFactor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCodeLine(int lineNumber, String code) {
+    return Container(
+      height: 20 * _scaleFactor,
       child: Text(
-        code,
+        lineNumber.toString().padLeft(2, ' '),
         style: TextStyle(
-          color: Colors.white,
-          fontSize: 12,
+          color: Colors.grey[600],
+          fontSize: 12 * _scaleFactor,
           fontFamily: 'monospace',
         ),
       ),
@@ -569,347 +598,397 @@ class _PythonLevel1State extends State<PythonLevel1> {
 
   @override
   Widget build(BuildContext context) {
+    // Recalculate scale factor when screen size changes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final newScreenWidth = MediaQuery.of(context).size.width;
+      final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
+
+      if (newScaleFactor != _scaleFactor) {
+        setState(() {
+          _scaleFactor = newScaleFactor;
+        });
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
-        title: Text("🐍 Python - Level 1"),
-        backgroundColor: Colors.teal,
+        title: Text("🐍 Python - Level 1", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.blue, // Blue for Python
         actions: gameStarted
             ? [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor),
             child: Row(
               children: [
-                Icon(Icons.timer),
-                SizedBox(width: 4),
-                Text(formatTime(remainingSeconds)),
-                SizedBox(width: 16),
-                Icon(Icons.star, color: Colors.yellowAccent),
+                Icon(Icons.timer, size: 18 * _scaleFactor),
+                SizedBox(width: 4 * _scaleFactor),
+                Text(formatTime(remainingSeconds), style: TextStyle(fontSize: 14 * _scaleFactor)),
+                SizedBox(width: 16 * _scaleFactor),
+                Icon(Icons.star, color: Colors.yellowAccent, size: 18 * _scaleFactor),
                 Text(" $score",
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor)),
               ],
             ),
           ),
         ]
             : [],
       ),
-      body: gameStarted ? buildGameUI() : buildStartScreen(),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF0D1B1B), // Dark blue theme for Python
+              Color(0xFF1B2D2D),
+              Color(0xFF335555),
+            ],
+          ),
+        ),
+        child: gameStarted ? buildGameUI() : buildStartScreen(),
+      ),
     );
   }
 
   Widget buildStartScreen() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          ElevatedButton.icon(
-            onPressed: startGame,
-            icon: Icon(Icons.play_arrow),
-            label: Text("Start Game"),
-            style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                backgroundColor: Colors.teal),
-          ),
-          SizedBox(height: 20),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(16 * _scaleFactor),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton.icon(
+              onPressed: startGame,
+              icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
+              label: Text("Start Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
+                backgroundColor: Colors.blue, // Blue for Python
+              ),
+            ),
+            SizedBox(height: 20 * _scaleFactor),
 
-          if (level1Completed)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Column(
-                children: [
-                  Text(
-                    "✅ Level 1 completed with perfect score!",
-                    style: TextStyle(color: Colors.green, fontSize: 16),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    "You've unlocked Level 2!",
-                    style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            )
-          else if (hasPreviousScore && previousScore > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Column(
-                children: [
-                  Text(
-                    "📊 Your previous score: $previousScore/3",
-                    style: TextStyle(color: Colors.teal, fontSize: 16),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    "Try again to get a perfect score and unlock Level 2!",
-                    style: TextStyle(color: Colors.teal),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            )
-          else if (hasPreviousScore && previousScore == 0)
+            if (level1Completed)
               Padding(
-                padding: const EdgeInsets.only(top: 10),
+                padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "😅 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.red, fontSize: 16),
+                      "✅ Level 1 completed with perfect score!",
+                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
+                      textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: 5),
+                    SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Don't give up! You can do better this time!",
-                      style: TextStyle(color: Colors.teal),
+                      "You've unlocked Level 2!",
+                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
                 ),
-              ),
-
-          SizedBox(height: 30),
-          Container(
-            padding: EdgeInsets.all(16),
-            margin: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.teal[50],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.teal[200]!),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  "🎯 Level 1 Objective",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal[800]),
-                ),
-                SizedBox(height: 10),
-                Text(
-                  "Arrange the code blocks to create: print(\"Hello World\")",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.teal[700]),
-                ),
-                SizedBox(height: 10),
-                Container(
-                  padding: EdgeInsets.all(10),
-                  color: Colors.black,
-                  child: Text(
-                    "print(\"Hello World\")",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontFamily: 'monospace',
-                      fontSize: 14,
+              )
+            else if (hasPreviousScore && previousScore > 0)
+              Padding(
+                padding: EdgeInsets.only(top: 10 * _scaleFactor),
+                child: Column(
+                  children: [
+                    Text(
+                      "📊 Your previous score: $previousScore/3",
+                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
+                      textAlign: TextAlign.center,
                     ),
+                    SizedBox(height: 5 * _scaleFactor),
+                    Text(
+                      "Try again to get a perfect score and unlock Level 2!",
+                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              )
+            else if (hasPreviousScore && previousScore == 0)
+                Padding(
+                  padding: EdgeInsets.only(top: 10 * _scaleFactor),
+                  child: Column(
+                    children: [
+                      Text(
+                        "😅 Your previous score: $previousScore/3",
+                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 5 * _scaleFactor),
+                      Text(
+                        "Don't give up! You can do better this time!",
+                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
                 ),
-              ],
+
+            SizedBox(height: 30 * _scaleFactor),
+            Container(
+              padding: EdgeInsets.all(16 * _scaleFactor),
+              margin: EdgeInsets.all(16 * _scaleFactor),
+              decoration: BoxDecoration(
+                color: Colors.blue[50]!.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(12 * _scaleFactor),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    "🎯 Level 1 Objective",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.blue[800]),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Text(
+                    "Arrange the code blocks to create: print(\"Hello World\")",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.blue[700]),
+                  ),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Container(
+                    padding: EdgeInsets.all(10 * _scaleFactor),
+                    color: Colors.black,
+                    child: Text(
+                      "print(\"Hello World\")",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'monospace',
+                        fontSize: 14 * _scaleFactor,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Text(
+                    "Learn Python's simple print statement!",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12 * _scaleFactor, color: Colors.blue[600], fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget buildGameUI() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 360;
-    final isMediumScreen = screenWidth < 400;
-
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: Text('📖 Short Story',
-                    style: TextStyle(fontSize: isSmallScreen ? 16 : 18, fontWeight: FontWeight.bold)),
-              ),
-              TextButton.icon(
-                onPressed: () {
-                  setState(() {
-                    isTagalog = !isTagalog;
-                  });
-                },
-                icon: Icon(Icons.translate, size: isSmallScreen ? 16 : 20),
-                label: Text(isTagalog ? 'English' : 'Tagalog',
-                    style: TextStyle(fontSize: isSmallScreen ? 14 : 16)),
-              ),
-            ],
-          ),
-          SizedBox(height: 10),
-          Text(
-            isTagalog
-                ? 'Si Zeke ay unang natututo ng Python! Gusto niyang ipakita ang kanyang unang output gamit ang print("Hello World"). Pwede mo ba siyang tulungan buuin ang tamang code?'
-                : 'Zeke is learning Python for the first time! He wants to display his first output using print("Hello World"). Can you help him build the correct code?',
-            textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: isSmallScreen ? 14 : 16),
-          ),
-          SizedBox(height: 20),
-
-          Text('🧩 Arrange the blocks to form: print("Hello World")',
-              style: TextStyle(fontSize: isSmallScreen ? 16 : 18),
-              textAlign: TextAlign.center),
-          SizedBox(height: 20),
-
-          // TARGET AREA
-          Container(
-            height: isSmallScreen ? 120 : 140,
-            width: double.infinity,
-            padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              border: Border.all(color: Colors.teal, width: 2.5),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: DragTarget<String>(
-              onWillAccept: (data) {
-                return !droppedBlocks.contains(data);
-              },
-              onAccept: (data) {
-                if (!isAnsweredCorrectly) {
-                  setState(() {
-                    droppedBlocks.add(data);
-                    allBlocks.remove(data);
-                  });
-                }
-              },
-              builder: (context, candidateData, rejectedData) {
-                return Center(
-                  child: Wrap(
-                    spacing: isSmallScreen ? 4 : 8,
-                    runSpacing: isSmallScreen ? 4 : 8,
-                    alignment: WrapAlignment.center,
-                    children: droppedBlocks.map((block) {
-                      return Draggable<String>(
-                        data: block,
-                        feedback: puzzleBlock(block, Colors.greenAccent, isSmallScreen, isMediumScreen),
-                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5), isSmallScreen, isMediumScreen),
-                        child: puzzleBlock(block, Colors.greenAccent, isSmallScreen, isMediumScreen),
-                        onDragStarted: () {
-                          setState(() {
-                            currentlyDraggedBlock = block;
-                          });
-                        },
-                        onDragEnd: (details) {
-                          setState(() {
-                            currentlyDraggedBlock = null;
-                          });
-
-                          if (!isAnsweredCorrectly && !details.wasAccepted) {
-                            Future.delayed(Duration(milliseconds: 50), () {
-                              if (mounted) {
-                                setState(() {
-                                  if (!allBlocks.contains(block)) {
-                                    allBlocks.add(block);
-                                  }
-                                  droppedBlocks.remove(block);
-                                });
-                              }
-                            });
-                          }
-                        },
-                      );
-                    }).toList(),
-                  ),
-                );
-              },
-            ),
-          ),
-
-          SizedBox(height: 20),
-          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: isSmallScreen ? 16 : 18)),
-          SizedBox(height: 10),
-          // BAGONG CODE PREVIEW NA MAY EDITOR STYLE
-          getCodePreview(),
-          SizedBox(height: 20),
-
-          // SOURCE AREA
-          Wrap(
-            spacing: isSmallScreen ? 6 : 10,
-            runSpacing: isSmallScreen ? 8 : 12,
-            alignment: WrapAlignment.center,
-            children: allBlocks.map((block) {
-              return isAnsweredCorrectly
-                  ? puzzleBlock(block, Colors.grey, isSmallScreen, isMediumScreen)
-                  : Draggable<String>(
-                data: block,
-                feedback: puzzleBlock(block, Colors.tealAccent, isSmallScreen, isMediumScreen),
-                childWhenDragging: Opacity(
-                  opacity: 0.4,
-                  child: puzzleBlock(block, Colors.tealAccent, isSmallScreen, isMediumScreen),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF0D1B1B),
+            Color(0xFF1B2D2D),
+            Color(0xFF335555),
+          ],
+        ),
+      ),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(16 * _scaleFactor),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text('📖 Short Story',
+                      style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
-                child: puzzleBlock(block, Colors.tealAccent, isSmallScreen, isMediumScreen),
-                onDragStarted: () {
-                  setState(() {
-                    currentlyDraggedBlock = block;
-                  });
-                },
-                onDragEnd: (details) {
-                  setState(() {
-                    currentlyDraggedBlock = null;
-                  });
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      isTagalog = !isTagalog;
+                    });
+                  },
+                  icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
+                  label: Text(isTagalog ? 'English' : 'Tagalog',
+                      style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+                ),
+              ],
+            ),
+            SizedBox(height: 10 * _scaleFactor),
+            Text(
+              isTagalog
+                  ? 'Si Juan ay excited matuto ng Python! Kailangan niyang gumamit ng print function para mag-display ng "Hello World". Tulungan mo siyang buuin ang tamang code!'
+                  : 'Juan is excited to learn Python! He needs to use the print function to display "Hello World". Help him build the correct code!',
+              textAlign: TextAlign.justify,
+              style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
+            ),
+            SizedBox(height: 20 * _scaleFactor),
 
-                  if (!isAnsweredCorrectly && !details.wasAccepted) {
-                    Future.delayed(Duration(milliseconds: 50), () {
-                      if (mounted) {
-                        setState(() {
-                          if (!allBlocks.contains(block)) {
-                            allBlocks.add(block);
-                          }
-                        });
-                      }
+            Text('🧩 Arrange the blocks to form: print("Hello World")',
+                style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
+                textAlign: TextAlign.center),
+            SizedBox(height: 20 * _scaleFactor),
+
+            // TARGET AREA
+            Container(
+              height: 140 * _scaleFactor,
+              width: double.infinity,
+              padding: EdgeInsets.all(16 * _scaleFactor),
+              decoration: BoxDecoration(
+                color: Colors.grey[100]!.withOpacity(0.9),
+                border: Border.all(color: Colors.blue, width: 2.5 * _scaleFactor), // Blue for Python
+                borderRadius: BorderRadius.circular(20 * _scaleFactor),
+              ),
+              child: DragTarget<String>(
+                onWillAccept: (data) {
+                  return !droppedBlocks.contains(data);
+                },
+                onAccept: (data) {
+                  if (!isAnsweredCorrectly) {
+                    setState(() {
+                      droppedBlocks.add(data);
+                      allBlocks.remove(data);
                     });
                   }
                 },
-              );
-            }).toList(),
-          ),
+                builder: (context, candidateData, rejectedData) {
+                  return Center(
+                    child: Wrap(
+                      spacing: 8 * _scaleFactor,
+                      runSpacing: 8 * _scaleFactor,
+                      alignment: WrapAlignment.center,
+                      children: droppedBlocks.map((block) {
+                        return Draggable<String>(
+                          data: block,
+                          feedback: puzzleBlock(block, Colors.yellowAccent), // Yellow for Python
+                          childWhenDragging: puzzleBlock(block, Colors.yellowAccent.withOpacity(0.5)),
+                          child: puzzleBlock(block, Colors.yellowAccent),
+                          onDragStarted: () {
+                            setState(() {
+                              currentlyDraggedBlock = block;
+                            });
+                          },
+                          onDragEnd: (details) {
+                            setState(() {
+                              currentlyDraggedBlock = null;
+                            });
 
-          SizedBox(height: 30),
-          ElevatedButton.icon(
-            onPressed: isAnsweredCorrectly ? null : checkAnswer,
-            icon: Icon(Icons.play_arrow),
-            label: Text("Run Code", style: TextStyle(fontSize: isSmallScreen ? 14 : 16)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.teal,
-              padding: EdgeInsets.symmetric(
-                horizontal: isSmallScreen ? 20 : 24,
-                vertical: isSmallScreen ? 12 : 16,
+                            if (!isAnsweredCorrectly && !details.wasAccepted) {
+                              Future.delayed(Duration(milliseconds: 50), () {
+                                if (mounted) {
+                                  setState(() {
+                                    if (!allBlocks.contains(block)) {
+                                      allBlocks.add(block);
+                                    }
+                                    droppedBlocks.remove(block);
+                                  });
+                                }
+                              });
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  );
+                },
               ),
             ),
-          ),
-          TextButton(
-            onPressed: resetGame,
-            child: Text("🔁 Retry", style: TextStyle(fontSize: isSmallScreen ? 14 : 16)),
-          ),
-        ],
+
+            SizedBox(height: 20 * _scaleFactor),
+            Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+            SizedBox(height: 10 * _scaleFactor),
+            getCodePreview(),
+            SizedBox(height: 20 * _scaleFactor),
+
+            // SOURCE AREA
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.transparent, // Ensure transparent background
+              ),
+              child: Wrap(
+                spacing: 10 * _scaleFactor,
+                runSpacing: 12 * _scaleFactor,
+                alignment: WrapAlignment.center,
+                children: allBlocks.map((block) {
+                  return isAnsweredCorrectly
+                      ? puzzleBlock(block, Colors.grey)
+                      : Draggable<String>(
+                    data: block,
+                    feedback: puzzleBlock(block, Colors.blueAccent), // Blue for Python
+                    childWhenDragging: Opacity(
+                      opacity: 0.4,
+                      child: puzzleBlock(block, Colors.blueAccent),
+                    ),
+                    child: puzzleBlock(block, Colors.blueAccent),
+                    onDragStarted: () {
+                      setState(() {
+                        currentlyDraggedBlock = block;
+                      });
+                    },
+                    onDragEnd: (details) {
+                      setState(() {
+                        currentlyDraggedBlock = null;
+                      });
+
+                      if (!isAnsweredCorrectly && !details.wasAccepted) {
+                        Future.delayed(Duration(milliseconds: 50), () {
+                          if (mounted) {
+                            setState(() {
+                              if (!allBlocks.contains(block)) {
+                                allBlocks.add(block);
+                              }
+                            });
+                          }
+                        });
+                      }
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
+
+            SizedBox(height: 30 * _scaleFactor),
+            ElevatedButton.icon(
+              onPressed: isAnsweredCorrectly ? null : checkAnswer,
+              icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
+              label: Text("Run Code", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue, // Blue for Python
+                padding: EdgeInsets.symmetric(
+                  horizontal: 24 * _scaleFactor,
+                  vertical: 16 * _scaleFactor,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: resetGame,
+              child: Text("🔁 Retry", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+            ),
+            SizedBox(height: 20 * _scaleFactor), // Extra space at bottom
+          ],
+        ),
       ),
     );
   }
 
-  Widget puzzleBlock(String text, Color color, bool isSmallScreen, bool isMediumScreen) {
-    double fontSize = isSmallScreen ? 12 : (isMediumScreen ? 14 : 16);
-    double horizontalPadding = isSmallScreen ? 12 : 16;
-    double verticalPadding = isSmallScreen ? 8 : 12;
-
+  Widget puzzleBlock(String text, Color color) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: isSmallScreen ? 2 : 3),
+      margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: horizontalPadding,
-        vertical: verticalPadding,
+        horizontal: 16 * _scaleFactor,
+        vertical: 12 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(isSmallScreen ? 15 : 20),
-          bottomRight: Radius.circular(isSmallScreen ? 15 : 20),
+          topLeft: Radius.circular(20 * _scaleFactor),
+          bottomRight: Radius.circular(20 * _scaleFactor),
         ),
-        border: Border.all(color: Colors.black45, width: isSmallScreen ? 1.0 : 1.5),
+        border: Border.all(color: Colors.black45, width: 1.5 * _scaleFactor),
         boxShadow: [
           BoxShadow(
             color: Colors.black26,
-            blurRadius: isSmallScreen ? 3 : 4,
-            offset: Offset(2, 2),
+            blurRadius: 4 * _scaleFactor,
+            offset: Offset(2 * _scaleFactor, 2 * _scaleFactor),
           )
         ],
       ),
@@ -918,7 +997,7 @@ class _PythonLevel1State extends State<PythonLevel1> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: fontSize,
+          fontSize: 14 * _scaleFactor,
         ),
         textAlign: TextAlign.center,
       ),

@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
+import '../../services/api_service.dart';
+import '../../services/user_preferences.dart';
 
 class PhpLevel2 extends StatefulWidget {
   const PhpLevel2({super.key});
@@ -25,16 +27,44 @@ class _PhpLevel2State extends State<PhpLevel2> {
   int remainingSeconds = 120;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
+  Map<String, dynamic>? currentUser;
+
+  // Scaling factors
+  double _scaleFactor = 1.0;
+  final double _baseScreenWidth = 360.0;
 
   @override
   void initState() {
     super.initState();
     resetBlocks();
-    loadScoreFromPrefs();
+    _loadUserData();
+    _calculateScaleFactor();
+  }
+
+  void _calculateScaleFactor() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final mediaQuery = MediaQuery.of(context);
+      final screenWidth = mediaQuery.size.width;
+
+      setState(() {
+        if (screenWidth < _baseScreenWidth) {
+          _scaleFactor = screenWidth / _baseScreenWidth;
+        } else {
+          _scaleFactor = 1.0;
+        }
+      });
+    });
+  }
+
+  void _loadUserData() async {
+    final user = await UserPreferences.getUser();
+    setState(() {
+      currentUser = user;
+    });
+    loadScoreFromDatabase();
   }
 
   void resetBlocks() {
-    // Reduced blocks for PHP variables and output
     allBlocks = [
       '<?php',
       '\$name',
@@ -63,7 +93,6 @@ class _PhpLevel2State extends State<PhpLevel2> {
   }
 
   void startTimers() {
-    // Main countdown timer
     countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (isAnsweredCorrectly) {
         timer.cancel();
@@ -76,7 +105,7 @@ class _PhpLevel2State extends State<PhpLevel2> {
           score = 0;
           timer.cancel();
           scoreReductionTimer?.cancel();
-          saveScoreToPrefs(score);
+          saveScoreToDatabase(score);
           showDialog(
             context: context,
             builder: (_) => AlertDialog(
@@ -97,7 +126,6 @@ class _PhpLevel2State extends State<PhpLevel2> {
       });
     });
 
-    // Score reduction timer (every 30 seconds)
     scoreReductionTimer = Timer.periodic(Duration(seconds: 30), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
@@ -126,47 +154,71 @@ class _PhpLevel2State extends State<PhpLevel2> {
     });
   }
 
-  Future<void> saveScoreToPrefs(int score) async {
-    final prefs = await SharedPreferences.getInstance();
-    // Use consistent key format with LevelSelectionScreen
-    await prefs.setInt('PHP_level2_score', score);
-    // Only mark as completed if score is perfect
-    if (score == 3) {
-      await prefs.setBool('PHP_level2_completed', true);
-      setState(() {
-        level2Completed = true;
-      });
-    } else {
-      await prefs.setBool('PHP_level2_completed', false);
-      setState(() {
-        level2Completed = false;
-      });
+  Future<void> saveScoreToDatabase(int score) async {
+    if (currentUser?['id'] == null) return;
+
+    try {
+      final response = await ApiService.saveScore(
+        currentUser!['id'],
+        'PHP',
+        2,
+        score,
+        score == 3,
+      );
+
+      if (response['success'] == true) {
+        setState(() {
+          level2Completed = score == 3;
+          previousScore = score;
+          hasPreviousScore = true;
+        });
+      } else {
+        print('Failed to save score: ${response['message']}');
+      }
+    } catch (e) {
+      print('Error saving score: $e');
     }
   }
 
-  Future<void> loadScoreFromPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    // Use consistent key format with LevelSelectionScreen
-    final savedScore = prefs.getInt('PHP_level2_score');
-    final completed = prefs.getBool('PHP_level2_completed') ?? false;
+  Future<void> loadScoreFromDatabase() async {
+    if (currentUser?['id'] == null) return;
 
-    setState(() {
-      if (savedScore != null) {
-        score = savedScore;
-        previousScore = savedScore;
-        hasPreviousScore = true;
+    try {
+      final response = await ApiService.getScores(currentUser!['id'], 'PHP');
+
+      if (response['success'] == true && response['scores'] != null) {
+        final scoresData = response['scores'];
+        final level2Data = scoresData['2'];
+
+        if (level2Data != null) {
+          setState(() {
+            previousScore = level2Data['score'] ?? 0;
+            level2Completed = level2Data['completed'] ?? false;
+            hasPreviousScore = true;
+            score = previousScore;
+          });
+        }
       }
-      // Only show as completed if score is perfect
-      level2Completed = completed && score == 3;
-    });
+    } catch (e) {
+      print('Error loading score: $e');
+    }
   }
 
   void checkAnswer() async {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
-    String answer = droppedBlocks.join(' ');
-    String normalizedAnswer = answer.replaceAll(' ', '').toLowerCase();
-    String normalizedCorrect = '<?php\$name="zeke";echo"hello,".\$name;?>'.toLowerCase();
+    // FIXED: Remove <?php and ?> from answer checking
+    List<String> coreBlocks = droppedBlocks.where((block) =>
+    block != '<?php' && block != '?>').toList();
+
+    String answer = coreBlocks.join('');
+    String normalizedAnswer = answer.toLowerCase();
+
+    // FIXED: Only check the core code without PHP tags
+    String normalizedCorrect = '\$name="zeke";echo"hello, ".\$name;'.toLowerCase();
+
+    print('User answer: $normalizedAnswer');
+    print('Expected: $normalizedCorrect');
 
     if (normalizedAnswer == normalizedCorrect) {
       countdownTimer?.cancel();
@@ -176,7 +228,7 @@ class _PhpLevel2State extends State<PhpLevel2> {
         isAnsweredCorrectly = true;
       });
 
-      saveScoreToPrefs(score);
+      saveScoreToDatabase(score);
 
       showDialog(
         context: context,
@@ -193,7 +245,7 @@ class _PhpLevel2State extends State<PhpLevel2> {
               if (score == 3)
                 Text(
                   "🎉 Perfect! You've completed Level 2!",
-                  style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
@@ -214,6 +266,19 @@ class _PhpLevel2State extends State<PhpLevel2> {
                   ),
                 ),
               ),
+              SizedBox(height: 10),
+              Text("Your Code:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Container(
+                padding: EdgeInsets.all(10),
+                color: Colors.purple[50],
+                child: Text(
+                  getPreviewCode(),
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 14,
+                  ),
+                ),
+              ),
             ],
           ),
           actions: [
@@ -221,12 +286,10 @@ class _PhpLevel2State extends State<PhpLevel2> {
               onPressed: () {
                 Navigator.pop(context);
                 if (score == 3) {
-                  // Only navigate to next level if perfect score
                   Navigator.pushReplacementNamed(context, '/php_level3');
                 } else {
-                  // If not perfect score, go back to level selection
                   Navigator.pushReplacementNamed(context, '/levels',
-                      arguments: 'Java');
+                      arguments: 'PHP');
                 }
               },
               child: Text(score == 3 ? "Next Level" : "Go Back"),
@@ -239,7 +302,7 @@ class _PhpLevel2State extends State<PhpLevel2> {
         setState(() {
           score--;
         });
-        saveScoreToPrefs(score);
+        saveScoreToDatabase(score);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("❌ Incorrect. -1 point. Current score: $score")),
         );
@@ -249,7 +312,7 @@ class _PhpLevel2State extends State<PhpLevel2> {
         });
         countdownTimer?.cancel();
         scoreReductionTimer?.cancel();
-        saveScoreToPrefs(score);
+        saveScoreToDatabase(score);
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
@@ -276,6 +339,145 @@ class _PhpLevel2State extends State<PhpLevel2> {
     return "$m:$s";
   }
 
+  Widget getCodePreview() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(8 * _scaleFactor),
+        border: Border.all(color: Colors.grey[700]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
+            decoration: BoxDecoration(
+              color: Color(0xFF2D2D2D),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(8 * _scaleFactor),
+                topRight: Radius.circular(8 * _scaleFactor),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
+                SizedBox(width: 8 * _scaleFactor),
+                Text(
+                  'variables.php',
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 12 * _scaleFactor,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.all(12 * _scaleFactor),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        _buildCodeLine(1, '<?php'),
+                        _buildCodeLine(2, getPreviewCode()),
+                        _buildCodeLine(3, '?>'),
+                      ],
+                    ),
+                    SizedBox(width: 16 * _scaleFactor),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSyntaxHighlightedLine('<?php', isPreprocessor: true),
+                          _buildUserCodeLine(getPreviewCode()),
+                          _buildSyntaxHighlightedLine('?>', isPreprocessor: true),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserCodeLine(String code) {
+    if (code.isEmpty) {
+      return Container(
+        height: 20 * _scaleFactor,
+        child: Text(
+          '        ',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 12 * _scaleFactor,
+            fontFamily: 'monospace',
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 20 * _scaleFactor,
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: code,
+              style: TextStyle(
+                color: Colors.greenAccent[400],
+                fontFamily: 'monospace',
+                fontSize: 12 * _scaleFactor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCodeLine(int lineNumber, String code) {
+    return Container(
+      height: 20 * _scaleFactor,
+      child: Text(
+        lineNumber.toString().padLeft(2, ' '),
+        style: TextStyle(
+          color: Colors.grey[600],
+          fontSize: 12 * _scaleFactor,
+          fontFamily: 'monospace',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSyntaxHighlightedLine(String code, {bool isPreprocessor = false}) {
+    Color textColor = Colors.white;
+    if (isPreprocessor) {
+      textColor = Color(0xFF569CD6);
+    }
+    return Container(
+      height: 20 * _scaleFactor,
+      child: Text(
+        code,
+        style: TextStyle(
+          color: textColor,
+          fontSize: 12 * _scaleFactor,
+          fontFamily: 'monospace',
+        ),
+      ),
+    );
+  }
+
   String getPreviewCode() {
     return droppedBlocks.join(' ');
   }
@@ -289,169 +491,241 @@ class _PhpLevel2State extends State<PhpLevel2> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final newScreenWidth = MediaQuery.of(context).size.width;
+      final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
+      if (newScaleFactor != _scaleFactor) {
+        setState(() {
+          _scaleFactor = newScaleFactor;
+        });
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
-        title: Text("🐘 PHP - Level 2: Variables & Output"),
+        title: Text("🐘 PHP - Level 2: Variables", style: TextStyle(fontSize: 18 * _scaleFactor)),
         backgroundColor: Colors.purple,
         actions: gameStarted
             ? [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor),
             child: Row(
               children: [
-                Icon(Icons.timer),
-                SizedBox(width: 4),
-                Text(formatTime(remainingSeconds)),
-                SizedBox(width: 16),
-                Icon(Icons.star, color: Colors.yellowAccent),
-                Text(" $score",
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                Icon(Icons.timer, size: 18 * _scaleFactor),
+                SizedBox(width: 4 * _scaleFactor),
+                Text(formatTime(remainingSeconds), style: TextStyle(fontSize: 14 * _scaleFactor)),
+                SizedBox(width: 16 * _scaleFactor),
+                Icon(Icons.star, color: Colors.yellowAccent, size: 18 * _scaleFactor),
+                Text(" $score", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor)),
               ],
             ),
           ),
         ]
             : [],
       ),
-      body: gameStarted ? buildGameUI() : buildStartScreen(),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF1B0D1B),
+              Color(0xFF2D1B2D),
+              Color(0xFF553355),
+            ],
+          ),
+        ),
+        child: gameStarted ? buildGameUI() : buildStartScreen(),
+      ),
     );
   }
 
   Widget buildStartScreen() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          ElevatedButton.icon(
-            onPressed: startGame,
-            icon: Icon(Icons.play_arrow),
-            label: Text("Start Game"),
-            style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                backgroundColor: Colors.purple),
-          ),
-          SizedBox(height: 20),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(16 * _scaleFactor),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton.icon(
+              onPressed: startGame,
+              icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
+              label: Text("Start Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
+                backgroundColor: Colors.purple,
+              ),
+            ),
+            SizedBox(height: 20 * _scaleFactor),
 
-          // Show different messages based on previous performance
-          if (level2Completed)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Column(
-                children: [
-                  Text(
-                    "✅ Level 2 completed with perfect score!",
-                    style: TextStyle(color: Colors.green, fontSize: 16),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    "You've mastered variables and output!",
-                    style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            )
-          else if (hasPreviousScore && previousScore > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Column(
-                children: [
-                  Text(
-                    "📊 Your previous score: $previousScore/3",
-                    style: TextStyle(color: Colors.purple, fontSize: 16),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    "Try again to get a perfect score!",
-                    style: TextStyle(color: Colors.orange),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            )
-          else if (hasPreviousScore && previousScore == 0)
+            if (level2Completed)
               Padding(
-                padding: const EdgeInsets.only(top: 10),
+                padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "😅 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.red, fontSize: 16),
+                      "✅ Level 2 completed with perfect score!",
+                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
+                      textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: 5),
+                    SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Don't give up! You can do better this time!",
-                      style: TextStyle(color: Colors.orange),
+                      "You've mastered variables and output!",
+                      style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
                 ),
-              ),
+              )
+            else if (hasPreviousScore && previousScore > 0)
+              Padding(
+                padding: EdgeInsets.only(top: 10 * _scaleFactor),
+                child: Column(
+                  children: [
+                    Text(
+                      "📊 Your previous score: $previousScore/3",
+                      style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 5 * _scaleFactor),
+                    Text(
+                      "Try again to get a perfect score!",
+                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              )
+            else if (hasPreviousScore && previousScore == 0)
+                Padding(
+                  padding: EdgeInsets.only(top: 10 * _scaleFactor),
+                  child: Column(
+                    children: [
+                      Text(
+                        "😅 Your previous score: $previousScore/3",
+                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 5 * _scaleFactor),
+                      Text(
+                        "Don't give up! You can do better this time!",
+                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
 
-          SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
-              // Use consistent key format with LevelSelectionScreen
-              await prefs.remove('PHP_level2_completed');
-              await prefs.remove('PHP_level2_score');
-              setState(() {
-                level2Completed = false;
-                hasPreviousScore = false;
-                previousScore = 0;
-                score = 3;
-              });
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
-            child: Text("Reset Progress"),
-          ),
-        ],
+            SizedBox(height: 30 * _scaleFactor),
+            Container(
+              padding: EdgeInsets.all(16 * _scaleFactor),
+              margin: EdgeInsets.all(16 * _scaleFactor),
+              decoration: BoxDecoration(
+                color: Colors.purple[50]!.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(12 * _scaleFactor),
+                border: Border.all(color: Colors.purple[200]!),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    "🎯 Level 2 Objective",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.purple[800]),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Text(
+                    "Create a PHP script that uses a variable and string concatenation to display: Hello, Zeke",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700]),
+                  ),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Container(
+                    padding: EdgeInsets.all(10 * _scaleFactor),
+                    color: Colors.black,
+                    child: Text(
+                      '<?php\n\$name = "Zeke";\necho "Hello, " . \$name;\n?>',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'monospace',
+                        fontSize: 14 * _scaleFactor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget buildGameUI() {
+    // Calculate dynamic height based on number of dropped blocks
+    double calculateTargetHeight() {
+      if (droppedBlocks.isEmpty) return 120 * _scaleFactor;
+
+      // Estimate rows needed based on block count
+      int estimatedRows = (droppedBlocks.length / 3).ceil();
+      double baseHeight = 80 * _scaleFactor;
+      double rowHeight = 60 * _scaleFactor;
+
+      return baseHeight + (estimatedRows * rowHeight);
+    }
+
+    final targetHeight = calculateTargetHeight().clamp(120 * _scaleFactor, 400 * _scaleFactor);
+
     return SingleChildScrollView(
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(16 * _scaleFactor),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('📖 Short Story',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Flexible(
+                child: Text('📖 Short Story',
+                    style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+              ),
               TextButton.icon(
                 onPressed: () {
                   setState(() {
                     isTagalog = !isTagalog;
                   });
                 },
-                icon: Icon(Icons.translate),
-                label: Text(isTagalog ? 'English' : 'Tagalog'),
+                icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
+                label: Text(isTagalog ? 'English' : 'Tagalog',
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
               ),
             ],
           ),
-          SizedBox(height: 10),
+          SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
                 ? 'Ngayon, natututo si Zeke tungkol sa mga variables sa PHP! Gusto niyang gumamit ng variable at string concatenation para ipakita ang personalized na mensahe. Pwede mo ba siyang tulungan?'
                 : 'Now, Zeke is learning about variables in PHP! He wants to use a variable and string concatenation to display a personalized message. Can you help him?',
             textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: 16),
+            style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
           ),
-          SizedBox(height: 20),
-          Text('🧩 Arrange the puzzle blocks to create a personalized greeting:',
-              style: TextStyle(fontSize: 18), textAlign: TextAlign.center),
-          SizedBox(height: 20),
+          SizedBox(height: 20 * _scaleFactor),
+
+          Text('🧩 Arrange the blocks to create personalized greeting using variables:',
+              style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
+              textAlign: TextAlign.center),
+          SizedBox(height: 20 * _scaleFactor),
+
+          // AUTO-EXPANDING TARGET AREA
           Container(
-            height: 200,
+            height: targetHeight,
             width: double.infinity,
-            padding: EdgeInsets.all(16),
+            padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
-              border: Border.all(color: Colors.purple, width: 2.5),
-              borderRadius: BorderRadius.circular(20),
+              color: Colors.grey[100]!.withOpacity(0.9),
+              border: Border.all(color: Colors.purple, width: 2.5 * _scaleFactor),
+              borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
+              onWillAccept: (data) => true,
               onAccept: (data) {
                 if (!isAnsweredCorrectly) {
                   setState(() {
@@ -461,75 +735,107 @@ class _PhpLevel2State extends State<PhpLevel2> {
                 }
               },
               builder: (context, candidateData, rejectedData) {
-                return Center(
-                  child: Wrap(
-                    alignment: WrapAlignment.center,
-                    children: droppedBlocks.map((block) {
-                      return Draggable<String>(
-                        data: block,
-                        feedback: puzzleBlock(block, Colors.greenAccent),
-                        childWhenDragging: Opacity(
-                          opacity: 0.4,
-                          child: puzzleBlock(block, Colors.greenAccent),
-                        ),
-                        child: puzzleBlock(block, Colors.greenAccent),
-                        onDraggableCanceled: (velocity, offset) {
-                          if (!isAnsweredCorrectly) {
-                            setState(() {
-                              if (!allBlocks.contains(block)) {
-                                allBlocks.add(block);
-                              }
-                              droppedBlocks.remove(block);
-                            });
-                          }
-                        },
-                      );
-                    }).toList(),
+                return droppedBlocks.isEmpty
+                    ? Center(
+                  child: Text(
+                    'Drop code blocks here\n\n(Tap and drag blocks from below)',
+                    style: TextStyle(
+                      fontSize: 16 * _scaleFactor,
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
+                )
+                    : Wrap(
+                  spacing: 8 * _scaleFactor,
+                  runSpacing: 8 * _scaleFactor,
+                  alignment: WrapAlignment.start,
+                  children: droppedBlocks.map((block) {
+                    return Draggable<String>(
+                      data: block,
+                      feedback: Material(
+                        elevation: 4.0,
+                        child: puzzleBlock(block, Colors.greenAccent),
+                      ),
+                      childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.3)),
+                      onDragStarted: () {
+                        setState(() {
+                          droppedBlocks.remove(block);
+                        });
+                      },
+                      onDragEnd: (details) {
+                        if (!details.wasAccepted) {
+                          setState(() {
+                            allBlocks.add(block);
+                          });
+                        }
+                      },
+                      child: puzzleBlock(block, Colors.greenAccent),
+                    );
+                  }).toList(),
                 );
               },
             ),
           ),
-          SizedBox(height: 20),
-          Text('📝 Preview:', style: TextStyle(fontWeight: FontWeight.bold)),
-          Container(
-            padding: EdgeInsets.all(10),
-            width: double.infinity,
-            color: Colors.grey[300],
-            child: Text(
-              getPreviewCode(),
-              style: TextStyle(fontFamily: 'monospace', fontSize: 16),
-            ),
+
+          SizedBox(height: 20 * _scaleFactor),
+          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          SizedBox(height: 10 * _scaleFactor),
+          getCodePreview(),
+          SizedBox(height: 20 * _scaleFactor),
+
+          // SOURCE AREA
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Available Blocks:', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+              SizedBox(height: 10 * _scaleFactor),
+              Container(
+                padding: EdgeInsets.all(12 * _scaleFactor),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12 * _scaleFactor),
+                ),
+                child: Wrap(
+                  spacing: 8 * _scaleFactor,
+                  runSpacing: 8 * _scaleFactor,
+                  alignment: WrapAlignment.center,
+                  children: allBlocks.map((block) {
+                    return isAnsweredCorrectly
+                        ? puzzleBlock(block, Colors.grey)
+                        : Draggable<String>(
+                      data: block,
+                      feedback: Material(
+                        elevation: 4.0,
+                        child: puzzleBlock(block, Colors.purpleAccent),
+                      ),
+                      childWhenDragging: puzzleBlock(block, Colors.purpleAccent.withOpacity(0.3)),
+                      onDragCompleted: () {
+                        // Block was successfully dropped in target
+                      },
+                      child: puzzleBlock(block, Colors.purpleAccent),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
           ),
-          SizedBox(height: 20),
-          // Source area for blocks
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            alignment: WrapAlignment.center,
-            children: allBlocks.map((block) {
-              return isAnsweredCorrectly
-                  ? puzzleBlock(block, Colors.grey)
-                  : Draggable<String>(
-                data: block,
-                feedback: puzzleBlock(block, Colors.purpleAccent),
-                childWhenDragging: Opacity(
-                    opacity: 0.4,
-                    child: puzzleBlock(block, Colors.purpleAccent)),
-                child: puzzleBlock(block, Colors.purpleAccent),
-              );
-            }).toList(),
-          ),
-          SizedBox(height: 30),
+
+          SizedBox(height: 30 * _scaleFactor),
           ElevatedButton.icon(
             onPressed: isAnsweredCorrectly ? null : checkAnswer,
-            icon: Icon(Icons.play_arrow),
-            label: Text("Run Code"),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
+            icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
+            label: Text("Run Code", style: TextStyle(fontSize: 16 * _scaleFactor)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple,
+              padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 16 * _scaleFactor),
+            ),
           ),
+          SizedBox(height: 10 * _scaleFactor),
           TextButton(
             onPressed: resetGame,
-            child: Text("🔁 Retry"),
+            child: Text("🔁 Retry", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
           ),
         ],
       ),
@@ -538,20 +844,19 @@ class _PhpLevel2State extends State<PhpLevel2> {
 
   Widget puzzleBlock(String text, Color color) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: 12 * _scaleFactor,
+        vertical: 10 * _scaleFactor,
+      ),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
-        border: Border.all(color: Colors.black45, width: 1.5),
+        borderRadius: BorderRadius.circular(8 * _scaleFactor),
+        border: Border.all(color: Colors.black45, width: 1.0 * _scaleFactor),
         boxShadow: [
           BoxShadow(
             color: Colors.black26,
-            blurRadius: 4,
-            offset: Offset(2, 2),
+            blurRadius: 2 * _scaleFactor,
+            offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
           )
         ],
       ),
@@ -560,8 +865,10 @@ class _PhpLevel2State extends State<PhpLevel2> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14,
+          fontSize: 13 * _scaleFactor,
+          color: Colors.white,
         ),
+        textAlign: TextAlign.center,
       ),
     );
   }

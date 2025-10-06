@@ -187,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _showPointsInfo(context);
         break;
       case 'Settings':
-      // Navigator.pushNamed(context, '/settings');
+        Navigator.pushNamed(context, '/settings'); // ENABLE THIS LINE
         break;
       case 'Logout':
         _logout(context);

@@ -1,8 +1,33 @@
 import 'package:flutter/material.dart';
-import 'daily_challenge.dart'; // Make sure to import the daily challenge file
+import 'package:provider/provider.dart';
+import 'daily_challenge.dart';
+import '../services/music_service.dart';
 
-class SelectLanguageScreen extends StatelessWidget {
+class SelectLanguageScreen extends StatefulWidget {
   const SelectLanguageScreen({super.key});
+
+  @override
+  State<SelectLanguageScreen> createState() => _SelectLanguageScreenState();
+}
+
+class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _ensureBackgroundMusic(); // ADD BACKGROUND MUSIC
+  }
+
+  // ADD THIS METHOD: Ensure background music is playing
+  void _ensureBackgroundMusic() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+
+      if (!musicService.isBackgroundMusicPlaying() && musicService.isMusicEnabled) {
+        print('🎵 SelectLanguageScreen: Starting background music...');
+        await musicService.playBackgroundMusic();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -148,6 +173,10 @@ class SelectLanguageScreen extends StatelessWidget {
                           color: Colors.transparent,
                           child: InkWell(
                             onTap: () {
+                              // ADD SOUND EFFECT
+                              final musicService = Provider.of<MusicService>(context, listen: false);
+                              musicService.playSoundEffect('click.mp3');
+
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -239,31 +268,33 @@ class SelectLanguageScreen extends StatelessWidget {
                     padding: EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
                       children: [
-                        Text(
-                          'Programming Languages',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            fontFamily: 'monospace',
+                        Expanded( // CHANGE TO EXPANDED
+                          child: Text(
+                            'Programming Languages',
+                            style: TextStyle(
+                              fontSize: 16, // SLIGHTLY SMALLER FONT
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontFamily: 'monospace',
+                            ),
                           ),
                         ),
-                        Spacer(),
+                        SizedBox(width: 8), // ADD SPACING
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.tealAccent.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(6),
                             border: Border.all(
                               color: Colors.tealAccent.withOpacity(0.3),
                             ),
                           ),
                           child: Text(
-                            '${languages.length} languages',
+                            '5', // JUST SHOW THE NUMBER
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 10,
                               color: Colors.tealAccent,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.bold,
                               fontFamily: 'monospace',
                             ),
                           ),
@@ -274,7 +305,7 @@ class SelectLanguageScreen extends StatelessWidget {
 
                   SizedBox(height: 20),
 
-                  // Languages List
+                  // Languages List - FIXED OVERFLOW
                   Expanded(
                     child: ListView.builder(
                       itemCount: languages.length,
@@ -292,8 +323,8 @@ class SelectLanguageScreen extends StatelessWidget {
 
                   SizedBox(height: 20),
 
-                  // Bottom Info
-                  Padding(
+                  // Bottom Info - FIXED OVERFLOW
+                  Container(
                     padding: EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
                       'Choose a language to start learning or try the daily challenge!',
@@ -303,6 +334,8 @@ class SelectLanguageScreen extends StatelessWidget {
                         fontStyle: FontStyle.italic,
                       ),
                       textAlign: TextAlign.center,
+                      maxLines: 2, // ADD MAX LINES TO PREVENT OVERFLOW
+                      overflow: TextOverflow.ellipsis, // ADD OVERFLOW HANDLING
                     ),
                   ),
 
@@ -359,6 +392,13 @@ class SelectLanguageScreen extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
+            // ADD SOUND EFFECT
+            final musicService = Provider.of<MusicService>(context, listen: false);
+            musicService.playSoundEffect('click.mp3');
+
+            // ADD SPECIAL SOUND FOR DIFFERENT LANGUAGES (OPTIONAL)
+            _playLanguageSound(language, musicService);
+
             Navigator.pushNamed(
               context,
               '/levels',
@@ -370,31 +410,39 @@ class SelectLanguageScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.tealAccent.withOpacity(0.4),
+                // Icon with tap animation
+                GestureDetector(
+                  onTap: () {
+                    // ADD ICON TAP SOUND EFFECT
+                    final musicService = Provider.of<MusicService>(context, listen: false);
+                    musicService.playSoundEffect('icon_click.mp3');
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.tealAccent.withOpacity(0.4),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 5,
+                          offset: Offset(0, 2),
+                        ),
+                        BoxShadow(
+                          color: iconColors[index].withOpacity(0.2),
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                        ),
+                      ],
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 5,
-                        offset: Offset(0, 2),
-                      ),
-                      BoxShadow(
-                        color: iconColors[index].withOpacity(0.2),
-                        blurRadius: 8,
-                        spreadRadius: 1,
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    icon,
-                    color: iconColors[index],
-                    size: 24,
+                    child: Icon(
+                      icon,
+                      color: iconColors[index],
+                      size: 24,
+                    ),
                   ),
                 ),
                 SizedBox(width: 16),
@@ -412,29 +460,57 @@ class SelectLanguageScreen extends StatelessWidget {
                         ),
                       ),
                       SizedBox(height: 4),
-                      Text(
-                        _getLanguageDescription(language),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white70,
+                      Container(
+                        // ADD CONTAINER TO PREVENT TEXT OVERFLOW
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.5,
+                        ),
+                        child: Text(
+                          _getLanguageDescription(language),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white70,
+                          ),
+                          maxLines: 2, // LIMIT TO 2 LINES
+                          overflow: TextOverflow.ellipsis, // ADD ELLIPSIS IF TOO LONG
                         ),
                       ),
                     ],
                   ),
                 ),
+                // Arrow button with sound - FIXED OVERFLOW
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.tealAccent.withOpacity(0.3),
+                  // ADD CONTAINER WITH FIXED WIDTH TO PREVENT OVERFLOW
+                  width: 40,
+                  child: GestureDetector(
+                    onTap: () {
+                      // ADD ARROW TAP SOUND EFFECT
+                      final musicService = Provider.of<MusicService>(context, listen: false);
+                      musicService.playSoundEffect('arrow_click.mp3');
+
+                      // Navigate when arrow is tapped
+                      musicService.playSoundEffect('click.mp3');
+                      Navigator.pushNamed(
+                        context,
+                        '/levels',
+                        arguments: language,
+                      );
+                    },
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), // REDUCED PADDING
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.tealAccent.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: Colors.tealAccent,
+                      ),
                     ),
-                  ),
-                  child: Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: Colors.tealAccent,
                   ),
                 ),
               ],
@@ -459,6 +535,30 @@ class SelectLanguageScreen extends StatelessWidget {
         return 'Database management';
       default:
         return 'Programming language';
+    }
+  }
+
+  // OPTIONAL: Play different sounds for different languages
+  void _playLanguageSound(String language, MusicService musicService) {
+    switch (language) {
+      case 'C++':
+        musicService.playSoundEffect('cpp_select.mp3');
+        break;
+      case 'Java':
+        musicService.playSoundEffect('java_select.mp3');
+        break;
+      case 'Python':
+        musicService.playSoundEffect('python_select.mp3');
+        break;
+      case 'PHP':
+        musicService.playSoundEffect('php_select.mp3');
+        break;
+      case 'SQL':
+        musicService.playSoundEffect('sql_select.mp3');
+        break;
+      default:
+        musicService.playSoundEffect('language_select.mp3');
+        break;
     }
   }
 }

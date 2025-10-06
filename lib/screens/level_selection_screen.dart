@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // ADD THIS IMPORT
 import '../services/api_service.dart';
 import '../services/user_preferences.dart';
+import '../services/music_service.dart'; // ADD THIS IMPORT
 
 class LevelSelectionScreen extends StatefulWidget {
   const LevelSelectionScreen({super.key});
@@ -86,6 +88,9 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
     if (currentUser?['id'] == null) return;
 
     try {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('click.mp3'); // ADD SOUND EFFECT
+
       final response = await ApiService.resetScores(currentUser!['id'], selectedLanguage);
 
       if (response['success'] == true) {
@@ -107,6 +112,32 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
         SnackBar(content: Text('Error resetting scores: $e')),
       );
     }
+  }
+
+  void _navigateToLevel(int levelNumber) {
+    final musicService = Provider.of<MusicService>(context, listen: false);
+    musicService.playSoundEffect('click.mp3'); // ADD SOUND EFFECT
+
+    String route = '';
+    switch (selectedLanguage) {
+      case 'Python':
+        route = '/python_level$levelNumber';
+        break;
+      case 'Java':
+        route = '/java_level$levelNumber';
+        break;
+      case 'C++':
+        route = '/cpp_level$levelNumber';
+        break;
+      case 'PHP':
+        route = '/php_level$levelNumber';
+        break;
+      case 'SQL':
+        route = '/sql_level$levelNumber';
+        break;
+    }
+
+    Navigator.pushNamed(context, route);
   }
 
   @override
@@ -198,29 +229,46 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                 ),
               ),
 
-              // Levels Grid
+              // Levels Grid Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Text(
+                  'LEVELS 1-10',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ),
+              SizedBox(height: 10),
+
+              // All Levels Grid (1-10)
               Expanded(
                 child: GridView.builder(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 1.2,
+                    crossAxisCount: 3, // 3 levels per row for better layout
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.1,
                   ),
-                  itemCount: levels.length,
+                  itemCount: 10, // All 10 levels
                   itemBuilder: (context, index) {
                     final levelNumber = index + 1;
                     final levelData = scores[levelNumber] ?? {'score': 0, 'completed': false};
                     final score = levelData['score'];
                     final isCompleted = levelData['completed'];
 
-                    bool isUnlocked = levelNumber == 1 ||
-                        (scores[levelNumber - 1]?['completed'] == true &&
-                            scores[levelNumber - 1]?['score'] == 3);
+                    // UNLOCKING LOGIC for all levels
+                    bool isUnlocked = levelNumber == 1
+                        ? true
+                        : (scores[levelNumber - 1]?['completed'] == true &&
+                        scores[levelNumber - 1]?['score'] == 3);
 
                     return _buildLevelCard(
                       levelNumber: levelNumber,
-                      title: levels[index],
+                      title: levels[levelNumber - 1],
                       score: score,
                       isCompleted: isCompleted,
                       isUnlocked: isUnlocked,
@@ -248,27 +296,7 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
           _showLockedDialog(levelNumber);
           return;
         }
-
-        String route = '';
-        switch (selectedLanguage) {
-          case 'Python':
-            route = '/python_level$levelNumber';
-            break;
-          case 'Java':
-            route = '/java_level$levelNumber';
-            break;
-          case 'C++':
-            route = '/cpp_level$levelNumber';
-            break;
-          case 'PHP':
-            route = '/php_level$levelNumber';
-            break;
-          case 'SQL':
-            route = '/sql_level$levelNumber';
-            break;
-        }
-
-        Navigator.pushNamed(context, route);
+        _navigateToLevel(levelNumber); // USE UPDATED METHOD WITH SOUND
       },
       child: Container(
         decoration: BoxDecoration(
@@ -316,14 +344,14 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
               top: 8,
               child: Icon(
                 Icons.code,
-                size: 40,
+                size: 30,
                 color: Colors.white.withOpacity(0.1),
               ),
             ),
 
             // Content
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(12.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -333,25 +361,25 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: isUnlocked ? Colors.tealAccent : Colors.grey,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           'LVL $levelNumber',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 12,
+                            fontSize: 10,
                             fontWeight: FontWeight.bold,
                             fontFamily: 'monospace',
                           ),
                         ),
                       ),
                       if (!isUnlocked)
-                        Icon(Icons.lock, color: Colors.white54, size: 20),
+                        Icon(Icons.lock, color: Colors.white54, size: 16),
                       if (isCompleted)
-                        Icon(Icons.verified, color: Colors.greenAccent, size: 20),
+                        Icon(Icons.verified, color: Colors.greenAccent, size: 16),
                     ],
                   ),
 
@@ -360,7 +388,7 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                     title,
                     style: TextStyle(
                       color: isUnlocked ? Colors.white : Colors.white54,
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       fontFamily: 'monospace',
                     ),
@@ -370,37 +398,37 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                   Row(
                     children: [
                       if (score > 0) ...[
-                        Icon(Icons.star, color: Colors.amber, size: 16),
-                        SizedBox(width: 4),
+                        Icon(Icons.star, color: Colors.amber, size: 14),
+                        SizedBox(width: 2),
                         Text(
                           '$score/3',
                           style: TextStyle(
                             color: Colors.amber,
-                            fontSize: 14,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Spacer(),
                       ],
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                         decoration: BoxDecoration(
                           color: isCompleted
                               ? Colors.green.withOpacity(0.3)
                               : isUnlocked
                               ? Colors.tealAccent.withOpacity(0.3)
                               : Colors.grey.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          isCompleted ? 'COMPLETED' : isUnlocked ? 'PLAY' : 'LOCKED',
+                          isCompleted ? 'DONE' : isUnlocked ? 'PLAY' : 'LOCKED',
                           style: TextStyle(
                             color: isCompleted
                                 ? Colors.greenAccent
                                 : isUnlocked
                                 ? Colors.tealAccent
                                 : Colors.grey,
-                            fontSize: 10,
+                            fontSize: 8,
                             fontWeight: FontWeight.bold,
                             fontFamily: 'monospace',
                           ),
@@ -418,6 +446,11 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
   }
 
   void _showLockedDialog(int levelNumber) {
+    final musicService = Provider.of<MusicService>(context, listen: false);
+    musicService.playSoundEffect('error.mp3'); // ADD ERROR SOUND EFFECT
+
+    String message = "Complete Level ${levelNumber - 1} with a perfect score (3/3) to unlock this level.";
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -441,12 +474,15 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
           ],
         ),
         content: Text(
-          "Complete Level ${levelNumber - 1} with a perfect score (3/3) to unlock this level.",
+          message,
           style: TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              musicService.playSoundEffect('click.mp3'); // ADD CLICK SOUND
+              Navigator.pop(context);
+            },
             child: Text(
               "UNDERSTOOD",
               style: TextStyle(

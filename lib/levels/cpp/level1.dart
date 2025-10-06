@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart'; // ADD THIS IMPORT
 import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
+import '../../services/music_service.dart'; // ADD THIS IMPORT
 
 class CppLevel1 extends StatefulWidget {
   const CppLevel1({super.key});
@@ -40,6 +42,18 @@ class _CppLevel1State extends State<CppLevel1> {
     resetBlocks();
     _loadUserData();
     _calculateScaleFactor();
+    _startGameMusic(); // ADD THIS
+  }
+
+  void _startGameMusic() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      await musicService.stopBackgroundMusic(); // STOP REGULAR MUSIC
+      await musicService.playSoundEffect('game_start.mp3'); // GAME START SOUND
+      await Future.delayed(Duration(milliseconds: 500));
+      // PLAY GAME BACKGROUND MUSIC
+      await musicService.playSoundEffect('game_music.mp3');
+    });
   }
 
   void _calculateScaleFactor() {
@@ -102,6 +116,9 @@ class _CppLevel1State extends State<CppLevel1> {
   }
 
   void startGame() {
+    final musicService = Provider.of<MusicService>(context, listen: false);
+    musicService.playSoundEffect('level_start.mp3'); // ADD LEVEL START SOUND
+
     setState(() {
       gameStarted = true;
       score = 3;
@@ -127,6 +144,10 @@ class _CppLevel1State extends State<CppLevel1> {
           timer.cancel();
           scoreReductionTimer?.cancel();
           saveScoreToDatabase(score);
+
+          final musicService = Provider.of<MusicService>(context, listen: false);
+          musicService.playSoundEffect('time_up.mp3'); // TIME UP SOUND
+
           showDialog(
             context: context,
             builder: (_) => AlertDialog(
@@ -135,6 +156,8 @@ class _CppLevel1State extends State<CppLevel1> {
               actions: [
                 TextButton(
                   onPressed: () {
+                    final musicService = Provider.of<MusicService>(context, listen: false);
+                    musicService.playSoundEffect('click.mp3');
                     resetGame();
                     Navigator.pop(context);
                   },
@@ -155,6 +178,9 @@ class _CppLevel1State extends State<CppLevel1> {
 
       setState(() {
         score--;
+        final musicService = Provider.of<MusicService>(context, listen: false);
+        musicService.playSoundEffect('penalty.mp3'); // PENALTY SOUND
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
         );
@@ -163,6 +189,9 @@ class _CppLevel1State extends State<CppLevel1> {
   }
 
   void resetGame() {
+    final musicService = Provider.of<MusicService>(context, listen: false);
+    musicService.playSoundEffect('reset.mp3'); // RESET SOUND
+
     setState(() {
       score = 3;
       remainingSeconds = 90;
@@ -275,10 +304,14 @@ class _CppLevel1State extends State<CppLevel1> {
   void checkAnswer() async {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
+    final musicService = Provider.of<MusicService>(context, listen: false);
+
     // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
+      musicService.playSoundEffect('error.mp3'); // ERROR SOUND
+
       if (score > 1) {
         setState(() {
           score--;
@@ -296,6 +329,9 @@ class _CppLevel1State extends State<CppLevel1> {
         countdownTimer?.cancel();
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
+
+        musicService.playSoundEffect('game_over.mp3'); // GAME OVER SOUND
+
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
@@ -304,6 +340,7 @@ class _CppLevel1State extends State<CppLevel1> {
             actions: [
               TextButton(
                 onPressed: () {
+                  musicService.playSoundEffect('click.mp3');
                   Navigator.pop(context);
                   resetGame();
                 },
@@ -335,6 +372,13 @@ class _CppLevel1State extends State<CppLevel1> {
       });
 
       saveScoreToDatabase(score);
+
+      // PLAY SUCCESS SOUND BASED ON SCORE
+      if (score == 3) {
+        musicService.playSoundEffect('perfect.mp3'); // PERFECT SCORE SOUND
+      } else {
+        musicService.playSoundEffect('success.mp3'); // SUCCESS SOUND
+      }
 
       showDialog(
         context: context,
@@ -390,8 +434,11 @@ class _CppLevel1State extends State<CppLevel1> {
           actions: [
             TextButton(
               onPressed: () {
+                musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
                 if (score == 3) {
+                  // PLAY LEVEL COMPLETE SOUND BEFORE NAVIGATING
+                  musicService.playSoundEffect('level_complete.mp3');
                   Navigator.pushReplacementNamed(context, '/cpp_level2');
                 } else {
                   Navigator.pushReplacementNamed(context, '/levels',
@@ -404,6 +451,8 @@ class _CppLevel1State extends State<CppLevel1> {
         ),
       );
     } else {
+      musicService.playSoundEffect('wrong.mp3'); // WRONG ANSWER SOUND
+
       if (score > 1) {
         setState(() {
           score--;
@@ -418,6 +467,9 @@ class _CppLevel1State extends State<CppLevel1> {
         countdownTimer?.cancel();
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
+
+        musicService.playSoundEffect('game_over.mp3'); // GAME OVER SOUND
+
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
@@ -426,6 +478,7 @@ class _CppLevel1State extends State<CppLevel1> {
             actions: [
               TextButton(
                 onPressed: () {
+                  musicService.playSoundEffect('click.mp3');
                   Navigator.pop(context);
                   resetGame();
                 },
@@ -602,6 +655,13 @@ class _CppLevel1State extends State<CppLevel1> {
   void dispose() {
     countdownTimer?.cancel();
     scoreReductionTimer?.cancel();
+
+    // RESTORE REGULAR BACKGROUND MUSIC WHEN LEAVING GAME
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      await musicService.playBackgroundMusic();
+    });
+
     super.dispose();
   }
 
@@ -667,7 +727,11 @@ class _CppLevel1State extends State<CppLevel1> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              onPressed: startGame,
+              onPressed: () {
+                final musicService = Provider.of<MusicService>(context, listen: false);
+                musicService.playSoundEffect('button_click.mp3');
+                startGame();
+              },
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
               label: Text("Start Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
@@ -794,6 +858,8 @@ class _CppLevel1State extends State<CppLevel1> {
               ),
               TextButton.icon(
                 onPressed: () {
+                  final musicService = Provider.of<MusicService>(context, listen: false);
+                  musicService.playSoundEffect('toggle.mp3');
                   setState(() {
                     isTagalog = !isTagalog;
                   });
@@ -835,6 +901,9 @@ class _CppLevel1State extends State<CppLevel1> {
               },
               onAccept: (data) {
                 if (!isAnsweredCorrectly) {
+                  final musicService = Provider.of<MusicService>(context, listen: false);
+                  musicService.playSoundEffect('block_drop.mp3'); // BLOCK DROP SOUND
+
                   setState(() {
                     droppedBlocks.add(data);
                     allBlocks.remove(data);
@@ -854,6 +923,9 @@ class _CppLevel1State extends State<CppLevel1> {
                         childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
                         child: puzzleBlock(block, Colors.greenAccent),
                         onDragStarted: () {
+                          final musicService = Provider.of<MusicService>(context, listen: false);
+                          musicService.playSoundEffect('block_pickup.mp3'); // BLOCK PICKUP SOUND
+
                           setState(() {
                             currentlyDraggedBlock = block;
                           });
@@ -908,6 +980,9 @@ class _CppLevel1State extends State<CppLevel1> {
                 ),
                 child: puzzleBlock(block, Colors.blueAccent),
                 onDragStarted: () {
+                  final musicService = Provider.of<MusicService>(context, listen: false);
+                  musicService.playSoundEffect('block_pickup.mp3'); // BLOCK PICKUP SOUND
+
                   setState(() {
                     currentlyDraggedBlock = block;
                   });
@@ -935,7 +1010,11 @@ class _CppLevel1State extends State<CppLevel1> {
 
           SizedBox(height: 30 * _scaleFactor),
           ElevatedButton.icon(
-            onPressed: isAnsweredCorrectly ? null : checkAnswer,
+            onPressed: isAnsweredCorrectly ? null : () {
+              final musicService = Provider.of<MusicService>(context, listen: false);
+              musicService.playSoundEffect('compile.mp3'); // COMPILE SOUND
+              checkAnswer();
+            },
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Compile & Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
@@ -947,7 +1026,11 @@ class _CppLevel1State extends State<CppLevel1> {
             ),
           ),
           TextButton(
-            onPressed: resetGame,
+            onPressed: () {
+              final musicService = Provider.of<MusicService>(context, listen: false);
+              musicService.playSoundEffect('button_click.mp3');
+              resetGame();
+            },
             child: Text("🔁 Retry", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
           ),
         ],

@@ -30,11 +30,31 @@ class _PhpLevel1State extends State<PhpLevel1> {
   // Track currently dragged block
   String? currentlyDraggedBlock;
 
+  // Scaling factors
+  double _scaleFactor = 1.0;
+  final double _baseScreenWidth = 360.0; // Base width for scaling
+
   @override
   void initState() {
     super.initState();
     resetBlocks();
     _loadUserData();
+    _calculateScaleFactor();
+  }
+
+  void _calculateScaleFactor() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final mediaQuery = MediaQuery.of(context);
+      final screenWidth = mediaQuery.size.width;
+
+      setState(() {
+        if (screenWidth < _baseScreenWidth) {
+          _scaleFactor = screenWidth / _baseScreenWidth;
+        } else {
+          _scaleFactor = 1.0;
+        }
+      });
+    });
   }
 
   void _loadUserData() async {
@@ -366,6 +386,21 @@ class _PhpLevel1State extends State<PhpLevel1> {
                   ),
                 ),
               ),
+              SizedBox(height: 10),
+              Text("PHP Syntax:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Container(
+                padding: EdgeInsets.all(10),
+                color: Colors.green[50],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("• echo - outputs one or more strings"),
+                    Text("• \" \" - double quotes for strings"),
+                    Text("• ; - semicolon ends the statement"),
+                    Text("• <?php ?> - PHP opening and closing tags"),
+                  ],
+                ),
+              ),
             ],
           ),
           actions: [
@@ -425,13 +460,12 @@ class _PhpLevel1State extends State<PhpLevel1> {
     return "$m:$s";
   }
 
-  // BAGONG PREVIEW NA MAY CODE EDITOR STYLE (PHP VERSION)
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: Color(0xFF1E1E1E), // Dark background like VS Code
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(8 * _scaleFactor),
         border: Border.all(color: Colors.grey[700]!),
       ),
       child: Column(
@@ -439,23 +473,23 @@ class _PhpLevel1State extends State<PhpLevel1> {
         children: [
           // Code editor header
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
             decoration: BoxDecoration(
               color: Color(0xFF2D2D2D),
               borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
+                topLeft: Radius.circular(8 * _scaleFactor),
+                topRight: Radius.circular(8 * _scaleFactor),
               ),
             ),
             child: Row(
               children: [
-                Icon(Icons.code, color: Colors.grey[400], size: 16),
-                SizedBox(width: 8),
+                Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
+                SizedBox(width: 8 * _scaleFactor),
                 Text(
                   'hello_world.php',
                   style: TextStyle(
                     color: Colors.grey[400],
-                    fontSize: 12,
+                    fontSize: 12 * _scaleFactor,
                     fontFamily: 'monospace',
                   ),
                 ),
@@ -464,7 +498,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
           ),
           // Code content
           Container(
-            padding: EdgeInsets.all(12),
+            padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -481,7 +515,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
                         _buildCodeLine(3, '?>'),
                       ],
                     ),
-                    SizedBox(width: 16),
+                    SizedBox(width: 16 * _scaleFactor),
                     // Actual code with syntax highlighting
                     Expanded(
                       child: Column(
@@ -503,14 +537,49 @@ class _PhpLevel1State extends State<PhpLevel1> {
     );
   }
 
+  Widget _buildUserCodeLine(String code) {
+    if (code.isEmpty) {
+      return Container(
+        height: 20 * _scaleFactor,
+        child: Text(
+          '        ', // Empty line
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 12 * _scaleFactor,
+            fontFamily: 'monospace',
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 20 * _scaleFactor,
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: code,
+              style: TextStyle(
+                color: Colors.greenAccent[400],
+                fontFamily: 'monospace',
+                fontSize: 12 * _scaleFactor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildCodeLine(int lineNumber, String code) {
     return Container(
-      height: 20,
+      height: 20 * _scaleFactor,
       child: Text(
         lineNumber.toString().padLeft(2, ' '),
         style: TextStyle(
           color: Colors.grey[600],
-          fontSize: 12,
+          fontSize: 12 * _scaleFactor,
           fontFamily: 'monospace',
         ),
       ),
@@ -518,55 +587,19 @@ class _PhpLevel1State extends State<PhpLevel1> {
   }
 
   Widget _buildSyntaxHighlightedLine(String code, {bool isPreprocessor = false}) {
-    Color textColor = Colors.white; // Default color
+    Color textColor = Colors.white;
 
     if (isPreprocessor) {
       textColor = Color(0xFF569CD6); // Blue for PHP tags
     }
 
     return Container(
-      height: 20,
+      height: 20 * _scaleFactor,
       child: Text(
         code,
         style: TextStyle(
           color: textColor,
-          fontSize: 12,
-          fontFamily: 'monospace',
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUserCodeLine(String code) {
-    // Highlight the user's code in green
-    if (getPreviewCode().isNotEmpty) {
-      return Container(
-        height: 20,
-        child: RichText(
-          text: TextSpan(
-            children: [
-              TextSpan(
-                text: getPreviewCode(),
-                style: TextStyle(
-                  color: Colors.greenAccent[400],
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      height: 20,
-      child: Text(
-        code,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 12,
+          fontSize: 12 * _scaleFactor,
           fontFamily: 'monospace',
         ),
       ),
@@ -586,151 +619,187 @@ class _PhpLevel1State extends State<PhpLevel1> {
 
   @override
   Widget build(BuildContext context) {
+    // Recalculate scale factor when screen size changes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final newScreenWidth = MediaQuery.of(context).size.width;
+      final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
+
+      if (newScaleFactor != _scaleFactor) {
+        setState(() {
+          _scaleFactor = newScaleFactor;
+        });
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
-        title: Text("🐘 PHP - Level 1"),
+        title: Text("🐘 PHP - Level 1", style: TextStyle(fontSize: 18 * _scaleFactor)),
         backgroundColor: Colors.purple,
         actions: gameStarted
             ? [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor),
             child: Row(
               children: [
-                Icon(Icons.timer),
-                SizedBox(width: 4),
-                Text(formatTime(remainingSeconds)),
-                SizedBox(width: 16),
-                Icon(Icons.star, color: Colors.yellowAccent),
+                Icon(Icons.timer, size: 18 * _scaleFactor),
+                SizedBox(width: 4 * _scaleFactor),
+                Text(formatTime(remainingSeconds), style: TextStyle(fontSize: 14 * _scaleFactor)),
+                SizedBox(width: 16 * _scaleFactor),
+                Icon(Icons.star, color: Colors.yellowAccent, size: 18 * _scaleFactor),
                 Text(" $score",
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor)),
               ],
             ),
           ),
         ]
             : [],
       ),
-      body: gameStarted ? buildGameUI() : buildStartScreen(),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF1B0D1B), // Dark purple theme for PHP
+              Color(0xFF2D1B2D),
+              Color(0xFF553355),
+            ],
+          ),
+        ),
+        child: gameStarted ? buildGameUI() : buildStartScreen(),
+      ),
     );
   }
 
   Widget buildStartScreen() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          ElevatedButton.icon(
-            onPressed: startGame,
-            icon: Icon(Icons.play_arrow),
-            label: Text("Start Game"),
-            style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                backgroundColor: Colors.purple),
-          ),
-          SizedBox(height: 20),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(16 * _scaleFactor),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton.icon(
+              onPressed: startGame,
+              icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
+              label: Text("Start Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
+                backgroundColor: Colors.purple,
+              ),
+            ),
+            SizedBox(height: 20 * _scaleFactor),
 
-          if (level1Completed)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Column(
-                children: [
-                  Text(
-                    "✅ Level 1 completed with perfect score!",
-                    style: TextStyle(color: Colors.green, fontSize: 16),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    "You've unlocked Level 2!",
-                    style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            )
-          else if (hasPreviousScore && previousScore > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Column(
-                children: [
-                  Text(
-                    "📊 Your previous score: $previousScore/3",
-                    style: TextStyle(color: Colors.purple, fontSize: 16),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    "Try again to get a perfect score and unlock Level 2!",
-                    style: TextStyle(color: Colors.purple),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            )
-          else if (hasPreviousScore && previousScore == 0)
+            if (level1Completed)
               Padding(
-                padding: const EdgeInsets.only(top: 10),
+                padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "😅 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.red, fontSize: 16),
+                      "✅ Level 1 completed with perfect score!",
+                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
+                      textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: 5),
+                    SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Don't give up! You can do better this time!",
-                      style: TextStyle(color: Colors.purple),
+                      "You've unlocked Level 2!",
+                      style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
                 ),
-              ),
-
-          SizedBox(height: 30),
-          Container(
-            padding: EdgeInsets.all(16),
-            margin: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.purple[50],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.purple[200]!),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  "🎯 Level 1 Objective",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.purple[800]),
-                ),
-                SizedBox(height: 10),
-                Text(
-                  "Arrange the code blocks to create: echo \"Hello World\";",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.purple[700]),
-                ),
-                SizedBox(height: 10),
-                Container(
-                  padding: EdgeInsets.all(10),
-                  color: Colors.black,
-                  child: Text(
-                    "echo \"Hello World\";",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontFamily: 'monospace',
-                      fontSize: 14,
+              )
+            else if (hasPreviousScore && previousScore > 0)
+              Padding(
+                padding: EdgeInsets.only(top: 10 * _scaleFactor),
+                child: Column(
+                  children: [
+                    Text(
+                      "📊 Your previous score: $previousScore/3",
+                      style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
+                      textAlign: TextAlign.center,
                     ),
+                    SizedBox(height: 5 * _scaleFactor),
+                    Text(
+                      "Try again to get a perfect score and unlock Level 2!",
+                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              )
+            else if (hasPreviousScore && previousScore == 0)
+                Padding(
+                  padding: EdgeInsets.only(top: 10 * _scaleFactor),
+                  child: Column(
+                    children: [
+                      Text(
+                        "😅 Your previous score: $previousScore/3",
+                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 5 * _scaleFactor),
+                      Text(
+                        "Don't give up! You can do better this time!",
+                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
                 ),
-              ],
+
+            SizedBox(height: 30 * _scaleFactor),
+            Container(
+              padding: EdgeInsets.all(16 * _scaleFactor),
+              margin: EdgeInsets.all(16 * _scaleFactor),
+              decoration: BoxDecoration(
+                color: Colors.purple[50]!.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(12 * _scaleFactor),
+                border: Border.all(color: Colors.purple[200]!),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    "🎯 Level 1 Objective",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.purple[800]),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Text(
+                    "Arrange the code blocks to create: echo \"Hello World\";",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700]),
+                  ),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Container(
+                    padding: EdgeInsets.all(10 * _scaleFactor),
+                    color: Colors.black,
+                    child: Text(
+                      "echo \"Hello World\";",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'monospace',
+                        fontSize: 14 * _scaleFactor,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Text(
+                    "Learn PHP's echo statement!",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12 * _scaleFactor, color: Colors.purple[600], fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget buildGameUI() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 360;
-    final isMediumScreen = screenWidth < 400;
-
     return SingleChildScrollView(
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(16 * _scaleFactor),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -739,7 +808,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
             children: [
               Flexible(
                 child: Text('📖 Short Story',
-                    style: TextStyle(fontSize: isSmallScreen ? 16 : 18, fontWeight: FontWeight.bold)),
+                    style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
                 onPressed: () {
@@ -747,36 +816,36 @@ class _PhpLevel1State extends State<PhpLevel1> {
                     isTagalog = !isTagalog;
                   });
                 },
-                icon: Icon(Icons.translate, size: isSmallScreen ? 16 : 20),
+                icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
                 label: Text(isTagalog ? 'English' : 'Tagalog',
-                    style: TextStyle(fontSize: isSmallScreen ? 14 : 16)),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
               ),
             ],
           ),
-          SizedBox(height: 10),
+          SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
                 ? 'Si Zeke ay nagsisimula palang matuto ng PHP! Gusto niyang gumamit ng echo para mag-display ng "Hello World". Tulungan mo siyang buuin ang tamang code!'
                 : 'Zeke is just starting to learn PHP! He wants to use echo to display "Hello World". Help him build the correct code!',
             textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: isSmallScreen ? 14 : 16),
+            style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
           ),
-          SizedBox(height: 20),
+          SizedBox(height: 20 * _scaleFactor),
 
           Text('🧩 Arrange the blocks to form: echo "Hello World";',
-              style: TextStyle(fontSize: isSmallScreen ? 16 : 18),
+              style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
-          SizedBox(height: 20),
+          SizedBox(height: 20 * _scaleFactor),
 
           // TARGET AREA
           Container(
-            height: isSmallScreen ? 120 : 140,
+            height: 140 * _scaleFactor,
             width: double.infinity,
-            padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
+            padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
-              border: Border.all(color: Colors.purple, width: 2.5),
-              borderRadius: BorderRadius.circular(20),
+              color: Colors.grey[100]!.withOpacity(0.9),
+              border: Border.all(color: Colors.purple, width: 2.5 * _scaleFactor),
+              borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
               onWillAccept: (data) {
@@ -793,15 +862,15 @@ class _PhpLevel1State extends State<PhpLevel1> {
               builder: (context, candidateData, rejectedData) {
                 return Center(
                   child: Wrap(
-                    spacing: isSmallScreen ? 4 : 8,
-                    runSpacing: isSmallScreen ? 4 : 8,
+                    spacing: 8 * _scaleFactor,
+                    runSpacing: 8 * _scaleFactor,
                     alignment: WrapAlignment.center,
                     children: droppedBlocks.map((block) {
                       return Draggable<String>(
                         data: block,
-                        feedback: puzzleBlock(block, Colors.greenAccent, isSmallScreen, isMediumScreen),
-                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5), isSmallScreen, isMediumScreen),
-                        child: puzzleBlock(block, Colors.greenAccent, isSmallScreen, isMediumScreen),
+                        feedback: puzzleBlock(block, Colors.greenAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.greenAccent),
                         onDragStarted: () {
                           setState(() {
                             currentlyDraggedBlock = block;
@@ -833,29 +902,28 @@ class _PhpLevel1State extends State<PhpLevel1> {
             ),
           ),
 
-          SizedBox(height: 20),
-          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: isSmallScreen ? 16 : 18)),
-          SizedBox(height: 10),
-          // BAGONG CODE PREVIEW NA MAY EDITOR STYLE
+          SizedBox(height: 20 * _scaleFactor),
+          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          SizedBox(height: 10 * _scaleFactor),
           getCodePreview(),
-          SizedBox(height: 20),
+          SizedBox(height: 20 * _scaleFactor),
 
           // SOURCE AREA
           Wrap(
-            spacing: isSmallScreen ? 6 : 10,
-            runSpacing: isSmallScreen ? 8 : 12,
+            spacing: 10 * _scaleFactor,
+            runSpacing: 12 * _scaleFactor,
             alignment: WrapAlignment.center,
             children: allBlocks.map((block) {
               return isAnsweredCorrectly
-                  ? puzzleBlock(block, Colors.grey, isSmallScreen, isMediumScreen)
+                  ? puzzleBlock(block, Colors.grey)
                   : Draggable<String>(
                 data: block,
-                feedback: puzzleBlock(block, Colors.purpleAccent, isSmallScreen, isMediumScreen),
+                feedback: puzzleBlock(block, Colors.purpleAccent),
                 childWhenDragging: Opacity(
                   opacity: 0.4,
-                  child: puzzleBlock(block, Colors.purpleAccent, isSmallScreen, isMediumScreen),
+                  child: puzzleBlock(block, Colors.purpleAccent),
                 ),
-                child: puzzleBlock(block, Colors.purpleAccent, isSmallScreen, isMediumScreen),
+                child: puzzleBlock(block, Colors.purpleAccent),
                 onDragStarted: () {
                   setState(() {
                     currentlyDraggedBlock = block;
@@ -882,51 +950,47 @@ class _PhpLevel1State extends State<PhpLevel1> {
             }).toList(),
           ),
 
-          SizedBox(height: 30),
+          SizedBox(height: 30 * _scaleFactor),
           ElevatedButton.icon(
             onPressed: isAnsweredCorrectly ? null : checkAnswer,
-            icon: Icon(Icons.play_arrow),
-            label: Text("Run Code", style: TextStyle(fontSize: isSmallScreen ? 14 : 16)),
+            icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
+            label: Text("Run Code", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.purple,
               padding: EdgeInsets.symmetric(
-                horizontal: isSmallScreen ? 20 : 24,
-                vertical: isSmallScreen ? 12 : 16,
+                horizontal: 24 * _scaleFactor,
+                vertical: 16 * _scaleFactor,
               ),
             ),
           ),
           TextButton(
             onPressed: resetGame,
-            child: Text("🔁 Retry", style: TextStyle(fontSize: isSmallScreen ? 14 : 16)),
+            child: Text("🔁 Retry", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
-  Widget puzzleBlock(String text, Color color, bool isSmallScreen, bool isMediumScreen) {
-    double fontSize = isSmallScreen ? 12 : (isMediumScreen ? 14 : 16);
-    double horizontalPadding = isSmallScreen ? 12 : 16;
-    double verticalPadding = isSmallScreen ? 8 : 12;
-
+  Widget puzzleBlock(String text, Color color) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: isSmallScreen ? 2 : 3),
+      margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: horizontalPadding,
-        vertical: verticalPadding,
+        horizontal: 16 * _scaleFactor,
+        vertical: 12 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(isSmallScreen ? 15 : 20),
-          bottomRight: Radius.circular(isSmallScreen ? 15 : 20),
+          topLeft: Radius.circular(20 * _scaleFactor),
+          bottomRight: Radius.circular(20 * _scaleFactor),
         ),
-        border: Border.all(color: Colors.black45, width: isSmallScreen ? 1.0 : 1.5),
+        border: Border.all(color: Colors.black45, width: 1.5 * _scaleFactor),
         boxShadow: [
           BoxShadow(
             color: Colors.black26,
-            blurRadius: isSmallScreen ? 3 : 4,
-            offset: Offset(2, 2),
+            blurRadius: 4 * _scaleFactor,
+            offset: Offset(2 * _scaleFactor, 2 * _scaleFactor),
           )
         ],
       ),
@@ -935,7 +999,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: fontSize,
+          fontSize: 14 * _scaleFactor,
         ),
         textAlign: TextAlign.center,
       ),

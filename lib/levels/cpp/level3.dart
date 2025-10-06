@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
+import 'CppBonusGame.dart';
 
 class CppLevel3 extends StatefulWidget {
   const CppLevel3({super.key});
@@ -188,12 +188,70 @@ class _CppLevel3State extends State<CppLevel3> {
           previousScore = score;
           hasPreviousScore = true;
         });
+
+        // If completed with perfect score, show bonus game dialog
+        if (score == 3) {
+          _showBonusGameDialog();
+        }
       } else {
         print('Failed to save score: ${response['message']}');
       }
     } catch (e) {
       print('Error saving score: $e');
     }
+  }
+
+  void _showBonusGameDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: Text("🎉 Congratulations!"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.celebration, size: 60, color: Colors.orange),
+            SizedBox(height: 10),
+            Text(
+              "You've completed Level 3 with perfect score!",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 10),
+            Text(
+              "🎁 Bonus Game Unlocked!",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.purple,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            SizedBox(height: 10),
+            Text(
+              "Complete the bonus game to unlock Level 4!",
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _navigateToBonusGame();
+            },
+            child: Text("Play Bonus Game"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _navigateToBonusGame() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => CppBonusGame()),
+    );
   }
 
   Future<void> loadScoreFromDatabase() async {
@@ -289,89 +347,6 @@ class _CppLevel3State extends State<CppLevel3> {
       });
 
       saveScoreToDatabase(score);
-
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: Text("✅ Correct!"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("Great job! You learned how to get user input!"),
-              SizedBox(height: 10),
-              Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-              SizedBox(height: 10),
-              if (score == 3)
-                Text(
-                  "🎉 Perfect! You've mastered Level 3!",
-                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-                )
-              else
-                Text(
-                  "⚠️ Get a perfect score (3/3) to complete this level!",
-                  style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
-                ),
-              SizedBox(height: 10),
-              Text("Code Created:", style: TextStyle(fontWeight: FontWeight.bold)),
-              Container(
-                padding: EdgeInsets.all(10),
-                color: Colors.black,
-                child: Text(
-                  'cin >> age;',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'monospace',
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-              SizedBox(height: 10),
-              Text("Explanation:", style: TextStyle(fontWeight: FontWeight.bold)),
-              Container(
-                padding: EdgeInsets.all(10),
-                color: Colors.blue[50],
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("• 'cin' - used to get input from user"),
-                    Text("• '>>' - input operator"),
-                    Text("• 'age' - variable where input will be stored"),
-                    Text("• ';' - end of statement"),
-                  ],
-                ),
-              ),
-              SizedBox(height: 10),
-              Text("Complete Example:", style: TextStyle(fontWeight: FontWeight.bold)),
-              Container(
-                padding: EdgeInsets.all(10),
-                color: Colors.black,
-                child: Text(
-                  'int age;\ncin >> age;',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'monospace',
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                if (score == 3) {
-                  Navigator.pushReplacementNamed(context, '/levels', arguments: 'C++');
-                } else {
-                  resetGame();
-                }
-              },
-              child: Text(score == 3 ? "Go Back to Levels" : "Try Again"),
-            )
-          ],
-        ),
-      );
     } else {
       if (score > 1) {
         setState(() {
@@ -586,7 +561,7 @@ class _CppLevel3State extends State<CppLevel3> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("⚡ C++ - Level 3", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        title: Text("⚡ C++ - Level 3 (Boss Level)", style: TextStyle(fontSize: 18 * _scaleFactor)),
         backgroundColor: Colors.orange,
         actions: gameStarted
             ? [
@@ -634,7 +609,7 @@ class _CppLevel3State extends State<CppLevel3> {
             ElevatedButton.icon(
               onPressed: startGame,
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Level 3", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text("Start Boss Level", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
                 backgroundColor: Colors.orange,
@@ -648,14 +623,14 @@ class _CppLevel3State extends State<CppLevel3> {
                 child: Column(
                   children: [
                     Text(
-                      "✅ Level 3 completed with perfect score!",
+                      "✅ Boss Level completed with perfect score!",
                       style: TextStyle(color: Colors.orange, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "You've learned user input with cin!",
-                      style: TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "🎁 Bonus Game Unlocked!",
+                      style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -673,7 +648,7 @@ class _CppLevel3State extends State<CppLevel3> {
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score!",
+                      "Get perfect score to unlock Bonus Game!",
                       style: TextStyle(color: Colors.orangeAccent, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -693,7 +668,7 @@ class _CppLevel3State extends State<CppLevel3> {
               child: Column(
                 children: [
                   Text(
-                    "🎯 Level 3 Objective",
+                    "🎯 Boss Level - Level 3",
                     style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.orange[800]),
                     textAlign: TextAlign.center,
                   ),
@@ -721,6 +696,16 @@ class _CppLevel3State extends State<CppLevel3> {
                     "Learn how to get input from user using cin!",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 12 * _scaleFactor, color: Colors.orange[600], fontStyle: FontStyle.italic),
+                  ),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Text(
+                    "🎁 Complete with perfect score (3/3) to unlock BONUS GAME!",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12 * _scaleFactor,
+                      color: Colors.purple,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(

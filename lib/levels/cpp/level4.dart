@@ -12,69 +12,34 @@ class CppLevel4 extends StatefulWidget {
 }
 
 class _CppLevel4State extends State<CppLevel4> {
-  List<String> questionBlocks = [];
-  List<String> answerBlocks = [];
-  String selectedAnswer = '';
+  List<String> allBlocks = [];
+  List<String> droppedBlocks = [];
   bool gameStarted = false;
-  bool isTagalog = true; // Default to Tagalog
+  bool isTagalog = false;
   bool isAnsweredCorrectly = false;
   bool level4Completed = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 10; // 10 seconds per question
+  int remainingSeconds = 180; // 3 minutes for complex level
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
+
+  // Track currently dragged block
+  String? currentlyDraggedBlock;
 
   // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // Questions and Answers
-  List<Map<String, dynamic>> questions = [
-    {
-      'question': 'What is used to output text in C++?',
-      'tagalogQuestion': 'Ano ang ginagamit para mag-output ng text sa C++?',
-      'correctAnswer': 'cout',
-      'options': ['cin', 'cout', 'printf', 'print']
-    },
-    {
-      'question': 'What is the correct operator for input?',
-      'tagalogQuestion': 'Ano ang tamang operator para sa input?',
-      'correctAnswer': '>>',
-      'options': ['<<', '>>', '==', '=']
-    },
-    {
-      'question': 'What data type is used for whole numbers?',
-      'tagalogQuestion': 'Ano ang data type para sa mga buong numero?',
-      'correctAnswer': 'int',
-      'options': ['string', 'double', 'int', 'char']
-    },
-    {
-      'question': 'What should be placed at the end of every statement?',
-      'tagalogQuestion': 'Ano ang dapat ilagay sa dulo ng bawat statement?',
-      'correctAnswer': ';',
-      'options': [',', ';', ':', '.']
-    },
-    {
-      'question': 'What is used to get user input?',
-      'tagalogQuestion': 'Ano ang ginagamit para kumuha ng user input?',
-      'correctAnswer': 'cin',
-      'options': ['cin', 'cout', 'input', 'scan']
-    }
-  ];
-
-  int currentQuestionIndex = 0;
-  Map<String, dynamic> get currentQuestion => questions[currentQuestionIndex];
-
   @override
   void initState() {
     super.initState();
+    resetBlocks();
     _loadUserData();
     _calculateScaleFactor();
-    resetGame();
   }
 
   void _calculateScaleFactor() {
@@ -100,39 +65,48 @@ class _CppLevel4State extends State<CppLevel4> {
     loadScoreFromDatabase();
   }
 
-  void resetGame() {
-    setState(() {
-      score = 3;
-      remainingSeconds = 10; // Reset to 10 seconds
-      gameStarted = false;
-      isAnsweredCorrectly = false;
-      selectedAnswer = '';
-      currentQuestionIndex = 0;
-      answerBlocks = List.from(currentQuestion['options']);
-      answerBlocks.shuffle();
-    });
+  void resetBlocks() {
+    // Combined blocks for: int age; cin >> age; cout << age;
+    List<String> correctBlocks = [
+      'int', 'age', ';',
+      'cin', '>>', 'age', ';',
+      'cout', '<<', 'age', ';'
+    ];
+
+    // Incorrect/distractor blocks from all previous levels
+    List<String> incorrectBlocks = [
+      'string', 'double', 'char', 'float', 'bool',
+      'name', 'height', 'score', '==', '!=', '++', '--',
+      '25.5', '"25"', 'true', "'A'",
+      'printf', 'cout >>', '<<<', '>>>', 'System.out.print',
+      '"Hello"', '"Hi World"', 'print', 'Console.WriteLine',
+      'std::cout', 'endl', 'scanf', 'input', ','
+    ];
+
+    // Shuffle incorrect blocks and take 6 random ones
+    incorrectBlocks.shuffle();
+    List<String> selectedIncorrectBlocks = incorrectBlocks.take(6).toList();
+
+    // Combine correct and incorrect blocks, then shuffle
+    allBlocks = [
+      ...correctBlocks,
+      ...selectedIncorrectBlocks,
+    ]..shuffle();
   }
 
   void startGame() {
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 10; // Start with 10 seconds
+      remainingSeconds = 180;
+      droppedBlocks.clear();
       isAnsweredCorrectly = false;
-      selectedAnswer = '';
-      currentQuestionIndex = 0;
-      answerBlocks = List.from(currentQuestion['options']);
-      answerBlocks.shuffle();
+      resetBlocks();
     });
     startTimers();
   }
 
   void startTimers() {
-    // Cancel any existing timers
-    countdownTimer?.cancel();
-    scoreReductionTimer?.cancel();
-
-    // Start 10-second countdown for current question
     countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (isAnsweredCorrectly) {
         timer.cancel();
@@ -142,98 +116,73 @@ class _CppLevel4State extends State<CppLevel4> {
       setState(() {
         remainingSeconds--;
         if (remainingSeconds <= 0) {
-          // Time's up for this question
+          score = 0;
           timer.cancel();
-          handleTimeUp();
+          scoreReductionTimer?.cancel();
+          saveScoreToDatabase(score);
+          showDialog(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: Text("⏰ Time's Up!"),
+              content: Text("Score: $score"),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    resetGame();
+                    Navigator.pop(context);
+                  },
+                  child: Text("Retry"),
+                )
+              ],
+            ),
+          );
         }
       });
     });
-  }
 
-  void handleTimeUp() {
-    if (score > 1) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 60), (timer) {
+      if (isAnsweredCorrectly || score <= 1) {
+        timer.cancel();
+        return;
+      }
+
       setState(() {
         score--;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
+        );
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("⏰ Time's up! -1 point. Current score: $score"),
-          backgroundColor: Colors.orange,
-        ),
-      );
-    } else {
-      setState(() {
-        score = 0;
-      });
-    }
-
-    // Move to next question automatically
-    Future.delayed(Duration(seconds: 1), () {
-      if (mounted && currentQuestionIndex < questions.length - 1) {
-        nextQuestion();
-      } else if (mounted) {
-        // Last question completed
-        completeBonusGame();
-      }
     });
   }
 
-  void completeBonusGame() {
-    countdownTimer?.cancel();
-    scoreReductionTimer?.cancel();
-    saveScoreToDatabase(score);
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text("📝 Bonus Game Completed"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text("You've completed the bonus game!"),
-            SizedBox(height: 10),
-            Text("Final Score: $score/3",
-                style: TextStyle(fontWeight: FontWeight.bold,
-                    color: score == 3 ? Colors.green : Colors.orange)),
-            SizedBox(height: 10),
-            Text(
-              "🔓 Next levels are now unlocked!",
-              style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
-            ),
-            if (score < 3)
-              Text("Good job! You can now proceed to next levels.",
-                  style: TextStyle(color: Colors.blue)),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushReplacementNamed(context, '/levels', arguments: 'C++');
-            },
-            child: Text("Go to Levels"),
-          )
-        ],
-      ),
-    );
+  void resetGame() {
+    setState(() {
+      score = 3;
+      remainingSeconds = 180;
+      gameStarted = false;
+      isAnsweredCorrectly = false;
+      droppedBlocks.clear();
+      countdownTimer?.cancel();
+      scoreReductionTimer?.cancel();
+      resetBlocks();
+    });
   }
 
   Future<void> saveScoreToDatabase(int score) async {
     if (currentUser?['id'] == null) return;
 
     try {
-      // BONUS GAME: Always mark as completed and unlock next levels regardless of score
       final response = await ApiService.saveScore(
         currentUser!['id'],
         'C++',
-        4,
+        4, // Changed from 5 to 4
         score,
-        true, // Always true for bonus game to unlock next levels
+        score == 3,
       );
 
       if (response['success'] == true) {
         setState(() {
-          level4Completed = true; // Always completed for bonus game
+          level4Completed = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
@@ -253,7 +202,7 @@ class _CppLevel4State extends State<CppLevel4> {
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level4Data = scoresData['4'];
+        final level4Data = scoresData['4']; // Changed from '5' to '4'
 
         if (level4Data != null) {
           setState(() {
@@ -269,25 +218,81 @@ class _CppLevel4State extends State<CppLevel4> {
     }
   }
 
+  bool isIncorrectBlock(String block) {
+    List<String> incorrectBlocks = [
+      'string', 'double', 'char', 'float', 'bool',
+      'name', 'height', 'score', '==', '!=', '++', '--',
+      '25.5', '"25"', 'true', "'A'",
+      'printf', 'cout >>', '<<<', '>>>', 'System.out.print',
+      '"Hello"', '"Hi World"', 'print', 'Console.WriteLine',
+      'std::cout', 'endl', 'scanf', 'input', ','
+    ];
+    return incorrectBlocks.contains(block);
+  }
+
   void checkAnswer() async {
-    if (isAnsweredCorrectly || selectedAnswer.isEmpty) return;
+    if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
-    String correctAnswer = currentQuestion['correctAnswer'];
+    // Check if any incorrect blocks are used
+    bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
-    // Stop the timer when answer is submitted
-    countdownTimer?.cancel();
+    if (hasIncorrectBlock) {
+      if (score > 1) {
+        setState(() {
+          score--;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("❌ You used incorrect code! -1 point. Current score: $score"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        setState(() {
+          score = 0;
+        });
+        countdownTimer?.cancel();
+        scoreReductionTimer?.cancel();
+        saveScoreToDatabase(score);
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: Text("💀 Game Over"),
+            content: Text("You used incorrect code and lost all points!"),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  resetGame();
+                },
+                child: Text("Retry"),
+              )
+            ],
+          ),
+        );
+      }
+      return;
+    }
 
-    if (selectedAnswer == correctAnswer) {
+    // Check for: int age; cin >> age; cout << age;
+    String answer = droppedBlocks.join(' ');
+    String normalizedAnswer = answer
+        .replaceAll(' ', '')
+        .replaceAll('\n', '')
+        .toLowerCase();
+
+    // Expected: int age; cin >> age; cout << age;
+    String expected = 'intage;cin>>age;cout<<age;';
+
+    if (normalizedAnswer == expected) {
+      countdownTimer?.cancel();
+      scoreReductionTimer?.cancel();
+
       setState(() {
         isAnsweredCorrectly = true;
       });
 
-      // Check if it's the last question
-      bool isLastQuestion = currentQuestionIndex == questions.length - 1;
-
-      if (isLastQuestion) {
-        saveScoreToDatabase(score);
-      }
+      saveScoreToDatabase(score);
 
       showDialog(
         context: context,
@@ -297,40 +302,48 @@ class _CppLevel4State extends State<CppLevel4> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Great job! Your answer is correct!"),
+              Text("Excellent! You created a complete C++ program!"),
               SizedBox(height: 10),
-              Text("Your Current Score: $score/3",
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+              Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
-              if (isLastQuestion)
-                Column(
-                  children: [
-                    Text(
-                      "🎉 Bonus Game Completed!",
-                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      "🔓 Next levels are now unlocked!",
-                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
-                    ),
-                  ],
+              if (score == 3)
+                Text(
+                  "🎉 Perfect! You've mastered Level 4!",
+                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                )
+              else
+                Text(
+                  "⚠️ Get a perfect score (3/3) to complete this level!",
+                  style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
-              Text("Explanation:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("Complete Program:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Container(
+                padding: EdgeInsets.all(10),
+                color: Colors.black,
+                child: Text(
+                  "int age;\ncin >> age;\ncout << age;",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'monospace',
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              SizedBox(height: 10),
+              Text("Program Flow:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.blue[50],
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Question: ${isTagalog ? currentQuestion['tagalogQuestion'] : currentQuestion['question']}"),
-                    Text("Your Answer: $selectedAnswer"),
-                    Text("Correct Answer: $correctAnswer"),
+                    Text("1. Declare variable: int age;"),
+                    Text("2. Get user input: cin >> age;"),
+                    Text("3. Display output: cout << age;"),
                     SizedBox(height: 5),
-                    Text("Time Remaining: ${remainingSeconds}s",
-                        style: TextStyle(fontWeight: FontWeight.bold,
-                            color: remainingSeconds > 5 ? Colors.green : Colors.orange)),
+                    Text("This program asks for user's age and displays it!",
+                        style: TextStyle(fontStyle: FontStyle.italic)),
                   ],
                 ),
               ),
@@ -340,13 +353,13 @@ class _CppLevel4State extends State<CppLevel4> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                if (isLastQuestion) {
+                if (score == 3) {
                   Navigator.pushReplacementNamed(context, '/levels', arguments: 'C++');
                 } else {
-                  nextQuestion();
+                  resetGame();
                 }
               },
-              child: Text(isLastQuestion ? "Go Back to Levels" : "Next Question"),
+              child: Text(score == 3 ? "Go Back to Levels" : "Try Again"),
             )
           ],
         ),
@@ -357,54 +370,209 @@ class _CppLevel4State extends State<CppLevel4> {
           score--;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("❌ Incorrect answer. -1 point. Current score: $score"),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text("❌ Incorrect arrangement. -1 point. Current score: $score")),
         );
-
-        // Move to next question even if wrong
-        Future.delayed(Duration(seconds: 1), () {
-          if (mounted && currentQuestionIndex < questions.length - 1) {
-            nextQuestion();
-          } else if (mounted) {
-            // Last question completed
-            completeBonusGame();
-          }
-        });
       } else {
         setState(() {
           score = 0;
         });
-        completeBonusGame();
+        countdownTimer?.cancel();
+        scoreReductionTimer?.cancel();
+        saveScoreToDatabase(score);
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: Text("💀 Game Over"),
+            content: Text("You lost all your points."),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  resetGame();
+                },
+                child: Text("Retry"),
+              )
+            ],
+          ),
+        );
       }
     }
   }
 
-  void nextQuestion() {
-    setState(() {
-      currentQuestionIndex++;
-      selectedAnswer = '';
-      isAnsweredCorrectly = false;
-      remainingSeconds = 10; // Reset to 10 seconds for new question
-      answerBlocks = List.from(questions[currentQuestionIndex]['options']);
-      answerBlocks.shuffle();
-    });
-
-    // Restart timer for new question
-    startTimers();
-  }
-
-  void selectAnswer(String answer) {
-    if (!isAnsweredCorrectly) {
-      setState(() {
-        selectedAnswer = answer;
-      });
-    }
-  }
-
   String formatTime(int seconds) {
-    return "$seconds"; // Just show seconds since it's only 10 seconds
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return "$m:$s";
+  }
+
+  Widget getCodePreview() {
+    String previewCode = getPreviewCode();
+    List<String> lines = previewCode.split('\n');
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(8 * _scaleFactor),
+        border: Border.all(color: Colors.grey[700]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
+            decoration: BoxDecoration(
+              color: Color(0xFF2D2D2D),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(8 * _scaleFactor),
+                topRight: Radius.circular(8 * _scaleFactor),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
+                SizedBox(width: 8 * _scaleFactor),
+                Text(
+                  'main.cpp',
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 12 * _scaleFactor,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.all(12 * _scaleFactor),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Line numbers
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      _buildCodeLine(1, '#include <iostream>'),
+                      _buildCodeLine(2, 'using namespace std;'),
+                      _buildCodeLine(3, ''),
+                      _buildCodeLine(4, 'int main() {'),
+                      ...List.generate(lines.length, (index) => _buildCodeLine(5 + index, '')),
+                      _buildCodeLine(5 + lines.length, '    return 0;'),
+                      _buildCodeLine(6 + lines.length, '}'),
+                    ],
+                  ),
+                  SizedBox(width: 16 * _scaleFactor),
+                  // Actual code with syntax highlighting
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSyntaxHighlightedLine('#include <iostream>', isPreprocessor: true),
+                      _buildSyntaxHighlightedLine('using namespace std;', isKeyword: true),
+                      SizedBox(height: 8 * _scaleFactor),
+                      _buildSyntaxHighlightedLine('int main() {', isKeyword: true),
+                      ...lines.map((line) => _buildUserCodeLine(line)),
+                      _buildSyntaxHighlightedLine('    return 0;', isKeyword: true),
+                      _buildSyntaxHighlightedLine('}', isNormal: true),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserCodeLine(String code) {
+    if (code.isEmpty) return SizedBox(height: 20 * _scaleFactor);
+
+    return Container(
+      height: 20 * _scaleFactor,
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '    ',
+              style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12 * _scaleFactor),
+            ),
+            TextSpan(
+              text: code,
+              style: TextStyle(
+                color: Colors.greenAccent[400],
+                fontFamily: 'monospace',
+                fontSize: 12 * _scaleFactor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCodeLine(int lineNumber, String code) {
+    return Container(
+      height: 20 * _scaleFactor,
+      child: Text(
+        lineNumber.toString().padLeft(2, ' '),
+        style: TextStyle(
+          color: Colors.grey[600],
+          fontSize: 12 * _scaleFactor,
+          fontFamily: 'monospace',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSyntaxHighlightedLine(String code, {bool isPreprocessor = false, bool isKeyword = false, bool isNormal = false}) {
+    Color textColor = Colors.white;
+
+    if (isPreprocessor) {
+      textColor = Color(0xFFCE9178);
+    } else if (isKeyword) {
+      textColor = Color(0xFF569CD6);
+    } else if (isNormal) {
+      textColor = Colors.white;
+    }
+
+    return Container(
+      height: 20 * _scaleFactor,
+      child: Text(
+        code,
+        style: TextStyle(
+          color: textColor,
+          fontSize: 12 * _scaleFactor,
+          fontFamily: 'monospace',
+        ),
+      ),
+    );
+  }
+
+  String getPreviewCode() {
+    if (droppedBlocks.isEmpty) return '';
+
+    // Format the code with line breaks for better readability
+    List<String> lines = [];
+    String currentLine = '';
+
+    for (String block in droppedBlocks) {
+      if (block == ';') {
+        currentLine += block;
+        lines.add(currentLine);
+        currentLine = '';
+      } else {
+        currentLine += (currentLine.isEmpty ? '' : ' ') + block;
+      }
+    }
+
+    if (currentLine.isNotEmpty) {
+      lines.add(currentLine);
+    }
+
+    return lines.join('\n');
   }
 
   @override
@@ -429,31 +597,21 @@ class _CppLevel4State extends State<CppLevel4> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("⚡ C++ - Level 4 Bonus Game", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.purple,
+        title: Text("⚡ C++ - Level 4", style: TextStyle(fontSize: 18 * _scaleFactor)), // Changed from Level 5 to Level 4
+        backgroundColor: Colors.green, // Changed color to green for Level 4
         actions: gameStarted
             ? [
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor),
             child: Row(
               children: [
-                // Timer with color change when time is running out
-                Icon(Icons.timer,
-                    size: 18 * _scaleFactor,
-                    color: remainingSeconds <= 3 ? Colors.red : Colors.white),
+                Icon(Icons.timer, size: 18 * _scaleFactor),
                 SizedBox(width: 4 * _scaleFactor),
-                Text("${formatTime(remainingSeconds)}s",
-                    style: TextStyle(
-                        fontSize: 14 * _scaleFactor,
-                        color: remainingSeconds <= 3 ? Colors.red : Colors.white,
-                        fontWeight: remainingSeconds <= 3 ? FontWeight.bold : FontWeight.normal)),
+                Text(formatTime(remainingSeconds), style: TextStyle(fontSize: 14 * _scaleFactor)),
                 SizedBox(width: 16 * _scaleFactor),
                 Icon(Icons.star, color: Colors.yellowAccent, size: 18 * _scaleFactor),
                 Text(" $score",
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor)),
-                SizedBox(width: 8 * _scaleFactor),
-                Text("Q: ${currentQuestionIndex + 1}/${questions.length}",
-                    style: TextStyle(fontSize: 12 * _scaleFactor)),
               ],
             ),
           ),
@@ -487,28 +645,28 @@ class _CppLevel4State extends State<CppLevel4> {
             ElevatedButton.icon(
               onPressed: startGame,
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Bonus Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text("Start Level 4", style: TextStyle(fontSize: 16 * _scaleFactor)), // Changed to Level 4
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.purple,
+                backgroundColor: Colors.green, // Changed to green
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
 
-            if (level4Completed)
+            if (level4Completed) // Changed from level5Completed to level4Completed
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Bonus Game Completed!",
-                      style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
+                      "✅ Level 4 completed with perfect score!", // Changed to Level 4
+                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "🔓 Next levels are unlocked!",
-                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "You've mastered C++ fundamentals!",
+                      style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -521,13 +679,13 @@ class _CppLevel4State extends State<CppLevel4> {
                   children: [
                     Text(
                       "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Play again to improve your score!",
-                      style: TextStyle(color: Colors.purpleAccent, fontSize: 14 * _scaleFactor),
+                      "Try again to get a perfect score!",
+                      style: TextStyle(color: Colors.greenAccent, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -539,59 +697,59 @@ class _CppLevel4State extends State<CppLevel4> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.purple[50]!.withOpacity(0.9),
+                color: Colors.green[50]!.withOpacity(0.9), // Changed to green
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.purple[200]!),
+                border: Border.all(color: Colors.green[200]!), // Changed to green
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎯 Level 4 - Bonus Game",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.purple[800]),
+                    "🎯 Level 4 Objective", // Changed to Level 4
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.green[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎁 BONUS GAME: Complete this level to unlock next levels!",
+                    "Create a complete program: Variable + Input + Output",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700], fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Text(
-                    "Answer 5 questions about C++ fundamentals!",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.green[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Container(
                     padding: EdgeInsets.all(10 * _scaleFactor),
                     color: Colors.black,
-                    child: Column(
-                      children: [
-                        Text(
-                          "⏰ 10 Seconds Per Question!",
-                          style: TextStyle(
-                            color: Colors.orange,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14 * _scaleFactor,
-                          ),
-                        ),
-                        SizedBox(height: 5 * _scaleFactor),
-                        Text(
-                          "• 5 multiple choice questions\n• 10 seconds to answer each\n• Test your C++ knowledge\n• Based on previous levels",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12 * _scaleFactor,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      "int age;\ncin >> age;\ncout << age;",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'monospace',
+                        fontSize: 14 * _scaleFactor,
+                      ),
                     ),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "💡 Complete this bonus game to unlock Level 5 and beyond!",
+                    "Combine everything you learned in Levels 1-3!",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12 * _scaleFactor, color: Colors.purple[600], fontStyle: FontStyle.italic),
+                    style: TextStyle(fontSize: 12 * _scaleFactor, color: Colors.green[600], fontStyle: FontStyle.italic),
+                  ),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Container(
+                    padding: EdgeInsets.all(8 * _scaleFactor),
+                    color: Colors.blue[50],
+                    child: Column(
+                      children: [
+                        Text(
+                          "What you'll practice:",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12 * _scaleFactor),
+                        ),
+                        SizedBox(height: 5 * _scaleFactor),
+                        Text(
+                          "• Variable declaration (Level 2)\n• User input (Level 3)\n• Output display (Level 1)",
+                          style: TextStyle(fontSize: 11 * _scaleFactor),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -612,7 +770,7 @@ class _CppLevel4State extends State<CppLevel4> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Question',
+                child: Text('📖 Short Story',
                     style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
@@ -628,135 +786,206 @@ class _CppLevel4State extends State<CppLevel4> {
             ],
           ),
           SizedBox(height: 10 * _scaleFactor),
-
-          // Question Card with timer indicator
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(16 * _scaleFactor),
-            decoration: BoxDecoration(
-              color: Colors.purple[100]!.withOpacity(0.9),
-              borderRadius: BorderRadius.circular(12 * _scaleFactor),
-              border: Border.all(
-                  color: remainingSeconds <= 3 ? Colors.red : Colors.purple,
-                  width: 2 * _scaleFactor
-              ),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Question ${currentQuestionIndex + 1} of ${questions.length}',
-                      style: TextStyle(
-                        fontSize: 14 * _scaleFactor,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.purple[800],
-                      ),
-                    ),
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8 * _scaleFactor, vertical: 4 * _scaleFactor),
-                      decoration: BoxDecoration(
-                        color: remainingSeconds <= 3 ? Colors.red : Colors.purple,
-                        borderRadius: BorderRadius.circular(8 * _scaleFactor),
-                      ),
-                      child: Text(
-                        '${remainingSeconds}s',
-                        style: TextStyle(
-                          fontSize: 12 * _scaleFactor,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 10 * _scaleFactor),
-                Text(
-                  isTagalog ? currentQuestion['tagalogQuestion'] : currentQuestion['question'],
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16 * _scaleFactor,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
-            ),
+          Text(
+            isTagalog
+                ? 'Si Juan ay gustong gumawa ng complete program! Kailangan niyang mag-declare ng variable, kumuha ng input mula sa user, at i-display ang result. Tulungan siyang buuin ang program!'
+                : 'Juan wants to create a complete program! He needs to declare a variable, get input from the user, and display the result. Help him build the program!',
+            textAlign: TextAlign.justify,
+            style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
           ),
+          SizedBox(height: 20 * _scaleFactor),
 
-          SizedBox(height: 30 * _scaleFactor),
-          Text('💡 Select your answer:',
-              style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white, fontWeight: FontWeight.bold),
+          Text('🧩 Arrange the blocks to create: int age; cin >> age; cout << age;',
+              style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          // Answer Options
-          Wrap(
-            spacing: 12 * _scaleFactor,
-            runSpacing: 12 * _scaleFactor,
-            alignment: WrapAlignment.center,
-            children: answerBlocks.map((answer) {
-              bool isSelected = selectedAnswer == answer;
-              return GestureDetector(
-                onTap: () => selectAnswer(answer),
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 20 * _scaleFactor,
-                    vertical: 15 * _scaleFactor,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected ? Colors.purpleAccent : Colors.purple,
-                    borderRadius: BorderRadius.circular(20 * _scaleFactor),
-                    border: Border.all(
-                      color: isSelected ? Colors.white : Colors.transparent,
-                      width: 2 * _scaleFactor,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 4 * _scaleFactor,
-                        offset: Offset(2 * _scaleFactor, 2 * _scaleFactor),
-                      )
-                    ],
-                  ),
+          // TARGET AREA - Fully scrollable with no limits
+          Container(
+            width: double.infinity,
+            height: 250 * _scaleFactor, // Fixed height with scrolling
+            padding: EdgeInsets.all(16 * _scaleFactor),
+            decoration: BoxDecoration(
+              color: Colors.grey[100]!.withOpacity(0.9),
+              border: Border.all(color: Colors.green, width: 2.5 * _scaleFactor), // Changed to green
+              borderRadius: BorderRadius.circular(20 * _scaleFactor),
+            ),
+            child: DragTarget<String>(
+              onWillAccept: (data) {
+                // ALWAYS ACCEPT BLOCKS - NO LIMIT
+                return true;
+              },
+              onAccept: (data) {
+                if (!isAnsweredCorrectly) {
+                  setState(() {
+                    droppedBlocks.add(data);
+                    allBlocks.remove(data);
+                  });
+                }
+              },
+              builder: (context, candidateData, rejectedData) {
+                return droppedBlocks.isEmpty
+                    ? Center(
                   child: Text(
-                    answer,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'monospace',
-                      fontSize: 14 * _scaleFactor,
-                      color: Colors.white,
-                    ),
+                    'Drop blocks here\n(No limit on number of blocks)',
                     textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16 * _scaleFactor,
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
-                ),
-              );
-            }).toList(),
+                )
+                    : SingleChildScrollView(
+                  child: Wrap(
+                    spacing: 6 * _scaleFactor,
+                    runSpacing: 6 * _scaleFactor,
+                    alignment: WrapAlignment.start,
+                    crossAxisAlignment: WrapCrossAlignment.start,
+                    children: droppedBlocks.map((block) {
+                      return Draggable<String>(
+                        data: block,
+                        feedback: puzzleBlock(block, Colors.greenAccent), // Changed to green
+                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.greenAccent), // Changed to green
+                        onDragStarted: () {
+                          setState(() {
+                            currentlyDraggedBlock = block;
+                          });
+                        },
+                        onDragEnd: (details) {
+                          setState(() {
+                            currentlyDraggedBlock = null;
+                          });
+
+                          if (!isAnsweredCorrectly && !details.wasAccepted) {
+                            Future.delayed(Duration(milliseconds: 50), () {
+                              if (mounted) {
+                                setState(() {
+                                  if (!allBlocks.contains(block)) {
+                                    allBlocks.add(block);
+                                  }
+                                  droppedBlocks.remove(block);
+                                });
+                              }
+                            });
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          SizedBox(height: 20 * _scaleFactor),
+          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          SizedBox(height: 10 * _scaleFactor),
+          getCodePreview(),
+          SizedBox(height: 20 * _scaleFactor),
+
+          // SOURCE AREA
+          Container(
+            padding: EdgeInsets.all(12 * _scaleFactor),
+            decoration: BoxDecoration(
+              color: Colors.grey[800]!.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12 * _scaleFactor),
+            ),
+            child: Wrap(
+              spacing: 8 * _scaleFactor,
+              runSpacing: 10 * _scaleFactor,
+              alignment: WrapAlignment.center,
+              children: allBlocks.map((block) {
+                return isAnsweredCorrectly
+                    ? puzzleBlock(block, Colors.grey)
+                    : Draggable<String>(
+                  data: block,
+                  feedback: puzzleBlock(block, Colors.green), // Changed to green
+                  childWhenDragging: Opacity(
+                    opacity: 0.4,
+                    child: puzzleBlock(block, Colors.green),
+                  ),
+                  child: puzzleBlock(block, Colors.green), // Changed to green
+                  onDragStarted: () {
+                    setState(() {
+                      currentlyDraggedBlock = block;
+                    });
+                  },
+                  onDragEnd: (details) {
+                    setState(() {
+                      currentlyDraggedBlock = null;
+                    });
+
+                    if (!isAnsweredCorrectly && !details.wasAccepted) {
+                      Future.delayed(Duration(milliseconds: 50), () {
+                        if (mounted) {
+                          setState(() {
+                            if (!allBlocks.contains(block)) {
+                              allBlocks.add(block);
+                            }
+                          });
+                        }
+                      });
+                    }
+                  },
+                );
+              }).toList(),
+            ),
           ),
 
           SizedBox(height: 30 * _scaleFactor),
-
-          if (selectedAnswer.isNotEmpty)
-            ElevatedButton.icon(
-              onPressed: isAnsweredCorrectly ? null : checkAnswer,
-              icon: Icon(Icons.check, size: 18 * _scaleFactor),
-              label: Text("Submit Answer", style: TextStyle(fontSize: 16 * _scaleFactor)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple,
-                padding: EdgeInsets.symmetric(
-                  horizontal: 24 * _scaleFactor,
-                  vertical: 16 * _scaleFactor,
-                ),
+          ElevatedButton.icon(
+            onPressed: isAnsweredCorrectly ? null : checkAnswer,
+            icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
+            label: Text("Compile & Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green, // Changed to green
+              padding: EdgeInsets.symmetric(
+                horizontal: 24 * _scaleFactor,
+                vertical: 16 * _scaleFactor,
               ),
             ),
-
-          SizedBox(height: 10 * _scaleFactor),
+          ),
           TextButton(
             onPressed: resetGame,
-            child: Text("🔁 Restart Quiz", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+            child: Text("🔁 Retry", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget puzzleBlock(String text, Color color) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 2 * _scaleFactor),
+      padding: EdgeInsets.symmetric(
+        horizontal: 12 * _scaleFactor,
+        vertical: 10 * _scaleFactor,
+      ),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(15 * _scaleFactor),
+          bottomRight: Radius.circular(15 * _scaleFactor),
+        ),
+        border: Border.all(color: Colors.black45, width: 1.5 * _scaleFactor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 3 * _scaleFactor,
+            offset: Offset(2 * _scaleFactor, 2 * _scaleFactor),
+          )
+        ],
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontFamily: 'monospace',
+          fontSize: 12 * _scaleFactor,
+        ),
+        textAlign: TextAlign.center,
       ),
     );
   }

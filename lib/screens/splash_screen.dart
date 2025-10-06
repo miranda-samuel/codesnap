@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../services/music_service.dart'; // ADD THIS IMPORT
 import 'login_page.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -40,7 +42,19 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _controller.forward();
 
-    Future.delayed(const Duration(seconds: 5), () {
+    // START BACKGROUND MUSIC AND NAVIGATE
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    // Start background music
+    final musicService = Provider.of<MusicService>(context, listen: false);
+    await musicService.playBackgroundMusic();
+
+    // Navigate after delay
+    await Future.delayed(const Duration(seconds: 5));
+
+    if (mounted) {
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
@@ -54,7 +68,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           transitionDuration: const Duration(milliseconds: 800),
         ),
       );
-    });
+    }
   }
 
   @override
