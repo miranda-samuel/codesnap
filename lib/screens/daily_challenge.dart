@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/user_preferences.dart';
+import '../services/daily_challenge_service.dart';
 import 'dart:async';
 
 class DailyChallengeScreen extends StatefulWidget {
@@ -23,7 +24,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         {'input': [5, 7], 'expected': 12},
         {'input': [0, 0], 'expected': 0},
       ],
-      'language': 'Python'
+      'language': 'Python',
+      'difficulty': 'Easy'
     },
     {
       'id': '2',
@@ -35,7 +37,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         {'input': [7], 'expected': false},
         {'input': [0], 'expected': true},
       ],
-      'language': 'Python'
+      'language': 'Python',
+      'difficulty': 'Easy'
     },
     {
       'id': '3',
@@ -47,7 +50,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         {'input': [5, 1], 'expected': 5},
         {'input': [0, 0], 'expected': 0},
       ],
-      'language': 'Python'
+      'language': 'Python',
+      'difficulty': 'Easy'
     },
     {
       'id': '4',
@@ -59,7 +63,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         {'input': ['abc'], 'expected': 'cba'},
         {'input': [''], 'expected': ''},
       ],
-      'language': 'Python'
+      'language': 'Python',
+      'difficulty': 'Easy'
     },
     {
       'id': '5',
@@ -71,7 +76,34 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         {'input': [3], 'expected': 6},
         {'input': [0], 'expected': 1},
       ],
-      'language': 'Python'
+      'language': 'Python',
+      'difficulty': 'Medium'
+    },
+    {
+      'id': '6',
+      'question': 'Complete the function to count vowels in a string',
+      'incompleteCode': 'def count_vowels(text):\n    # Complete this function\n    ______\n    return result',
+      'solution': 'def count_vowels(text):\n    # Complete this function\n    vowels = "aeiouAEIOU"\n    result = sum(1 for char in text if char in vowels)\n    return result',
+      'testCases': [
+        {'input': ['hello'], 'expected': 2},
+        {'input': ['Python'], 'expected': 1},
+        {'input': [''], 'expected': 0},
+      ],
+      'language': 'Python',
+      'difficulty': 'Easy'
+    },
+    {
+      'id': '7',
+      'question': 'Complete the function to find the smallest number in a list',
+      'incompleteCode': 'def find_smallest(numbers):\n    # Complete this function\n    ______\n    return result',
+      'solution': 'def find_smallest(numbers):\n    # Complete this function\n    result = min(numbers)\n    return result',
+      'testCases': [
+        {'input': [[3, 1, 4, 2]], 'expected': 1},
+        {'input': [[5, 5, 5]], 'expected': 5},
+        {'input': [[-1, -5, 0]], 'expected': -5},
+      ],
+      'language': 'Python',
+      'difficulty': 'Easy'
     },
   ];
 
@@ -89,11 +121,15 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
   bool _isLoading = false;
   bool _hasCompletedToday = false;
   int? _previousScore;
+  int _streakCount = 0;
+  bool _isNewChallenge = false;
+  String _todayDate = '';
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _initializeDailySystem();
   }
 
   @override
@@ -108,15 +144,54 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     setState(() {
       _userId = user['id'];
     });
+  }
+
+  Future<void> _initializeDailySystem() async {
+    final isNewDay = await DailyChallengeService.isNewDay();
+    final streak = await DailyChallengeService.getStreakCount();
+    final hasCompletedToday = await DailyChallengeService.hasCompletedToday();
+
+    setState(() {
+      _streakCount = streak;
+      _isNewChallenge = isNewDay;
+      _hasCompletedToday = hasCompletedToday;
+      _todayDate = _getFormattedDate();
+    });
+
+    if (isNewDay) {
+      await _selectNewChallenge();
+      await DailyChallengeService.updateLastChallengeDate();
+    } else {
+      // Load yesterday's challenge index
+      _currentDayIndex = await DailyChallengeService.getCurrentChallengeIndex();
+    }
+
     _initializeDailyChallenge();
   }
 
-  void _initializeDailyChallenge() {
-    // Get current day index (0-6 for weekly rotation)
-    final now = DateTime.now();
-    _currentDayIndex = now.weekday % dailyChallenges.length;
+  Future<void> _selectNewChallenge() async {
+    // Select a random challenge that hasn't been used recently
+    final previousIndex = await DailyChallengeService.getCurrentChallengeIndex();
+    int newIndex;
 
-    // Check if user already completed today's challenge
+    do {
+      newIndex = DateTime.now().millisecondsSinceEpoch % dailyChallenges.length;
+    } while (newIndex == previousIndex && dailyChallenges.length > 1);
+
+    setState(() {
+      _currentDayIndex = newIndex;
+    });
+
+    await DailyChallengeService.setCurrentChallengeIndex(newIndex);
+  }
+
+  String _getFormattedDate() {
+    final now = DateTime.now();
+    return '${now.day}/${now.month}/${now.year}';
+  }
+
+  void _initializeDailyChallenge() {
+    // Check if user already completed today's challenge from API
     _checkDailyCompletion();
 
     // Reset state for new challenge
@@ -187,26 +262,32 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     // Run test cases
     _runTestCases();
 
-    // Calculate score - FIXED SCORING SYSTEM
+    // Calculate score - PERFECT SCORE SYSTEM
     final passedTests = _testResults.where((result) => result == 'PASSED').length;
     final totalTests = _testResults.length;
 
-    // Perfect score if all tests passed
-    if (passedTests == totalTests) {
-      _score = 30;
-    } else {
-      // Partial score based on passed tests
-      _score = (30 * passedTests ~/ totalTests);
-      _score = _score < 0 ? 0 : _score; // Minimum score is 0
-    }
+    // Perfect score (30) only if ALL tests passed
+    _score = passedTests == totalTests ? 30 : (30 * passedTests ~/ totalTests);
 
-    // Save to database
-    _saveToDatabase();
+    // Update streak and save to database
+    _updateStreakAndSave();
 
     setState(() {
       _isCompleted = true;
       _isLoading = false;
     });
+  }
+
+  Future<void> _updateStreakAndSave() async {
+    if (_score > 0) { // Only update streak if user got some points
+      await DailyChallengeService.updateStreak();
+      final newStreak = await DailyChallengeService.getStreakCount();
+      setState(() {
+        _streakCount = newStreak;
+      });
+    }
+
+    _saveToDatabase();
   }
 
   void _runTestCases() {
@@ -252,21 +333,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     return hasReturn && hasFunctionDef;
   }
 
-  // OLD VALIDATION (for reference)
-  bool _validateCode(String userCode, dynamic expected, List<dynamic> input) {
-    // Simplified validation - check if user completed the code structure
-    final solution = dailyChallenges[_currentDayIndex]['solution'];
-
-    // Remove the blank line and check if user wrote proper code
-    if (userCode.contains('return') &&
-        !userCode.contains('______') &&
-        userCode.length > solution.length * 0.6) { // At least 60% complete
-      return true;
-    }
-
-    return false;
-  }
-
   Future<void> _saveToDatabase() async {
     if (_userId == null) {
       _showErrorDialog('Please login to save your score');
@@ -280,7 +346,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         'Python', // Language for daily challenge
         999, // Special level for daily challenges
         _score,
-        _score >= 50, // Completed if perfect score
+        _score >= 30, // Completed if perfect score
       );
 
       if (result['success'] == true) {
@@ -327,14 +393,29 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
           ),
           title: Column(
             children: [
+              // Streak celebration for perfect scores
+              if (_score >= 30 && _streakCount > 1)
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange),
+                  ),
+                  child: Text(
+                    '🔥 $_streakCount Day Streak!',
+                    style: TextStyle(color: Colors.orange, fontSize: 14),
+                  ),
+                ),
+              SizedBox(height: 10),
               Icon(
-                _score >= 50 ? Icons.celebration : Icons.quiz,
-                color: _score >= 50 ? Colors.green : Colors.orange,
+                _score >= 30 ? Icons.celebration : Icons.quiz,
+                color: _score >= 30 ? Colors.green : Colors.orange,
                 size: 48,
               ),
               SizedBox(height: 10),
               Text(
-                _score >= 50 ? 'Perfect Score! 🎉' : 'Challenge Completed!',
+                _score >= 30 ? 'Perfect Score! 🎉' : 'Challenge Completed!',
                 style: TextStyle(color: Colors.white, fontSize: 20),
                 textAlign: TextAlign.center,
               ),
@@ -343,7 +424,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-
               Text(
                 'Score: $_score/30',
                 style: TextStyle(
@@ -514,6 +594,21 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         children: [
           Icon(Icons.check_circle, color: Colors.green, size: 48),
           SizedBox(height: 10),
+          // Streak display in completed view
+          if (_streakCount > 1)
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange),
+              ),
+              child: Text(
+                '🔥 $_streakCount Day Streak!',
+                style: TextStyle(color: Colors.orange, fontSize: 14),
+              ),
+            ),
+          SizedBox(height: 10),
           Text(
             'Challenge Already Completed!',
             style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
@@ -525,7 +620,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
             textAlign: TextAlign.center,
           ),
           SizedBox(height: 15),
-
           Text(
             'Your Score: ${_previousScore ?? 0}/30',
             style: TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold),
@@ -542,11 +636,41 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text('Daily Coding Challenge', style: TextStyle(color: Colors.white)),
+        title: Column(
+          children: [
+            Text('Daily Coding Challenge', style: TextStyle(color: Colors.white, fontSize: 16)),
+            Text(
+              _todayDate,
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ],
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         iconTheme: IconThemeData(color: Colors.white),
+        actions: [
+          // Streak counter
+          Container(
+            margin: EdgeInsets.only(right: 16),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.orange),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.local_fire_department, color: Colors.orange, size: 16),
+                SizedBox(width: 4),
+                Text(
+                  '$_streakCount days',
+                  style: TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -594,7 +718,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                       ),
                     ),
 
-
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
@@ -603,7 +726,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                         border: Border.all(color: Colors.tealAccent),
                       ),
                       child: Text(
-                        'Points: 50', // Dito consistent na 50 points
+                        'Points: 30',
                         style: TextStyle(color: Colors.tealAccent, fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -612,18 +735,41 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
 
                 SizedBox(height: 20),
 
-                // Language Tag
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.teal.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.tealAccent),
-                  ),
-                  child: Text(
-                    currentChallenge['language'],
-                    style: TextStyle(color: Colors.tealAccent, fontSize: 12, fontWeight: FontWeight.bold),
-                  ),
+                // Challenge Info Row
+                Row(
+                  children: [
+                    // Language Tag
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.teal.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.tealAccent),
+                      ),
+                      child: Text(
+                        currentChallenge['language'],
+                        style: TextStyle(color: Colors.tealAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    // Difficulty Tag
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _getDifficultyColor(currentChallenge['difficulty']).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: _getDifficultyColor(currentChallenge['difficulty'])),
+                      ),
+                      child: Text(
+                        currentChallenge['difficulty'],
+                        style: TextStyle(
+                          color: _getDifficultyColor(currentChallenge['difficulty']),
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
 
                 SizedBox(height: 20),
@@ -692,7 +838,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                       color: Color(0xFF1E1E1E),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: _score >= 50 ? Colors.green : Colors.orange,
+                        color: _score >= 30 ? Colors.green : Colors.orange,
                       ),
                     ),
                     child: Column(
@@ -716,11 +862,10 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                           ],
                         ),
                         SizedBox(height: 10),
-
                         Text(
                           'Score: $_score/30',
                           style: TextStyle(
-                            color: _score >= 50 ? Colors.green : Colors.orange,
+                            color: _score >= 30 ? Colors.green : Colors.orange,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
@@ -758,5 +903,18 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         ),
       ),
     );
+  }
+
+  Color _getDifficultyColor(String difficulty) {
+    switch (difficulty) {
+      case 'Easy':
+        return Colors.green;
+      case 'Medium':
+        return Colors.orange;
+      case 'Hard':
+        return Colors.red;
+      default:
+        return Colors.tealAccent;
+    }
   }
 }

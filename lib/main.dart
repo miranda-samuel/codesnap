@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'services/music_service.dart'; // ADD THIS IMPORT
+import 'services/music_service.dart';
 import 'levels/java/level4.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_page.dart';
@@ -11,7 +12,7 @@ import 'screens/level_selection_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/game_screen.dart';
 import 'screens/forgot_password_page.dart';
-import 'screens/settings_screen.dart'; // ADD THIS IMPORT
+import 'screens/settings_screen.dart';
 
 // Import per-language level screens
 import 'levels/python/level1.dart';
@@ -37,17 +38,79 @@ import 'levels/sql/level2.dart';
 import 'levels/sql/level3.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // SET ORIENTATION TO PORTRAIT ONLY
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
   runApp(const CodeSnapApp());
 }
 
-class CodeSnapApp extends StatelessWidget {
+class CodeSnapApp extends StatefulWidget {
   const CodeSnapApp({super.key});
 
   @override
+  State<CodeSnapApp> createState() => _CodeSnapAppState();
+}
+
+class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
+  late MusicService _musicService;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _musicService = MusicService();
+    print('🎵 App initialized with Music Service');
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    print('💀 APP DISPOSING - KILLING ALL MUSIC');
+    _musicService.stopAllMusic();
+
+    // Start music after a short delay to ensure everything is initialized
+    Future.delayed(Duration(milliseconds: 500), () {
+      _musicService.playBackgroundMusic();
+    });
+
+    print('🎵 App initialized with Music Service');
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    print('📱 App Lifecycle State: $state');
+
+    // ULTIMATE MUSIC KILLER - SIMPLE AND EFFECTIVE
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+
+      print('🛑 KILLING MUSIC - App going to background');
+      _musicService.stopBackgroundMusic();
+
+      // DOUBLE STOP - just to be sure
+      Future.delayed(const Duration(milliseconds: 50), () {
+        _musicService.stopAllMusic();
+      });
+    }
+
+    // Optional: Resume music when app comes back (if you want)
+    if (state == AppLifecycleState.resumed) {
+      print('📱 App returned to foreground');
+      // _musicService.resumeBackgroundMusic(); // UNCOMMENT IF YOU WANT AUTO-RESUME
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return MultiProvider( // WRAP WITH MULTIPROVIDER
+    return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) => MusicService()),
+        ChangeNotifierProvider<MusicService>.value(value: _musicService),
       ],
       child: MaterialApp(
         title: 'CodeSnap',
@@ -67,7 +130,7 @@ class CodeSnapApp extends StatelessWidget {
           '/levels': (context) => const LevelSelectionScreen(),
           '/game': (context) => const GameScreen(),
           '/forgot_password': (context) => const ForgotPasswordPage(),
-          '/settings': (context) => const SettingsScreen(), // ADD SETTINGS ROUTE
+          '/settings': (context) => const SettingsScreen(),
 
           // Python levels
           '/python_level1': (context) => const PythonLevel1(),

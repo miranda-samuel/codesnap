@@ -3,12 +3,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MusicService with ChangeNotifier {
-  static final MusicService _instance = MusicService._internal();
-  factory MusicService() => _instance;
-  MusicService._internal() {
-    _init();
-  }
-
   final AudioPlayer _backgroundPlayer = AudioPlayer();
   final AudioPlayer _soundEffectPlayer = AudioPlayer();
 
@@ -16,30 +10,57 @@ class MusicService with ChangeNotifier {
   bool _isSoundEnabled = true;
   double _musicVolume = 0.5;
   double _soundVolume = 0.7;
+  bool _wasPlayingBeforePause = false;
+  bool _isInitialized = false;
 
   bool get isMusicEnabled => _isMusicEnabled;
   bool get isSoundEnabled => _isSoundEnabled;
   double get musicVolume => _musicVolume;
   double get soundVolume => _soundVolume;
 
-  // ADD THIS METHOD: Check if background music is playing
+  MusicService() {
+    _init();
+  }
+
   bool isBackgroundMusicPlaying() {
     return _backgroundPlayer.state == PlayerState.playing;
   }
 
   Future<void> _init() async {
-    await _loadSettings();
-    _setupAudioPlayers();
+    if (_isInitialized) return;
+
+    try {
+      await _loadSettings();
+      _setupAudioPlayers();
+      _isInitialized = true;
+      print('🎵 Music Service Initialized');
+    } catch (e) {
+      print('❌ Error initializing Music Service: $e');
+    }
   }
 
   void _setupAudioPlayers() {
+    _backgroundPlayer.setReleaseMode(ReleaseMode.loop);
     _backgroundPlayer.setVolume(_isMusicEnabled ? _musicVolume : 0.0);
     _soundEffectPlayer.setVolume(_isSoundEnabled ? _soundVolume : 0.0);
 
-    _backgroundPlayer.onPlayerComplete.listen((event) {
-      _backgroundPlayer.seek(Duration.zero);
-      _backgroundPlayer.resume();
+    // Add error handling
+    _backgroundPlayer.onPlayerStateChanged.listen((state) {
+      print('🎵 Background Player State: $state');
     });
+
+    _backgroundPlayer.onLog.listen((log) {
+      print('🎵 Audio Log: $log');
+    });
+  }
+
+  void setWasPlaying(bool wasPlaying) {
+    _wasPlayingBeforePause = wasPlaying;
+    print('🎵 Remembering music state: $_wasPlayingBeforePause');
+  }
+
+  bool shouldResumeMusic() {
+    return _wasPlayingBeforePause && _isMusicEnabled;
   }
 
   Future<void> _loadSettings() async {
@@ -67,7 +88,7 @@ class MusicService with ChangeNotifier {
     }
   }
 
-  // Play regular background music (for home screen, menus, etc.)
+  // Play regular background music - IMPROVED VERSION
   Future<void> playBackgroundMusic() async {
     if (!_isMusicEnabled) {
       print('🎵 Music is disabled, skipping background music');
@@ -76,43 +97,86 @@ class MusicService with ChangeNotifier {
 
     try {
       print('🎵 Starting background music...');
-      await _backgroundPlayer.stop();
+
+      // Check if already playing
+      if (_backgroundPlayer.state == PlayerState.playing) {
+        print('🎵 Background music is already playing');
+        return;
+      }
+
       await _backgroundPlayer.setVolume(_musicVolume);
       await _backgroundPlayer.play(AssetSource('audio/background_music.mp3'));
       print('🎵 Background music started successfully');
+      _wasPlayingBeforePause = true;
       notifyListeners();
     } catch (e) {
       print('❌ Error playing background music: $e');
     }
   }
 
-  // Stop background music
+  // Stop background music - COMPLETE STOP
   Future<void> stopBackgroundMusic() async {
     print('🎵 Stopping background music');
     await _backgroundPlayer.stop();
+    _wasPlayingBeforePause = false;
     notifyListeners();
   }
 
-  // Pause background music (for when game music plays)
+  // Pause background music - TEMPORARY STOP
   Future<void> pauseBackgroundMusic() async {
     print('🎵 Pausing background music');
     await _backgroundPlayer.pause();
     notifyListeners();
   }
 
-  // Resume background music (after game music stops)
+  // Resume background music - FIXED VERSION
   Future<void> resumeBackgroundMusic() async {
     if (!_isMusicEnabled) {
       print('🎵 Music is disabled, skipping resume');
       return;
     }
 
-    print('🎵 Resuming background music');
-    await _backgroundPlayer.resume();
+    print('🎵 Attempting to resume background music...');
+
+    try {
+      final currentState = _backgroundPlayer.state;
+      print('🎵 Current player state: $currentState');
+
+      if (currentState == PlayerState.paused) {
+        // If paused, resume it
+        await _backgroundPlayer.resume();
+        print('🎵 Music resumed from pause');
+        _wasPlayingBeforePause = true;
+      } else if (currentState == PlayerState.stopped) {
+        // If stopped, restart it
+        print('🎵 Music was stopped, restarting...');
+        await playBackgroundMusic();
+      } else if (currentState == PlayerState.playing) {
+        print('🎵 Music is already playing');
+      } else {
+        // If in other state, try to play
+        print('🎵 Music in unknown state, attempting to play...');
+        await playBackgroundMusic();
+      }
+
+      notifyListeners();
+    } catch (e) {
+      print('❌ Error resuming music: $e');
+      // Fallback: restart the music
+      await playBackgroundMusic();
+    }
+  }
+
+  // COMPLETELY STOP ALL MUSIC
+  Future<void> stopAllMusic() async {
+    print('🛑 Stopping all music completely');
+    _wasPlayingBeforePause = false;
+    await _backgroundPlayer.stop();
+    await _soundEffectPlayer.stop();
     notifyListeners();
   }
 
-  // Play sound effects (separate from background music)
+  // Play sound effects
   Future<void> playSoundEffect(String soundFile) async {
     if (!_isSoundEnabled) return;
 
@@ -128,10 +192,11 @@ class MusicService with ChangeNotifier {
     _isMusicEnabled = !_isMusicEnabled;
     await _backgroundPlayer.setVolume(_isMusicEnabled ? _musicVolume : 0.0);
 
-    if (_isMusicEnabled) {
-      await playBackgroundMusic();
-    } else {
-      await stopBackgroundMusic();
+    if (_isMusicEnabled && _wasPlayingBeforePause) {
+      // If enabling music and it was playing before, resume it
+      await resumeBackgroundMusic();
+    } else if (!_isMusicEnabled) {
+      await pauseBackgroundMusic();
     }
 
     await _saveSettings();
@@ -159,9 +224,12 @@ class MusicService with ChangeNotifier {
     notifyListeners();
   }
 
+  @override
   Future<void> dispose() async {
-    super.dispose();
+    print('💀 Music Service Disposing');
+    await stopAllMusic();
     await _backgroundPlayer.dispose();
     await _soundEffectPlayer.dispose();
+    super.dispose();
   }
 }
