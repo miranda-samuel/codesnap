@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // ADD THIS IMPORT
+import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../services/user_preferences.dart';
-import '../services/music_service.dart'; // ADD THIS IMPORT
+import '../services/music_service.dart';
 
 class LevelSelectionScreen extends StatefulWidget {
   const LevelSelectionScreen({super.key});
@@ -89,7 +89,7 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
 
     try {
       final musicService = Provider.of<MusicService>(context, listen: false);
-      musicService.playSoundEffect('click.mp3'); // ADD SOUND EFFECT
+      musicService.playSoundEffect('click.mp3');
 
       final response = await ApiService.resetScores(currentUser!['id'], selectedLanguage);
 
@@ -116,7 +116,7 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
 
   void _navigateToLevel(int levelNumber) {
     final musicService = Provider.of<MusicService>(context, listen: false);
-    musicService.playSoundEffect('click.mp3'); // ADD SOUND EFFECT
+    musicService.playSoundEffect('click.mp3');
 
     String route = '';
     switch (selectedLanguage) {
@@ -248,23 +248,20 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
               Expanded(
                 child: GridView.builder(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3, // 3 levels per row for better layout
+                    crossAxisCount: 3,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
                     childAspectRatio: 1.1,
                   ),
-                  itemCount: 10, // All 10 levels
+                  itemCount: 10,
                   itemBuilder: (context, index) {
                     final levelNumber = index + 1;
                     final levelData = scores[levelNumber] ?? {'score': 0, 'completed': false};
                     final score = levelData['score'];
                     final isCompleted = levelData['completed'];
 
-                    // UNLOCKING LOGIC for all levels
-                    bool isUnlocked = levelNumber == 1
-                        ? true
-                        : (scores[levelNumber - 1]?['completed'] == true &&
-                        scores[levelNumber - 1]?['score'] == 3);
+                    // UPDATED UNLOCKING LOGIC
+                    bool isUnlocked = _isLevelUnlocked(levelNumber);
 
                     return _buildLevelCard(
                       levelNumber: levelNumber,
@@ -283,6 +280,54 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
     );
   }
 
+  // NEW METHOD: Check if level is unlocked
+  bool _isLevelUnlocked(int levelNumber) {
+    switch (levelNumber) {
+      case 1:
+        return true; // Level 1 is always unlocked
+
+      case 2:
+      // Level 2 unlocked if Level 1 completed with perfect score
+        return scores[1]?['completed'] == true && scores[1]?['score'] == 3;
+
+      case 3:
+      // Level 3 unlocked if Level 2 completed with perfect score
+        return scores[2]?['completed'] == true && scores[2]?['score'] == 3;
+
+      case 4:
+      // Level 4 unlocked if Level 3 completed with perfect score
+        return scores[3]?['completed'] == true && scores[3]?['score'] == 3;
+
+      case 5:
+      // Level 5 unlocked if Level 4 completed with perfect score
+        return scores[4]?['completed'] == true && scores[4]?['score'] == 3;
+
+      case 6:
+      // LEVEL 6: ONLY unlocked through Bonus Game (Level 99) with perfect score
+      // Check if Bonus Game (Level 99) was completed with perfect score
+        return scores[99]?['completed'] == true && scores[99]?['score'] == 3;
+
+      case 7:
+      // Level 7 unlocked if Level 6 completed with perfect score
+        return scores[6]?['completed'] == true && scores[6]?['score'] == 3;
+
+      case 8:
+      // Level 8 unlocked if Level 7 completed with perfect score
+        return scores[7]?['completed'] == true && scores[7]?['score'] == 3;
+
+      case 9:
+      // Level 9 unlocked if Level 8 completed with perfect score
+        return scores[8]?['completed'] == true && scores[8]?['score'] == 3;
+
+      case 10:
+      // Level 10 unlocked if Level 9 completed with perfect score
+        return scores[9]?['completed'] == true && scores[9]?['score'] == 3;
+
+      default:
+        return false;
+    }
+  }
+
   Widget _buildLevelCard({
     required int levelNumber,
     required String title,
@@ -296,7 +341,7 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
           _showLockedDialog(levelNumber);
           return;
         }
-        _navigateToLevel(levelNumber); // USE UPDATED METHOD WITH SOUND
+        _navigateToLevel(levelNumber);
       },
       child: Container(
         decoration: BoxDecoration(
@@ -447,9 +492,43 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
 
   void _showLockedDialog(int levelNumber) {
     final musicService = Provider.of<MusicService>(context, listen: false);
-    musicService.playSoundEffect('error.mp3'); // ADD ERROR SOUND EFFECT
+    musicService.playSoundEffect('error.mp3');
 
-    String message = "Complete Level ${levelNumber - 1} with a perfect score (3/3) to unlock this level.";
+    String message = "";
+
+    // UPDATED MESSAGES FOR EACH LEVEL
+    switch (levelNumber) {
+      case 2:
+        message = "Complete Level 1 with a perfect score (3/3) to unlock this level.";
+        break;
+      case 3:
+        message = "Complete Level 2 with a perfect score (3/3) to unlock this level.";
+        break;
+      case 4:
+        message = "Complete Level 3 with a perfect score (3/3) to unlock this level.";
+        break;
+      case 5:
+        message = "Complete Level 4 with a perfect score (3/3) to unlock this level.";
+        break;
+      case 6:
+      // UPDATED: Level 6 is ONLY unlocked through Bonus Game
+        message = "Complete the C++ Bonus Game with a perfect score (3/3) to unlock Level 6!";
+        break;
+      case 7:
+        message = "Complete Level 6 with a perfect score (3/3) to unlock this level.";
+        break;
+      case 8:
+        message = "Complete Level 7 with a perfect score (3/3) to unlock this level.";
+        break;
+      case 9:
+        message = "Complete Level 8 with a perfect score (3/3) to unlock this level.";
+        break;
+      case 10:
+        message = "Complete Level 9 with a perfect score (3/3) to unlock this level.";
+        break;
+      default:
+        message = "Complete the previous level with a perfect score (3/3) to unlock this level.";
+    }
 
     showDialog(
       context: context,
@@ -480,7 +559,7 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              musicService.playSoundEffect('click.mp3'); // ADD CLICK SOUND
+              musicService.playSoundEffect('click.mp3');
               Navigator.pop(context);
             },
             child: Text(

@@ -17,8 +17,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     {
       'id': '1',
       'question': 'Complete the function to return the sum of two numbers',
-      'incompleteCode': 'def add_numbers(a, b):\n    # Complete this function\n    ______\n    return result',
-      'solution': 'def add_numbers(a, b):\n    # Complete this function\n    result = a + b\n    return result',
+      'incompleteCode': 'def add_numbers(a, b):\n    ______\n    return result',
+      'solution': 'def add_numbers(a, b):\n    result = a + b\n    return result',
       'testCases': [
         {'input': [2, 3], 'expected': 5},
         {'input': [5, 7], 'expected': 12},
@@ -30,8 +30,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     {
       'id': '2',
       'question': 'Complete the function to check if number is even',
-      'incompleteCode': 'def is_even(number):\n    # Complete this function\n    ______\n    return result',
-      'solution': 'def is_even(number):\n    # Complete this function\n    result = number % 2 == 0\n    return result',
+      'incompleteCode': 'def is_even(number):\n    ______\n    return result',
+      'solution': 'def is_even(number):\n    result = number % 2 == 0\n    return result',
       'testCases': [
         {'input': [4], 'expected': true},
         {'input': [7], 'expected': false},
@@ -43,8 +43,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     {
       'id': '3',
       'question': 'Complete the function to find maximum of two numbers',
-      'incompleteCode': 'def find_max(a, b):\n    # Complete this function\n    ______\n    return result',
-      'solution': 'def find_max(a, b):\n    # Complete this function\n    if a > b:\n        result = a\n    else:\n        result = b\n    return result',
+      'incompleteCode': 'def find_max(a, b):\n    ______\n    return result',
+      'solution': 'def find_max(a, b):\n    if a > b:\n        result = a\n    else:\n        result = b\n    return result',
       'testCases': [
         {'input': [2, 3], 'expected': 3},
         {'input': [5, 1], 'expected': 5},
@@ -56,8 +56,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     {
       'id': '4',
       'question': 'Complete the function to reverse a string',
-      'incompleteCode': 'def reverse_string(text):\n    # Complete this function\n    ______\n    return result',
-      'solution': 'def reverse_string(text):\n    # Complete this function\n    result = text[::-1]\n    return result',
+      'incompleteCode': 'def reverse_string(text):\n    ______\n    return result',
+      'solution': 'def reverse_string(text):\n    result = text[::-1]\n    return result',
       'testCases': [
         {'input': ['hello'], 'expected': 'olleh'},
         {'input': ['abc'], 'expected': 'cba'},
@@ -69,8 +69,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     {
       'id': '5',
       'question': 'Complete the function to calculate factorial',
-      'incompleteCode': 'def factorial(n):\n    # Complete this function\n    ______\n    return result',
-      'solution': 'def factorial(n):\n    # Complete this function\n    result = 1\n    for i in range(1, n + 1):\n        result *= i\n    return result',
+      'incompleteCode': 'def factorial(n):\n    ______\n    return result',
+      'solution': 'def factorial(n):\n    result = 1\n    for i in range(1, n + 1):\n        result *= i\n    return result',
       'testCases': [
         {'input': [5], 'expected': 120},
         {'input': [3], 'expected': 6},
@@ -82,8 +82,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     {
       'id': '6',
       'question': 'Complete the function to count vowels in a string',
-      'incompleteCode': 'def count_vowels(text):\n    # Complete this function\n    ______\n    return result',
-      'solution': 'def count_vowels(text):\n    # Complete this function\n    vowels = "aeiouAEIOU"\n    result = sum(1 for char in text if char in vowels)\n    return result',
+      'incompleteCode': 'def count_vowels(text):\n    ______\n    return result',
+      'solution': 'def count_vowels(text):\n   vowels = "aeiouAEIOU"\n    result = sum(1 for char in text if char in vowels)\n    return result',
       'testCases': [
         {'input': ['hello'], 'expected': 2},
         {'input': ['Python'], 'expected': 1},
@@ -95,8 +95,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     {
       'id': '7',
       'question': 'Complete the function to find the smallest number in a list',
-      'incompleteCode': 'def find_smallest(numbers):\n    # Complete this function\n    ______\n    return result',
-      'solution': 'def find_smallest(numbers):\n    # Complete this function\n    result = min(numbers)\n    return result',
+      'incompleteCode': 'def find_smallest(numbers):\n    ______\n    return result',
+      'solution': 'def find_smallest(numbers):\n    result = min(numbers)\n    return result',
       'testCases': [
         {'input': [[3, 1, 4, 2]], 'expected': 1},
         {'input': [[5, 5, 5]], 'expected': 5},

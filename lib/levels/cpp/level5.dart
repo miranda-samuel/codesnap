@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
+import '../../services/music_service.dart';
+import 'cpp_bonus_game.dart';
 
 class CppLevel5 extends StatefulWidget {
   const CppLevel5({super.key});
@@ -22,7 +25,7 @@ class _CppLevel5State extends State<CppLevel5> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 180; // 3 minutes for complex level
+  int remainingSeconds = 180;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -40,6 +43,17 @@ class _CppLevel5State extends State<CppLevel5> {
     resetBlocks();
     _loadUserData();
     _calculateScaleFactor();
+    _startGameMusic();
+  }
+
+  void _startGameMusic() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      await musicService.stopBackgroundMusic();
+      await musicService.playSoundEffect('game_start.mp3');
+      await Future.delayed(Duration(milliseconds: 500));
+      await musicService.playSoundEffect('game_music.mp3');
+    });
   }
 
   void _calculateScaleFactor() {
@@ -66,26 +80,52 @@ class _CppLevel5State extends State<CppLevel5> {
   }
 
   void resetBlocks() {
-    // Combined blocks for: int age; cin >> age; cout << age;
     List<String> correctBlocks = [
-      'int', 'age', ';',
-      'cin', '>>', 'age', ';',
-      'cout', '<<', 'age', ';'
+      'int number = 7;',
+      'if (number % 2 == 0) {',
+      '    cout << "Even";',
+      '} else {',
+      '    cout << "Odd";',
+      '}'
     ];
 
-    // Incorrect/distractor blocks from all previous levels
+    // Incorrect/distractor blocks (NO cin blocks)
     List<String> incorrectBlocks = [
-      'string', 'double', 'char', 'float', 'bool',
-      'name', 'height', 'score', '==', '!=', '++', '--',
-      '25.5', '"25"', 'true', "'A'",
-      'printf', 'cout >>', '<<<', '>>>', 'System.out.print',
-      '"Hello"', '"Hi World"', 'print', 'Console.WriteLine',
-      'std::cout', 'endl', 'scanf', 'input', ','
+      'float number = 7;',
+      'double number = 7;',
+      'string number = "7";',
+      'printf("Even");',
+      'printf("Odd");',
+      'System.out.print("Even");',
+      'System.out.print("Odd");',
+      'print("Even")',
+      'print("Odd")',
+      'var number = 7;',
+      'Console.WriteLine("Even");',
+      'Console.WriteLine("Odd");',
+      'cout >> "Even";',
+      'cout >> "Odd";',
+      'int result = number % 2;',
+      'return number % 2;',
+      'display "Even";',
+      'display "Odd";',
+      'number = 7;',
+      'let number = 7;',
+      'const number = 7;',
+      'if number % 2 == 0',
+      'else:',
+      'elif number % 2 == 0:',
+      'switch(number % 2)',
+      'case 0:',
+      'default:',
+      'while(number % 2 == 0)',
+      'for(int i=0; i<1; i++)',
+      'bool isEven = number % 2 == 0;'
     ];
 
-    // Shuffle incorrect blocks and take 6 random ones
+    // Shuffle incorrect blocks and take 4 random ones
     incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(6).toList();
+    List<String> selectedIncorrectBlocks = incorrectBlocks.take(4).toList();
 
     // Combine correct and incorrect blocks, then shuffle
     allBlocks = [
@@ -95,6 +135,9 @@ class _CppLevel5State extends State<CppLevel5> {
   }
 
   void startGame() {
+    final musicService = Provider.of<MusicService>(context, listen: false);
+    musicService.playSoundEffect('level_start.mp3');
+
     setState(() {
       gameStarted = true;
       score = 3;
@@ -120,6 +163,10 @@ class _CppLevel5State extends State<CppLevel5> {
           timer.cancel();
           scoreReductionTimer?.cancel();
           saveScoreToDatabase(score);
+
+          final musicService = Provider.of<MusicService>(context, listen: false);
+          musicService.playSoundEffect('time_up.mp3');
+
           showDialog(
             context: context,
             builder: (_) => AlertDialog(
@@ -128,6 +175,8 @@ class _CppLevel5State extends State<CppLevel5> {
               actions: [
                 TextButton(
                   onPressed: () {
+                    final musicService = Provider.of<MusicService>(context, listen: false);
+                    musicService.playSoundEffect('click.mp3');
                     resetGame();
                     Navigator.pop(context);
                   },
@@ -140,7 +189,7 @@ class _CppLevel5State extends State<CppLevel5> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 60), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 30), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -148,6 +197,9 @@ class _CppLevel5State extends State<CppLevel5> {
 
       setState(() {
         score--;
+        final musicService = Provider.of<MusicService>(context, listen: false);
+        musicService.playSoundEffect('penalty.mp3');
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
         );
@@ -156,6 +208,9 @@ class _CppLevel5State extends State<CppLevel5> {
   }
 
   void resetGame() {
+    final musicService = Provider.of<MusicService>(context, listen: false);
+    musicService.playSoundEffect('reset.mp3');
+
     setState(() {
       score = 3;
       remainingSeconds = 180;
@@ -168,6 +223,8 @@ class _CppLevel5State extends State<CppLevel5> {
     });
   }
 
+  // Only the saveScoreToDatabase method needs to be updated in Level 5:
+
   Future<void> saveScoreToDatabase(int score) async {
     if (currentUser?['id'] == null) return;
 
@@ -175,9 +232,9 @@ class _CppLevel5State extends State<CppLevel5> {
       final response = await ApiService.saveScore(
         currentUser!['id'],
         'C++',
-        5,
+        5, // LEVEL 5 ONLY - NO LEVEL 6 UNLOCKING HERE
         score,
-        score == 3,
+        score == 3, // perfect score
       );
 
       if (response['success'] == true) {
@@ -218,14 +275,39 @@ class _CppLevel5State extends State<CppLevel5> {
     }
   }
 
+  // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
-      'string', 'double', 'char', 'float', 'bool',
-      'name', 'height', 'score', '==', '!=', '++', '--',
-      '25.5', '"25"', 'true', "'A'",
-      'printf', 'cout >>', '<<<', '>>>', 'System.out.print',
-      '"Hello"', '"Hi World"', 'print', 'Console.WriteLine',
-      'std::cout', 'endl', 'scanf', 'input', ','
+      'float number = 7;',
+      'double number = 7;',
+      'string number = "7";',
+      'printf("Even");',
+      'printf("Odd");',
+      'System.out.print("Even");',
+      'System.out.print("Odd");',
+      'print("Even")',
+      'print("Odd")',
+      'var number = 7;',
+      'Console.WriteLine("Even");',
+      'Console.WriteLine("Odd");',
+      'cout >> "Even";',
+      'cout >> "Odd";',
+      'int result = number % 2;',
+      'return number % 2;',
+      'display "Even";',
+      'display "Odd";',
+      'number = 7;',
+      'let number = 7;',
+      'const number = 7;',
+      'if number % 2 == 0',
+      'else:',
+      'elif number % 2 == 0:',
+      'switch(number % 2)',
+      'case 0:',
+      'default:',
+      'while(number % 2 == 0)',
+      'for(int i=0; i<1; i++)',
+      'bool isEven = number % 2 == 0;'
     ];
     return incorrectBlocks.contains(block);
   }
@@ -233,10 +315,14 @@ class _CppLevel5State extends State<CppLevel5> {
   void checkAnswer() async {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
+    final musicService = Provider.of<MusicService>(context, listen: false);
+
     // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
+      musicService.playSoundEffect('error.mp3');
+
       if (score > 1) {
         setState(() {
           score--;
@@ -254,6 +340,9 @@ class _CppLevel5State extends State<CppLevel5> {
         countdownTimer?.cancel();
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
+
+        musicService.playSoundEffect('game_over.mp3');
+
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
@@ -262,6 +351,7 @@ class _CppLevel5State extends State<CppLevel5> {
             actions: [
               TextButton(
                 onPressed: () {
+                  musicService.playSoundEffect('click.mp3');
                   Navigator.pop(context);
                   resetGame();
                 },
@@ -274,17 +364,26 @@ class _CppLevel5State extends State<CppLevel5> {
       return;
     }
 
-    // Check for: int age; cin >> age; cout << age;
-    String answer = droppedBlocks.join(' ');
-    String normalizedAnswer = answer
-        .replaceAll(' ', '')
-        .replaceAll('\n', '')
-        .toLowerCase();
+    // Check for the correct sequence for odd/even checker
+    bool hasVariable = droppedBlocks.contains('int number = 7;');
+    bool hasIfCondition = droppedBlocks.contains('if (number % 2 == 0) {');
+    bool hasCoutEven = droppedBlocks.contains('    cout << "Even";');
+    bool hasElse = droppedBlocks.contains('} else {');
+    bool hasCoutOdd = droppedBlocks.contains('    cout << "Odd";');
+    bool hasClosingBrace = droppedBlocks.contains('}');
 
-    // Expected: int age; cin >> age; cout << age;
-    String expected = 'intage;cin>>age;cout<<age;';
+    // Check if all correct blocks are present
+    bool allCorrectBlocksPresent = hasVariable &&
+        hasIfCondition &&
+        hasCoutEven &&
+        hasElse &&
+        hasCoutOdd &&
+        hasClosingBrace;
 
-    if (normalizedAnswer == expected) {
+    // Check if no extra correct blocks are used (should be exactly 6 blocks)
+    bool correctBlockCount = droppedBlocks.length == 6;
+
+    if (allCorrectBlocksPresent && correctBlockCount) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -294,6 +393,13 @@ class _CppLevel5State extends State<CppLevel5> {
 
       saveScoreToDatabase(score);
 
+      // PLAY SUCCESS SOUND BASED ON SCORE
+      if (score == 3) {
+        musicService.playSoundEffect('perfect.mp3');
+      } else {
+        musicService.playSoundEffect('success.mp3');
+      }
+
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
@@ -302,49 +408,42 @@ class _CppLevel5State extends State<CppLevel5> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent! You created a complete C++ program!"),
+              Text("Excellent! You've created a perfect odd/even checker!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
+              // UPDATED: Removed Level 6 unlocking message
               if (score == 3)
-                Text(
-                  "🎉 Perfect! You've mastered Level 5!",
-                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                Column(
+                  children: [
+                    Text(
+                      "🎉 Perfect! You've unlocked the Bonus Game!",
+                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      "Complete the Bonus Game with perfect score to unlock Level 6!",
+                      style: TextStyle(color: Colors.purple, fontSize: 12),
+                    ),
+                  ],
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) to complete this level!",
+                  "⚠️ Get a perfect score (3/3) to unlock the Bonus Game!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
-              Text("Complete Program:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  "int age;\ncin >> age;\ncout << age;",
+                  "Odd", // THE OUTPUT FOR NUMBER 7
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
-                    fontSize: 14,
+                    fontSize: 16,
                   ),
-                ),
-              ),
-              SizedBox(height: 10),
-              Text("Program Flow:", style: TextStyle(fontWeight: FontWeight.bold)),
-              Container(
-                padding: EdgeInsets.all(10),
-                color: Colors.blue[50],
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("1. Declare variable: int age;"),
-                    Text("2. Get user input: cin >> age;"),
-                    Text("3. Display output: cout << age;"),
-                    SizedBox(height: 5),
-                    Text("This program asks for user's age and displays it!",
-                        style: TextStyle(fontStyle: FontStyle.italic)),
-                  ],
                 ),
               ),
             ],
@@ -352,25 +451,43 @@ class _CppLevel5State extends State<CppLevel5> {
           actions: [
             TextButton(
               onPressed: () {
+                musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
                 if (score == 3) {
-                  Navigator.pushReplacementNamed(context, '/levels', arguments: 'C++');
+                  musicService.playSoundEffect('level_complete.mp3');
+                  // NAVIGATE TO BONUS GAME ONLY
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => CppBonusGame()),
+                  );
                 } else {
                   resetGame();
                 }
               },
-              child: Text(score == 3 ? "Go Back to Levels" : "Try Again"),
+              child: Text(score == 3 ? "Play Bonus Game" : "OK"),
             )
           ],
         ),
       );
     } else {
+      musicService.playSoundEffect('wrong.mp3');
+
       if (score > 1) {
         setState(() {
           score--;
         });
+
+        String errorMessage = "❌ Incorrect arrangement. -1 point. Current score: $score";
+
+        // Provide specific feedback
+        if (!allCorrectBlocksPresent) {
+          errorMessage = "❌ Missing some required code blocks. -1 point. Current score: $score";
+        } else if (!correctBlockCount) {
+          errorMessage = "❌ Used wrong number of blocks. -1 point. Current score: $score";
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Incorrect arrangement. -1 point. Current score: $score")),
+          SnackBar(content: Text(errorMessage)),
         );
       } else {
         setState(() {
@@ -379,6 +496,9 @@ class _CppLevel5State extends State<CppLevel5> {
         countdownTimer?.cancel();
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
+
+        musicService.playSoundEffect('game_over.mp3');
+
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
@@ -387,6 +507,7 @@ class _CppLevel5State extends State<CppLevel5> {
             actions: [
               TextButton(
                 onPressed: () {
+                  musicService.playSoundEffect('click.mp3');
                   Navigator.pop(context);
                   resetGame();
                 },
@@ -405,10 +526,8 @@ class _CppLevel5State extends State<CppLevel5> {
     return "$m:$s";
   }
 
+  // CODE PREVIEW
   Widget getCodePreview() {
-    String previewCode = getPreviewCode();
-    List<String> lines = previewCode.split('\n');
-
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -433,7 +552,7 @@ class _CppLevel5State extends State<CppLevel5> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'main.cpp',
+                  'odd_even.cpp',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -445,40 +564,50 @@ class _CppLevel5State extends State<CppLevel5> {
           ),
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Line numbers
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      _buildCodeLine(1, '#include <iostream>'),
-                      _buildCodeLine(2, 'using namespace std;'),
-                      _buildCodeLine(3, ''),
-                      _buildCodeLine(4, 'int main() {'),
-                      ...List.generate(lines.length, (index) => _buildCodeLine(5 + index, '')),
-                      _buildCodeLine(5 + lines.length, '    return 0;'),
-                      _buildCodeLine(6 + lines.length, '}'),
-                    ],
-                  ),
-                  SizedBox(width: 16 * _scaleFactor),
-                  // Actual code with syntax highlighting
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSyntaxHighlightedLine('#include <iostream>', isPreprocessor: true),
-                      _buildSyntaxHighlightedLine('using namespace std;', isKeyword: true),
-                      SizedBox(height: 8 * _scaleFactor),
-                      _buildSyntaxHighlightedLine('int main() {', isKeyword: true),
-                      ...lines.map((line) => _buildUserCodeLine(line)),
-                      _buildSyntaxHighlightedLine('    return 0;', isKeyword: true),
-                      _buildSyntaxHighlightedLine('}', isNormal: true),
-                    ],
-                  ),
-                ],
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 30 * _scaleFactor,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _buildCodeLine(1),
+                          _buildCodeLine(2),
+                          _buildCodeLine(3),
+                          _buildCodeLine(4),
+                          _buildCodeLine(5),
+                          _buildCodeLine(6),
+                          _buildCodeLine(7),
+                          _buildCodeLine(8),
+                          _buildCodeLine(9),
+                          _buildCodeLine(10),
+                          _buildCodeLine(11),
+                          _buildCodeLine(12),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: 16 * _scaleFactor),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSyntaxHighlightedLine('#include <iostream>', isPreprocessor: true),
+                          _buildSyntaxHighlightedLine('using namespace std;', isKeyword: true),
+                          SizedBox(height: 8 * _scaleFactor),
+                          _buildSyntaxHighlightedLine('int main() {', isKeyword: true),
+                          _buildUserCodePreview(),
+                          _buildSyntaxHighlightedLine('    return 0;', isKeyword: true),
+                          _buildSyntaxHighlightedLine('}', isNormal: true),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
@@ -486,34 +615,87 @@ class _CppLevel5State extends State<CppLevel5> {
     );
   }
 
-  Widget _buildUserCodeLine(String code) {
-    if (code.isEmpty) return SizedBox(height: 20 * _scaleFactor);
+  Widget _buildUserCodePreview() {
+    if (droppedBlocks.isEmpty) {
+      return Container(
+        height: 20 * _scaleFactor,
+        child: Text(
+          '    ',
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 12 * _scaleFactor,
+            fontFamily: 'monospace',
+          ),
+        ),
+      );
+    }
 
+    List<Widget> codeLines = [];
+    bool hasVariable = droppedBlocks.contains('int number = 7;');
+    bool hasIfCondition = droppedBlocks.contains('if (number % 2 == 0) {');
+    bool hasCoutEven = droppedBlocks.contains('    cout << "Even";');
+    bool hasElse = droppedBlocks.contains('} else {');
+    bool hasCoutOdd = droppedBlocks.contains('    cout << "Odd";');
+    bool hasClosingBrace = droppedBlocks.contains('}');
+
+    if (hasVariable) {
+      codeLines.add(_buildUserCodeLine('int number = 7;'));
+    }
+
+    if (hasIfCondition) {
+      codeLines.add(_buildUserCodeLine('if (number % 2 == 0) {'));
+    }
+
+    if (hasCoutEven) {
+      codeLines.add(_buildUserCodeLine('    cout << "Even";'));
+    }
+
+    if (hasElse) {
+      codeLines.add(_buildUserCodeLine('} else {'));
+    }
+
+    if (hasCoutOdd) {
+      codeLines.add(_buildUserCodeLine('    cout << "Odd";'));
+    }
+
+    if (hasClosingBrace) {
+      codeLines.add(_buildUserCodeLine('}'));
+    }
+
+    // Add any incorrect blocks that were used
+    for (String block in droppedBlocks) {
+      if (!['int number = 7;',
+        'if (number % 2 == 0) {',
+        '    cout << "Even";',
+        '} else {',
+        '    cout << "Odd";',
+        '}'].contains(block)) {
+        codeLines.add(_buildUserCodeLine(block));
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: codeLines,
+    );
+  }
+
+  Widget _buildUserCodeLine(String code) {
     return Container(
       height: 20 * _scaleFactor,
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '    ',
-              style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12 * _scaleFactor),
-            ),
-            TextSpan(
-              text: code,
-              style: TextStyle(
-                color: Colors.greenAccent[400],
-                fontFamily: 'monospace',
-                fontSize: 12 * _scaleFactor,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+      child: Text(
+        '    $code',
+        style: TextStyle(
+          color: Colors.greenAccent[400],
+          fontFamily: 'monospace',
+          fontSize: 12 * _scaleFactor,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
   }
 
-  Widget _buildCodeLine(int lineNumber, String code) {
+  Widget _buildCodeLine(int lineNumber) {
     return Container(
       height: 20 * _scaleFactor,
       child: Text(
@@ -529,7 +711,6 @@ class _CppLevel5State extends State<CppLevel5> {
 
   Widget _buildSyntaxHighlightedLine(String code, {bool isPreprocessor = false, bool isKeyword = false, bool isNormal = false}) {
     Color textColor = Colors.white;
-
     if (isPreprocessor) {
       textColor = Color(0xFFCE9178);
     } else if (isKeyword) {
@@ -537,7 +718,6 @@ class _CppLevel5State extends State<CppLevel5> {
     } else if (isNormal) {
       textColor = Colors.white;
     }
-
     return Container(
       height: 20 * _scaleFactor,
       child: Text(
@@ -551,34 +731,14 @@ class _CppLevel5State extends State<CppLevel5> {
     );
   }
 
-  String getPreviewCode() {
-    if (droppedBlocks.isEmpty) return '';
-
-    // Format the code with line breaks for better readability
-    List<String> lines = [];
-    String currentLine = '';
-
-    for (String block in droppedBlocks) {
-      if (block == ';') {
-        currentLine += block;
-        lines.add(currentLine);
-        currentLine = '';
-      } else {
-        currentLine += (currentLine.isEmpty ? '' : ' ') + block;
-      }
-    }
-
-    if (currentLine.isNotEmpty) {
-      lines.add(currentLine);
-    }
-
-    return lines.join('\n');
-  }
-
   @override
   void dispose() {
     countdownTimer?.cancel();
     scoreReductionTimer?.cancel();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      await musicService.playBackgroundMusic();
+    });
     super.dispose();
   }
 
@@ -587,7 +747,6 @@ class _CppLevel5State extends State<CppLevel5> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
       final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
-
       if (newScaleFactor != _scaleFactor) {
         setState(() {
           _scaleFactor = newScaleFactor;
@@ -598,7 +757,7 @@ class _CppLevel5State extends State<CppLevel5> {
     return Scaffold(
       appBar: AppBar(
         title: Text("⚡ C++ - Level 5", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.blue,
+        backgroundColor: Colors.deepPurple,
         actions: gameStarted
             ? [
           Padding(
@@ -624,9 +783,9 @@ class _CppLevel5State extends State<CppLevel5> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF0D1B2A),
-              Color(0xFF1B263B),
-              Color(0xFF415A77),
+              Color(0xFF1A1A2E),
+              Color(0xFF16213E),
+              Color(0xFF0F3460),
             ],
           ),
         ),
@@ -643,14 +802,41 @@ class _CppLevel5State extends State<CppLevel5> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              onPressed: startGame,
+              onPressed: () {
+                final musicService = Provider.of<MusicService>(context, listen: false);
+                musicService.playSoundEffect('button_click.mp3');
+                startGame();
+              },
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Level 5", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.blue,
+                backgroundColor: Colors.deepPurple,
               ),
             ),
+
+            // BONUS GAME BUTTON - Only show if level 5 is completed with perfect score
+            if (level5Completed && previousScore == 3)
+              Padding(
+                padding: EdgeInsets.only(top: 20 * _scaleFactor),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    final musicService = Provider.of<MusicService>(context, listen: false);
+                    musicService.playSoundEffect('bonus_unlock.mp3');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => CppBonusGame()),
+                    );
+                  },
+                  icon: Icon(Icons.casino, size: 20 * _scaleFactor),
+                  label: Text("Play Bonus Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
+                    backgroundColor: Colors.amber[700],
+                  ),
+                ),
+              ),
+
             SizedBox(height: 20 * _scaleFactor),
 
             if (level5Completed)
@@ -665,8 +851,8 @@ class _CppLevel5State extends State<CppLevel5> {
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "You've mastered C++ fundamentals!",
-                      style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "🎁 Bonus Game is now available!",
+                      style: TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -679,76 +865,69 @@ class _CppLevel5State extends State<CppLevel5> {
                   children: [
                     Text(
                       "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.deepPurple, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score!",
-                      style: TextStyle(color: Colors.redAccent, fontSize: 14 * _scaleFactor),
+                      "Try again to get a perfect score and unlock the Bonus Game!",
+                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
                 ),
-              ),
+              )
+            else if (hasPreviousScore && previousScore == 0)
+                Padding(
+                  padding: EdgeInsets.only(top: 10 * _scaleFactor),
+                  child: Column(
+                    children: [
+                      Text(
+                        "😅 Your previous score: $previousScore/3",
+                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 5 * _scaleFactor),
+                      Text(
+                        "Don't give up! You can do better this time!",
+                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
 
             SizedBox(height: 30 * _scaleFactor),
             Container(
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.red[50]!.withOpacity(0.9),
+                color: Colors.deepPurple[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.red[200]!),
+                border: Border.all(color: Colors.deepPurple[200]!),
               ),
               child: Column(
                 children: [
                   Text(
                     "🎯 Level 5 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.red[800]),
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.deepPurple[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create a complete program: Variable + Input + Output",
+                    "Create an odd/even checker that determines if a number (7) is odd or even",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.red[700]),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(10 * _scaleFactor),
-                    color: Colors.black,
-                    child: Text(
-                      "int age;\ncin >> age;\ncout << age;",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'monospace',
-                        fontSize: 14 * _scaleFactor,
-                      ),
-                    ),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.deepPurple[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Combine everything you learned in Levels 1-3!",
+                    "🎁 Get a perfect score (3/3) to unlock the Bonus Game!",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12 * _scaleFactor, color: Colors.red[600], fontStyle: FontStyle.italic),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(8 * _scaleFactor),
-                    color: Colors.blue[50],
-                    child: Column(
-                      children: [
-                        Text(
-                          "What you'll practice:",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12 * _scaleFactor),
-                        ),
-                        SizedBox(height: 5 * _scaleFactor),
-                        Text(
-                          "• Variable declaration (Level 2)\n• User input (Level 3)\n• Output display (Level 1)",
-                          style: TextStyle(fontSize: 11 * _scaleFactor),
-                        ),
-                      ],
+                    style: TextStyle(
+                        fontSize: 12 * _scaleFactor,
+                        color: Colors.purple,
+                        fontWeight: FontWeight.bold,
+                        fontStyle: FontStyle.italic
                     ),
                   ),
                 ],
@@ -775,6 +954,8 @@ class _CppLevel5State extends State<CppLevel5> {
               ),
               TextButton.icon(
                 onPressed: () {
+                  final musicService = Provider.of<MusicService>(context, listen: false);
+                  musicService.playSoundEffect('toggle.mp3');
                   setState(() {
                     isTagalog = !isTagalog;
                   });
@@ -788,35 +969,39 @@ class _CppLevel5State extends State<CppLevel5> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Si Juan ay gustong gumawa ng complete program! Kailangan niyang mag-declare ng variable, kumuha ng input mula sa user, at i-display ang result. Tulungan siyang buuin ang program!'
-                : 'Juan wants to create a complete program! He needs to declare a variable, get input from the user, and display the result. Help him build the program!',
+                ? 'Ngayon, gusto ni Alex na gumawa ng program na makikilala kung ang numero ay odd o even! Gamit ang number 7, tulungan siyang bumuo ng conditional statement na magche-check kung divisible by 2 ang numero.'
+                : 'Now, Alex wants to create a program that identifies if a number is odd or even! Using the number 7, help him build a conditional statement that checks if the number is divisible by 2.',
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the blocks to create: int age; cin >> age; cout << age;',
+          Text('🧩 Arrange the 6 correct blocks to create the odd/even checker',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          // TARGET AREA - Fully scrollable with no limits
+          // TARGET AREA
           Container(
             width: double.infinity,
-            height: 250 * _scaleFactor, // Fixed height with scrolling
+            constraints: BoxConstraints(
+              minHeight: 220 * _scaleFactor,
+              maxHeight: 300 * _scaleFactor,
+            ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.red, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.deepPurple, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
               onWillAccept: (data) {
-                // ALWAYS ACCEPT BLOCKS - NO LIMIT
-                return true;
+                return !droppedBlocks.contains(data);
               },
               onAccept: (data) {
                 if (!isAnsweredCorrectly) {
+                  final musicService = Provider.of<MusicService>(context, listen: false);
+                  musicService.playSoundEffect('block_drop.mp3');
                   setState(() {
                     droppedBlocks.add(data);
                     allBlocks.remove(data);
@@ -824,31 +1009,21 @@ class _CppLevel5State extends State<CppLevel5> {
                 }
               },
               builder: (context, candidateData, rejectedData) {
-                return droppedBlocks.isEmpty
-                    ? Center(
-                  child: Text(
-                    'Drop blocks here\n(No limit on number of blocks)',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16 * _scaleFactor,
-                      color: Colors.grey[600],
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                )
-                    : SingleChildScrollView(
+                return SingleChildScrollView(
                   child: Wrap(
-                    spacing: 6 * _scaleFactor,
-                    runSpacing: 6 * _scaleFactor,
-                    alignment: WrapAlignment.start,
-                    crossAxisAlignment: WrapCrossAlignment.start,
+                    spacing: 8 * _scaleFactor,
+                    runSpacing: 8 * _scaleFactor,
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: droppedBlocks.map((block) {
                       return Draggable<String>(
                         data: block,
-                        feedback: puzzleBlock(block, Colors.redAccent),
-                        childWhenDragging: puzzleBlock(block, Colors.redAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.redAccent),
+                        feedback: puzzleBlock(block, Colors.deepPurpleAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.deepPurpleAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.deepPurpleAccent),
                         onDragStarted: () {
+                          final musicService = Provider.of<MusicService>(context, listen: false);
+                          musicService.playSoundEffect('block_pickup.mp3');
                           setState(() {
                             currentlyDraggedBlock = block;
                           });
@@ -857,7 +1032,6 @@ class _CppLevel5State extends State<CppLevel5> {
                           setState(() {
                             currentlyDraggedBlock = null;
                           });
-
                           if (!isAnsweredCorrectly && !details.wasAccepted) {
                             Future.delayed(Duration(milliseconds: 50), () {
                               if (mounted) {
@@ -887,6 +1061,10 @@ class _CppLevel5State extends State<CppLevel5> {
 
           // SOURCE AREA
           Container(
+            width: double.infinity,
+            constraints: BoxConstraints(
+              minHeight: 160 * _scaleFactor,
+            ),
             padding: EdgeInsets.all(12 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[800]!.withOpacity(0.3),
@@ -896,18 +1074,21 @@ class _CppLevel5State extends State<CppLevel5> {
               spacing: 8 * _scaleFactor,
               runSpacing: 10 * _scaleFactor,
               alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: allBlocks.map((block) {
                 return isAnsweredCorrectly
                     ? puzzleBlock(block, Colors.grey)
                     : Draggable<String>(
                   data: block,
-                  feedback: puzzleBlock(block, Colors.red),
+                  feedback: puzzleBlock(block, Colors.deepPurple),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.red),
+                    child: puzzleBlock(block, Colors.deepPurple),
                   ),
-                  child: puzzleBlock(block, Colors.red),
+                  child: puzzleBlock(block, Colors.deepPurple),
                   onDragStarted: () {
+                    final musicService = Provider.of<MusicService>(context, listen: false);
+                    musicService.playSoundEffect('block_pickup.mp3');
                     setState(() {
                       currentlyDraggedBlock = block;
                     });
@@ -916,7 +1097,6 @@ class _CppLevel5State extends State<CppLevel5> {
                     setState(() {
                       currentlyDraggedBlock = null;
                     });
-
                     if (!isAnsweredCorrectly && !details.wasAccepted) {
                       Future.delayed(Duration(milliseconds: 50), () {
                         if (mounted) {
@@ -936,11 +1116,15 @@ class _CppLevel5State extends State<CppLevel5> {
 
           SizedBox(height: 30 * _scaleFactor),
           ElevatedButton.icon(
-            onPressed: isAnsweredCorrectly ? null : checkAnswer,
+            onPressed: isAnsweredCorrectly ? null : () {
+              final musicService = Provider.of<MusicService>(context, listen: false);
+              musicService.playSoundEffect('compile.mp3');
+              checkAnswer();
+            },
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
-            label: Text("Compile & Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
+            label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: Colors.deepPurple,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -948,7 +1132,11 @@ class _CppLevel5State extends State<CppLevel5> {
             ),
           ),
           TextButton(
-            onPressed: resetGame,
+            onPressed: () {
+              final musicService = Provider.of<MusicService>(context, listen: false);
+              musicService.playSoundEffect('button_click.mp3');
+              resetGame();
+            },
             child: Text("🔁 Retry", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
           ),
         ],
@@ -958,7 +1146,11 @@ class _CppLevel5State extends State<CppLevel5> {
 
   Widget puzzleBlock(String text, Color color) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 2 * _scaleFactor),
+      constraints: BoxConstraints(
+        minWidth: 80 * _scaleFactor,
+        maxWidth: 200 * _scaleFactor,
+      ),
+      margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
         horizontal: 12 * _scaleFactor,
         vertical: 10 * _scaleFactor,
@@ -966,14 +1158,14 @@ class _CppLevel5State extends State<CppLevel5> {
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(15 * _scaleFactor),
-          bottomRight: Radius.circular(15 * _scaleFactor),
+          topLeft: Radius.circular(20 * _scaleFactor),
+          bottomRight: Radius.circular(20 * _scaleFactor),
         ),
         border: Border.all(color: Colors.black45, width: 1.5 * _scaleFactor),
         boxShadow: [
           BoxShadow(
             color: Colors.black26,
-            blurRadius: 3 * _scaleFactor,
+            blurRadius: 4 * _scaleFactor,
             offset: Offset(2 * _scaleFactor, 2 * _scaleFactor),
           )
         ],
@@ -983,9 +1175,11 @@ class _CppLevel5State extends State<CppLevel5> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 12 * _scaleFactor,
+          fontSize: 14 * _scaleFactor,
         ),
         textAlign: TextAlign.center,
+        overflow: TextOverflow.visible,
+        softWrap: true,
       ),
     );
   }
