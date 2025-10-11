@@ -2,16 +2,15 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
-import 'level6.dart';
 
-class CppBonusGame extends StatefulWidget {
-  const CppBonusGame({super.key});
+class CppBonusGame1 extends StatefulWidget {
+  const CppBonusGame1({super.key});
 
   @override
-  State<CppBonusGame> createState() => _CppBonusGameState();
+  State<CppBonusGame1> createState() => _CppBonusGame1State();
 }
 
-class _CppBonusGameState extends State<CppBonusGame> {
+class _CppBonusGame1State extends State<CppBonusGame1> {
   List<String> answerBlocks = [];
   String selectedAnswer = '';
   bool gameStarted = false;
@@ -22,7 +21,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
   int previousScore = 0;
 
   int currentScore = 0;
-  int totalPossibleScore = 50; // 50 POINTS LANG for perfect score
+  int totalPossibleScore = 50; // 50 POINTS for perfect score
   int questionsCorrect = 0;
   int remainingSeconds = 10;
   Timer? countdownTimer;
@@ -32,41 +31,41 @@ class _CppBonusGameState extends State<CppBonusGame> {
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // Questions and Answers for C++
+  // Questions and Answers for C++ - Array Topics
   List<Map<String, dynamic>> questions = [
     {
-      'question': 'What is used to output text in C++?',
-      'tagalogQuestion': 'Ano ang ginagamit para mag-output ng text sa C++?',
-      'correctAnswer': 'cout',
-      'options': ['cin', 'cout', 'printf', 'print'],
+      'question': 'What is the correct way to declare a 2D array in C++?',
+      'tagalogQuestion': 'Ano ang tamang paraan para mag-declare ng 2D array sa C++?',
+      'correctAnswer': 'int arr[3][3];',
+      'options': ['int arr[3,3];', 'int arr[3][3];', 'array arr[3][3];', '2d int arr[3][3];'],
       'points': 10
     },
     {
-      'question': 'What is the correct operator for input?',
-      'tagalogQuestion': 'Ano ang tamang operator para sa input?',
-      'correctAnswer': '>>',
-      'options': ['<<', '>>', '==', '='],
+      'question': 'Which loop is best for array traversal?',
+      'tagalogQuestion': 'Aling loop ang pinakamainam para sa array traversal?',
+      'correctAnswer': 'for loop',
+      'options': ['while loop', 'for loop', 'do-while loop', 'foreach loop'],
       'points': 10
     },
     {
-      'question': 'What data type is used for whole numbers?',
-      'tagalogQuestion': 'Ano ang data type para sa mga buong numero?',
-      'correctAnswer': 'int',
-      'options': ['string', 'double', 'int', 'char'],
+      'question': 'What does arr[i] represent in an array?',
+      'tagalogQuestion': 'Ano ang kinakatawan ng arr[i] sa isang array?',
+      'correctAnswer': 'Element at index i',
+      'options': ['Address of element i', 'Element at index i', 'Size of array', 'Index of element'],
       'points': 10
     },
     {
-      'question': 'What should be placed at the end of every statement?',
-      'tagalogQuestion': 'Ano ang dapat ilagay sa dulo ng bawat statement?',
-      'correctAnswer': ';',
-      'options': [',', ';', ':', '.'],
+      'question': 'How to initialize all array elements to zero?',
+      'tagalogQuestion': 'Paano i-initialize ang lahat ng array elements sa zero?',
+      'correctAnswer': 'int arr[5] = {0};',
+      'options': ['int arr[5] = 0;', 'int arr[5] = {0};', 'int arr[5] = zero;', 'int arr[5] = {0,0,0,0,0};'],
       'points': 10
     },
     {
-      'question': 'What is used to get user input?',
-      'tagalogQuestion': 'Ano ang ginagamit para kumuha ng user input?',
-      'correctAnswer': 'cin',
-      'options': ['cin', 'cout', 'input', 'scan'],
+      'question': 'What is the index of first element in an array?',
+      'tagalogQuestion': 'Ano ang index ng unang elemento sa isang array?',
+      'correctAnswer': '0',
+      'options': ['0', '1', '-1', 'first'],
       'points': 10
     }
   ];
@@ -186,7 +185,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.celebration, size: 60, color: Colors.purple),
+            Icon(Icons.celebration, size: 60, color: Colors.blue),
             SizedBox(height: 10),
             Text("You've completed the C++ Bonus Game!"),
             SizedBox(height: 10),
@@ -199,13 +198,8 @@ class _CppBonusGameState extends State<CppBonusGame> {
                   Text("🎉 PERFECT SCORE!",
                       style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 18)),
                   SizedBox(height: 10),
-                  Text("Bonus Points Earned: $totalPossibleScore",
+                  Text("🚧 More advanced levels coming soon!",
                       style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-                  SizedBox(height: 10),
-                  Text(
-                    "🔓 Level 6 is now unlocked!",
-                    style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
-                  ),
                   SizedBox(height: 10),
                   Text(
                     "✅ $totalPossibleScore points added to your leaderboard!",
@@ -218,7 +212,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
                 children: [
                   SizedBox(height: 10),
                   Text(
-                    "⚠️ Get all ${questions.length} questions correct to earn unlock Level 6!",
+                    "⚠️ Get all ${questions.length} questions correct to earn bonus points!",
                     style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
@@ -227,32 +221,14 @@ class _CppBonusGameState extends State<CppBonusGame> {
           ],
         ),
         actions: [
-          if (questionsCorrect == questions.length)
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-                _navigateToLevel6();
-              },
-              child: Text("Play Level 6"),
-            ),
           TextButton(
             onPressed: () {
               Navigator.of(context).pop(); // Close the dialog
               _navigateToLevels();
             },
-            child: Text(questionsCorrect == questions.length ? "Back to Levels" : "Go to Levels"),
+            child: Text("Back to Levels"),
           )
         ],
-      ),
-    );
-  }
-
-  void _navigateToLevel6() {
-    // Direct navigation to CppLevel6 widget
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CppLevel6(),
       ),
     );
   }
@@ -267,11 +243,11 @@ class _CppBonusGameState extends State<CppBonusGame> {
     try {
       print('🎯 SAVING BONUS POINTS: $score/$totalPossibleScore');
 
-      // SAVE BONUS POINTS TO LEVEL 99
+      // SAVE BONUS POINTS TO LEVEL 98 (Bonus Game 1)
       final response = await ApiService.saveScore(
         currentUser!['id'],
         'C++',
-        99,  // BONUS LEVEL
+        98,  // BONUS GAME 1 LEVEL
         score, // 50 POINTS FOR PERFECT SCORE
         true,  // ALWAYS MARK AS COMPLETED IF PERFECT
       );
@@ -284,19 +260,6 @@ class _CppBonusGameState extends State<CppBonusGame> {
           previousScore = score;
           hasPreviousScore = true;
         });
-
-        // UNLOCK LEVEL 6 IF PERFECT SCORE
-        if (score == totalPossibleScore) {
-          print('🔓 UNLOCKING LEVEL 6...');
-          await ApiService.saveScore(
-            currentUser!['id'],
-            'C++',
-            6,  // LEVEL 6
-            0,  // 0 POINTS - user needs to play level 6 to earn points
-            true, // MARK AS UNLOCKED
-          );
-          print('✅ LEVEL 6 UNLOCKED');
-        }
       } else {
         print('❌ FAILED TO SAVE BONUS: ${response['message']}');
       }
@@ -313,7 +276,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final bonusData = scoresData['99'];
+        final bonusData = scoresData['98']; // Bonus Game 1 level
 
         if (bonusData != null) {
           setState(() {
@@ -365,7 +328,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
               SizedBox(height: 10),
               if (questionsCorrect == questions.length)
                 Text(
-                  "🎉 Perfect! You Unlocked Level 6",
+                  "🎉 Perfect! 🚧 More advanced levels coming soon!!",
                   style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
                 )
               else if (isLastQuestion)
@@ -381,8 +344,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
                 Navigator.of(context).pop(); // Close the dialog
                 if (isLastQuestion) {
                   if (questionsCorrect == questions.length) {
-                    // Navigate directly to Level 6 when perfect
-                    _navigateToLevel6();
+                    _navigateToLevels();
                   } else {
                     _navigateToLevels();
                   }
@@ -392,7 +354,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
               },
               child: Text(
                   isLastQuestion
-                      ? (questionsCorrect == questions.length ? "Next Level" : "Back to Levels")
+                      ? "Back to Levels"
                       : "Next Question"
               ),
             )
@@ -464,7 +426,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
     return Scaffold(
       appBar: AppBar(
         title: Text("🎁 C++ - Bonus Game", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.purple,
+        backgroundColor: Colors.blue[700],
         actions: gameStarted
             ? [
           Padding(
@@ -501,9 +463,9 @@ class _CppBonusGameState extends State<CppBonusGame> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF0D1B2A),
-              Color(0xFF1B263B),
-              Color(0xFF415A77),
+              Color(0xFF1A1A2E),
+              Color(0xFF16213E),
+              Color(0xFF0F3460),
             ],
           ),
         ),
@@ -525,7 +487,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
               label: Text("Start Bonus Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.purple,
+                backgroundColor: Colors.blue[700],
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
@@ -536,8 +498,8 @@ class _CppBonusGameState extends State<CppBonusGame> {
                 child: Column(
                   children: [
                     Text(
-                      "✅ Bonus Game Completed!",
-                      style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
+                      "✅ Bonus Completed!",
+                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
@@ -545,23 +507,16 @@ class _CppBonusGameState extends State<CppBonusGame> {
                       Column(
                         children: [
                           Text(
-                            "🎉 You earned $totalPossibleScore bonus points! Level 6 is unlocked!",
+                            "🎉 You earned $totalPossibleScore bonus points!",
                             style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                             textAlign: TextAlign.center,
                           ),
                           SizedBox(height: 10 * _scaleFactor),
-                          ElevatedButton(
-                            onPressed: _navigateToLevel6,
-                            child: Text("Play Level 6 Now"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                            ),
-                          ),
                         ],
                       )
                     else
                       Text(
-                        "❌ Get perfect score to unlock Level 6",
+                        "❌ Get perfect score to earn bonus points",
                         style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
@@ -575,13 +530,13 @@ class _CppBonusGameState extends State<CppBonusGame> {
                   children: [
                     Text(
                       "📊 Your previous bonus score: $previousScore/$totalPossibleScore",
-                      style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Play again to get perfect score and unlock Level 6!",
-                      style: TextStyle(color: Colors.purpleAccent, fontSize: 14 * _scaleFactor),
+                      "Play again to get perfect score and earn bonus points!",
+                      style: TextStyle(color: Colors.blueAccent, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -593,28 +548,28 @@ class _CppBonusGameState extends State<CppBonusGame> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.purple[50]!.withOpacity(0.9),
+                color: Colors.blue[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.purple[200]!),
+                border: Border.all(color: Colors.blue[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎁 C++ BONUS GAME",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.purple[800]),
+                    "🎯 C++ BONUS GAME",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.blue[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Get Perfect Score to unlock Level 6",
+                    "Test Your Knowledge",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700], fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.blue[700], fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Answer all ${questions.length} questions correctly to unlock Level 6",
+                    "Answer all ${questions.length} questions correctly to earn bonus points",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.blue[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Container(
@@ -632,7 +587,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
                         ),
                         SizedBox(height: 5 * _scaleFactor),
                         Text(
-                          "• ${questions.length} multiple choice questions\n• 10 seconds to answer each\n• Any wrong answer = 0 points\n• Perfect score unlocks Level 6",
+                          "• ${questions.length} multiple choice questions\n• 10 seconds to answer each\n• Any wrong answer = 0 points\n• Perfect score earns bonus points",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 12 * _scaleFactor,
@@ -643,11 +598,11 @@ class _CppBonusGameState extends State<CppBonusGame> {
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎁 Get a perfect score (5/5) to unlock Level 6",
+                    "🎁 Topics: 2D arrays, loops, array initialization, indexing",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
-                        color: Colors.purple,
+                        color: Colors.blue,
                         fontWeight: FontWeight.bold,
                         fontStyle: FontStyle.italic
                     ),
@@ -692,10 +647,10 @@ class _CppBonusGameState extends State<CppBonusGame> {
             width: double.infinity,
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
-              color: Colors.purple[100]!.withOpacity(0.9),
+              color: Colors.blue[100]!.withOpacity(0.9),
               borderRadius: BorderRadius.circular(12 * _scaleFactor),
               border: Border.all(
-                  color: remainingSeconds <= 3 ? Colors.red : Colors.purple,
+                  color: remainingSeconds <= 3 ? Colors.red : Colors.blue,
                   width: 2 * _scaleFactor
               ),
             ),
@@ -709,13 +664,13 @@ class _CppBonusGameState extends State<CppBonusGame> {
                       style: TextStyle(
                         fontSize: 14 * _scaleFactor,
                         fontWeight: FontWeight.bold,
-                        color: Colors.purple[800],
+                        color: Colors.blue[800],
                       ),
                     ),
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 8 * _scaleFactor, vertical: 4 * _scaleFactor),
                       decoration: BoxDecoration(
-                        color: remainingSeconds <= 3 ? Colors.red : Colors.purple,
+                        color: remainingSeconds <= 3 ? Colors.red : Colors.blue,
                         borderRadius: BorderRadius.circular(8 * _scaleFactor),
                       ),
                       child: Text(
@@ -763,7 +718,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
                     vertical: 15 * _scaleFactor,
                   ),
                   decoration: BoxDecoration(
-                    color: isSelected ? Colors.purpleAccent : Colors.purple,
+                    color: isSelected ? Colors.blueAccent : Colors.blue,
                     borderRadius: BorderRadius.circular(20 * _scaleFactor),
                     border: Border.all(
                       color: isSelected ? Colors.white : Colors.transparent,
@@ -800,7 +755,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
               icon: Icon(Icons.check, size: 18 * _scaleFactor),
               label: Text("Submit Answer", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple,
+                backgroundColor: Colors.blue[700],
                 padding: EdgeInsets.symmetric(
                   horizontal: 24 * _scaleFactor,
                   vertical: 16 * _scaleFactor,

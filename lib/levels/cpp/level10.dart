@@ -5,26 +5,27 @@ import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
 import '../../services/music_service.dart';
+import 'cpp_bonus_game1.dart';
 
-class CppLevel6 extends StatefulWidget {
-  const CppLevel6({super.key});
+class CppLevel10 extends StatefulWidget {
+  const CppLevel10({super.key});
 
   @override
-  State<CppLevel6> createState() => _CppLevel6State();
+  State<CppLevel10> createState() => _CppLevel10State();
 }
 
-class _CppLevel6State extends State<CppLevel6> {
+class _CppLevel10State extends State<CppLevel10> {
   List<String> allBlocks = [];
   List<String> droppedBlocks = [];
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level6Completed = false;
+  bool level10Completed = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 240;
+  int remainingSeconds = 180;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -80,54 +81,61 @@ class _CppLevel6State extends State<CppLevel6> {
 
   void resetBlocks() {
     List<String> correctBlocks = [
-      'for (int i = 1; i <= 5; i++) {',
-      '    for (int j = 1; j <= i; j++) {',
-      '        cout << "* ";',
-      '    }',
-      '    cout << endl;',
-      '}'
+      'double prices[3] = {15.99, 8.75, 12.25};',
+      'int quantities[3] = {2, 3, 1};',
+      'double total = 0.0;',
+      'for (int i = 0; i < 3; i++) {',
+      '    total += prices[i] * quantities[i];',
+      '}',
+      'cout << "Total: P" << total << endl;'
     ];
 
     // Incorrect/distractor blocks
     List<String> incorrectBlocks = [
-      'while (i <= 5) {',
-      'do {',
-      '} while (i <= 5);',
-      'for (int i = 5; i >= 1; i--) {',
-      'for (int j = 5; j >= i; j--) {',
-      'printf("* ");',
-      'print("* ")',
-      'System.out.print("* ");',
-      'Console.Write("* ");',
-      'cout >> "* ";',
-      'display "* ";',
-      'echo "* ";',
-      'if (j <= i) {',
-      'while (j <= i) {',
-      'int i = 1;',
-      'int j = 1;',
-      'i++;',
-      'j++;',
-      'cout << "\\n";',
-      'print("")',
-      'printf("\\n");',
-      'Console.WriteLine();',
-      'System.out.println();',
-      'return 0;',
+      'double prices = {15.99, 8.75, 12.25};',
+      'array prices[3] = {15.99, 8.75, 12.25};',
+      'List<double> prices = [15.99, 8.75, 12.25];',
+      'int quantities = {2, 3, 1};',
+      'array quantities[3] = {2, 3, 1};',
+      'double total;',
+      'float total = 0.0;',
+      'for (int i = 1; i <= 3; i++) {',
+      'while (i < 3) {',
+      'total = prices[i] * quantities[i];',
+      'total += prices[i];',
+      'total += quantities[i];',
+      'cout << "Sum: P" << total << endl;',
+      'printf("Total: P%f", total);',
+      'print("Total: P" + total);',
+      'System.out.println("Total: P" + total);',
+      'Console.WriteLine("Total: P" + total);',
+      'return total;',
       'break;',
       'continue;',
-      'switch(i) {',
-      'case 1:',
+      'if (total > 50) {',
+      'while (total > 0) {',
+      'switch(total) {',
+      'case 75.92:',
       'default:',
-      'function pattern() {',
-      'def pattern():',
-      'void pattern() {',
-      'pattern() {',
+      'void calculate() {',
+      'function calculate() {',
+      'def calculate():',
+      'calculate() {',
+      'int i = 0;',
+      'i++;',
+      'prices[i] = 15.99;',
+      'quantities[i] = 2;',
+      'double result = total;',
+      'string output = "Total";',
+      'cout << prices[0];',
+      'cin >> quantities[0];',
+      'total = total * 1.1;',
+      'double discount = total * 0.1;',
     ];
 
-    // Shuffle incorrect blocks and take 6 random ones
+    // Shuffle incorrect blocks and take 4 random ones
     incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(6).toList();
+    List<String> selectedIncorrectBlocks = incorrectBlocks.take(4).toList();
 
     // Combine correct and incorrect blocks, then shuffle
     allBlocks = [
@@ -143,7 +151,7 @@ class _CppLevel6State extends State<CppLevel6> {
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 240;
+      remainingSeconds = 180;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       resetBlocks();
@@ -191,7 +199,7 @@ class _CppLevel6State extends State<CppLevel6> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 50), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -215,7 +223,7 @@ class _CppLevel6State extends State<CppLevel6> {
 
     setState(() {
       score = 3;
-      remainingSeconds = 240;
+      remainingSeconds = 180;
       gameStarted = false;
       isAnsweredCorrectly = false;
       droppedBlocks.clear();
@@ -232,14 +240,14 @@ class _CppLevel6State extends State<CppLevel6> {
       final response = await ApiService.saveScore(
         currentUser!['id'],
         'C++',
-        6,
+        10, // LEVEL 10 ONLY - NO LEVEL 11 UNLOCKING HERE
         score,
         score == 3, // perfect score
       );
 
       if (response['success'] == true) {
         setState(() {
-          level6Completed = score == 3;
+          level10Completed = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
@@ -259,22 +267,14 @@ class _CppLevel6State extends State<CppLevel6> {
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level6Data = scoresData['6'];
+        final level10Data = scoresData['10'];
 
-        if (level6Data != null) {
+        if (level10Data != null) {
           setState(() {
-            previousScore = level6Data['score'] ?? 0;
-            level6Completed = level6Data['completed'] ?? false;
+            previousScore = level10Data['score'] ?? 0;
+            level10Completed = level10Data['completed'] ?? false;
             hasPreviousScore = true;
             score = previousScore;
-          });
-        } else {
-          // FIX: Reset to default if no score exists
-          setState(() {
-            hasPreviousScore = false;
-            previousScore = 0;
-            level6Completed = false;
-            score = 3;
           });
         }
       }
@@ -283,71 +283,48 @@ class _CppLevel6State extends State<CppLevel6> {
     }
   }
 
-  Future<void> refreshScore() async {
-    if (currentUser?['id'] != null) {
-      try {
-        final response = await ApiService.getScores(currentUser!['id'], 'C++');
-        if (response['success'] == true && response['scores'] != null) {
-          final scoresData = response['scores'];
-          final level6Data = scoresData['6'];
-
-          setState(() {
-            if (level6Data != null) {
-              previousScore = level6Data['score'] ?? 0;
-              level6Completed = level6Data['completed'] ?? false;
-              hasPreviousScore = true;
-              score = previousScore;
-            } else {
-              // FIX: Reset to default if no score exists
-              hasPreviousScore = false;
-              previousScore = 0;
-              level6Completed = false;
-              score = 3;
-            }
-          });
-        }
-      } catch (e) {
-        print('Error refreshing score: $e');
-      }
-    }
-  }
-
   // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
-      'while (i <= 5) {',
-      'do {',
-      '} while (i <= 5);',
-      'for (int i = 5; i >= 1; i--) {',
-      'for (int j = 5; j >= i; j--) {',
-      'printf("* ");',
-      'print("* ")',
-      'System.out.print("* ");',
-      'Console.Write("* ");',
-      'cout >> "* ";',
-      'display "* ";',
-      'echo "* ";',
-      'if (j <= i) {',
-      'while (j <= i) {',
-      'int i = 1;',
-      'int j = 1;',
-      'i++;',
-      'j++;',
-      'cout << "\\n";',
-      'print("")',
-      'printf("\\n");',
-      'Console.WriteLine();',
-      'System.out.println();',
-      'return 0;',
+      'double prices = {15.99, 8.75, 12.25};',
+      'array prices[3] = {15.99, 8.75, 12.25};',
+      'List<double> prices = [15.99, 8.75, 12.25];',
+      'int quantities = {2, 3, 1};',
+      'array quantities[3] = {2, 3, 1};',
+      'double total;',
+      'float total = 0.0;',
+      'for (int i = 1; i <= 3; i++) {',
+      'while (i < 3) {',
+      'total = prices[i] * quantities[i];',
+      'total += prices[i];',
+      'total += quantities[i];',
+      'cout << "Sum: P" << total << endl;',
+      'printf("Total: P%f", total);',
+      'print("Total: P" + total);',
+      'System.out.println("Total: P" + total);',
+      'Console.WriteLine("Total: P" + total);',
+      'return total;',
       'break;',
       'continue;',
-      'switch(i) {',
-      'case 1:',
+      'if (total > 50) {',
+      'while (total > 0) {',
+      'switch(total) {',
+      'case 75.92:',
       'default:',
-      'function pattern() {',
-      'def pattern():',
-      'void pattern() {',
-      'pattern() {',
+      'void calculate() {',
+      'function calculate() {',
+      'def calculate():',
+      'calculate() {',
+      'int i = 0;',
+      'i++;',
+      'prices[i] = 15.99;',
+      'quantities[i] = 2;',
+      'double result = total;',
+      'string output = "Total";',
+      'cout << prices[0];',
+      'cin >> quantities[0];',
+      'total = total * 1.1;',
+      'double discount = total * 0.1;',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -404,24 +381,26 @@ class _CppLevel6State extends State<CppLevel6> {
       return;
     }
 
-    // Check for the correct sequence for star pattern
-    bool hasOuterFor = droppedBlocks.contains('for (int i = 1; i <= 5; i++) {');
-    bool hasInnerFor = droppedBlocks.contains('    for (int j = 1; j <= i; j++) {');
-    bool hasCoutStar = droppedBlocks.contains('        cout << "* ";');
-    bool hasInnerClose = droppedBlocks.contains('    }');
-    bool hasCoutEndl = droppedBlocks.contains('    cout << endl;');
-    bool hasOuterClose = droppedBlocks.contains('}');
+    // Check for the correct sequence for shopping cart total calculation
+    bool hasPrices = droppedBlocks.contains('double prices[3] = {15.99, 8.75, 12.25};');
+    bool hasQuantities = droppedBlocks.contains('int quantities[3] = {2, 3, 1};');
+    bool hasTotal = droppedBlocks.contains('double total = 0.0;');
+    bool hasForLoop = droppedBlocks.contains('for (int i = 0; i < 3; i++) {');
+    bool hasTotalAssignment = droppedBlocks.contains('    total += prices[i] * quantities[i];');
+    bool hasLoopClose = droppedBlocks.contains('}');
+    bool hasCout = droppedBlocks.contains('cout << "Total: P" << total << endl;');
 
     // Check if all correct blocks are present
-    bool allCorrectBlocksPresent = hasOuterFor &&
-        hasInnerFor &&
-        hasCoutStar &&
-        hasInnerClose &&
-        hasCoutEndl &&
-        hasOuterClose;
+    bool allCorrectBlocksPresent = hasPrices &&
+        hasQuantities &&
+        hasTotal &&
+        hasForLoop &&
+        hasTotalAssignment &&
+        hasLoopClose &&
+        hasCout;
 
-    // Check if no extra correct blocks are used (should be exactly 6 blocks)
-    bool correctBlockCount = droppedBlocks.length == 6;
+    // Check if no extra correct blocks are used (should be exactly 7 blocks)
+    bool correctBlockCount = droppedBlocks.length == 7;
 
     if (allCorrectBlocksPresent && correctBlockCount) {
       countdownTimer?.cancel();
@@ -448,34 +427,40 @@ class _CppLevel6State extends State<CppLevel6> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent! You've created a perfect star pattern generator!"),
+              Text("Excellent! You've created a perfect shopping cart calculator!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
-                Text(
-                  "🎉 Perfect! You've unlocked Level 7!",
-                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                Column(
+                  children: [
+                    Text(
+                      "🎉 Perfect! You've unlocked the  Bonus Game!",
+                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      "Complete the Bonus Game to earn extra points!",
+                      style: TextStyle(color: Colors.purple, fontSize: 12),
+                    ),
+                  ],
                 )
               else
                 Text(
-                  "️ Get a perfect score (3/3) to unlock the next level!",
+                  "⚠️ Get a perfect score (3/3) to unlock the Bonus Game!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
               Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(4),
-                ),
+                padding: EdgeInsets.all(10),
+                color: Colors.black,
                 child: Text(
-                  '* \n* * \n* * * \n* * * * \n* * * * *',
+                  "Total: P75.92",
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
-                    fontSize: 12,
+                    fontSize: 16,
                   ),
                 ),
               ),
@@ -486,15 +471,18 @@ class _CppLevel6State extends State<CppLevel6> {
               onPressed: () {
                 musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
-                if (score == 3) { // CHANGED TO 3
+                if (score == 3) {
                   musicService.playSoundEffect('level_complete.mp3');
-                  // NAVIGATE TO LEVEL 5 WHEN PERFECT SCORE
-                  Navigator.pushReplacementNamed(context, '/cpp_level7');
+                  // NAVIGATE TO BONUS GAME 1 ONLY
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => CppBonusGame1()),
+                  );
                 } else {
-                  Navigator.pushReplacementNamed(context, '/levels', arguments: 'C++');
+                  resetGame();
                 }
               },
-              child: Text(score == 3 ? "Next Level" : "Go Back"), // CHANGED TO 3
+              child: Text(score == 3 ? "Play Bonus Game" : "OK"),
             )
           ],
         ),
@@ -582,7 +570,7 @@ class _CppLevel6State extends State<CppLevel6> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'star_pattern.cpp',
+                  'shopping_cart.cpp',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -661,45 +649,51 @@ class _CppLevel6State extends State<CppLevel6> {
     }
 
     List<Widget> codeLines = [];
-    bool hasOuterFor = droppedBlocks.contains('for (int i = 1; i <= 5; i++) {');
-    bool hasInnerFor = droppedBlocks.contains('    for (int j = 1; j <= i; j++) {');
-    bool hasCoutStar = droppedBlocks.contains('        cout << "* ";');
-    bool hasInnerClose = droppedBlocks.contains('    }');
-    bool hasCoutEndl = droppedBlocks.contains('    cout << endl;');
-    bool hasOuterClose = droppedBlocks.contains('}');
+    bool hasPrices = droppedBlocks.contains('double prices[3] = {15.99, 8.75, 12.25};');
+    bool hasQuantities = droppedBlocks.contains('int quantities[3] = {2, 3, 1};');
+    bool hasTotal = droppedBlocks.contains('double total = 0.0;');
+    bool hasForLoop = droppedBlocks.contains('for (int i = 0; i < 3; i++) {');
+    bool hasTotalAssignment = droppedBlocks.contains('    total += prices[i] * quantities[i];');
+    bool hasLoopClose = droppedBlocks.contains('}');
+    bool hasCout = droppedBlocks.contains('cout << "Total: P" << total << endl;');
 
-    if (hasOuterFor) {
-      codeLines.add(_buildUserCodeLine('for (int i = 1; i <= 5; i++) {'));
+    if (hasPrices) {
+      codeLines.add(_buildUserCodeLine('double prices[3] = {15.99, 8.75, 12.25};'));
     }
 
-    if (hasInnerFor) {
-      codeLines.add(_buildUserCodeLine('    for (int j = 1; j <= i; j++) {'));
+    if (hasQuantities) {
+      codeLines.add(_buildUserCodeLine('int quantities[3] = {2, 3, 1};'));
     }
 
-    if (hasCoutStar) {
-      codeLines.add(_buildUserCodeLine('        cout << "* ";'));
+    if (hasTotal) {
+      codeLines.add(_buildUserCodeLine('double total = 0.0;'));
     }
 
-    if (hasInnerClose) {
-      codeLines.add(_buildUserCodeLine('    }'));
+    if (hasForLoop) {
+      codeLines.add(_buildUserCodeLine('for (int i = 0; i < 3; i++) {'));
     }
 
-    if (hasCoutEndl) {
-      codeLines.add(_buildUserCodeLine('    cout << endl;'));
+    if (hasTotalAssignment) {
+      codeLines.add(_buildUserCodeLine('    total += prices[i] * quantities[i];'));
     }
 
-    if (hasOuterClose) {
+    if (hasLoopClose) {
       codeLines.add(_buildUserCodeLine('}'));
+    }
+
+    if (hasCout) {
+      codeLines.add(_buildUserCodeLine('cout << "Total: P" << total << endl;'));
     }
 
     // Add any incorrect blocks that were used
     for (String block in droppedBlocks) {
-      if (!['for (int i = 1; i <= 5; i++) {',
-        '    for (int j = 1; j <= i; j++) {',
-        '        cout << "* ";',
-        '    }',
-        '    cout << endl;',
-        '}'].contains(block)) {
+      if (!['double prices[3] = {15.99, 8.75, 12.25};',
+        'int quantities[3] = {2, 3, 1};',
+        'double total = 0.0;',
+        'for (int i = 0; i < 3; i++) {',
+        '    total += prices[i] * quantities[i];',
+        '}',
+        'cout << "Total: P" << total << endl;'].contains(block)) {
         codeLines.add(_buildUserCodeLine(block));
       }
     }
@@ -786,8 +780,8 @@ class _CppLevel6State extends State<CppLevel6> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("⚡ C++ - Level 6", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.deepOrange,
+        title: Text("⚡ C++ - Level 10", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.purple[700],
         actions: gameStarted
             ? [
           Padding(
@@ -838,30 +832,52 @@ class _CppLevel6State extends State<CppLevel6> {
                 startGame();
               },
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.deepOrange,
+                backgroundColor: Colors.purple[700],
               ),
             ),
 
+            // BONUS GAME 1 BUTTON - Only show if level 10 is completed with perfect score
+            if (level10Completed && previousScore == 3)
+              Padding(
+                padding: EdgeInsets.only(top: 20 * _scaleFactor),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    final musicService = Provider.of<MusicService>(context, listen: false);
+                    musicService.playSoundEffect('bonus_unlock.mp3');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => CppBonusGame1()),
+                    );
+                  },
+                  icon: Icon(Icons.casino, size: 20 * _scaleFactor),
+                  label: Text("Play Bonus Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
+                    backgroundColor: Colors.blue[700],
+                  ),
+                ),
+              ),
+
+
             SizedBox(height: 20 * _scaleFactor),
 
-            // FIXED: Only show completion message if actually completed
-            if (level6Completed && previousScore == 3)
+            if (level10Completed)
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Level 6 completed with perfect score!",
+                      "✅ Level 10 completed with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "You've unlocked Level 7!",
-                      style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "🎁 Bonus Game is now available!",
+                      style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -874,12 +890,12 @@ class _CppLevel6State extends State<CppLevel6> {
                   children: [
                     Text(
                       "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.deepOrange, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score and unlock Level 7!",
+                      "Try again to get a perfect score and unlock the Bonus Game!",
                       style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -911,26 +927,26 @@ class _CppLevel6State extends State<CppLevel6> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.deepOrange[50]!.withOpacity(0.9),
+                color: Colors.purple[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.deepOrange[200]!),
+                border: Border.all(color: Colors.purple[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎯 Level 6 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.deepOrange[800]),
+                    "🎯 Level 10 Objective",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.purple[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create a nested loop pattern that prints a right-angled triangle of stars",
+                    "Create a shopping cart program that calculates total cost using parallel arrays",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.deepOrange[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎁 Get a perfect score (3/3) to complete this level!",
+                    "🎁 Get a perfect score (3/3) to unlock the Bonus Game!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
@@ -978,14 +994,14 @@ class _CppLevel6State extends State<CppLevel6> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Ngayon, gustong gumawa ni Alex ng star pattern gamit ang nested loops! Tulungan siyang bumuo ng program na magpi-print ng right-angled triangle na gawa sa stars. Gamitin ang outer loop para sa rows at inner loop para sa stars sa bawat row.'
-                : 'Now, Alex wants to create a star pattern using nested loops! Help him build a program that prints a right-angled triangle made of stars. Use an outer loop for rows and an inner loop for stars in each row.',
+                ? 'Ngayon, si Alex ay namimili at kailangan niyang kalkulahin ang kabuuang halaga ng kanyang mga binili! Gamitin ang parallel arrays para sa presyo at dami, at ang for loop para kalkulahin ang total cost. Ito ang huling hamon sa C++ arrays!'
+                : 'Now, Alex is shopping and needs to calculate the total cost of his purchases! Use parallel arrays for prices and quantities, and a for loop to calculate the total cost. This is the final C++ array challenge!',
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the 6 correct blocks to create the star pattern generator',
+          Text('🧩 Arrange the 7 correct blocks to create the shopping cart calculator',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
@@ -1000,7 +1016,7 @@ class _CppLevel6State extends State<CppLevel6> {
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.deepOrange, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.purple[700]!, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -1019,44 +1035,44 @@ class _CppLevel6State extends State<CppLevel6> {
               },
               builder: (context, candidateData, rejectedData) {
                 return SingleChildScrollView(
-                  child: Wrap(
-                    spacing: 8 * _scaleFactor,
-                    runSpacing: 8 * _scaleFactor,
-                    alignment: WrapAlignment.center,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: droppedBlocks.map((block) {
-                      return Draggable<String>(
-                        data: block,
-                        feedback: puzzleBlock(block, Colors.deepOrangeAccent),
-                        childWhenDragging: puzzleBlock(block, Colors.deepOrangeAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.deepOrangeAccent),
-                        onDragStarted: () {
-                          final musicService = Provider.of<MusicService>(context, listen: false);
-                          musicService.playSoundEffect('block_pickup.mp3');
-                          setState(() {
-                            currentlyDraggedBlock = block;
-                          });
-                        },
-                        onDragEnd: (details) {
-                          setState(() {
-                            currentlyDraggedBlock = null;
-                          });
-                          if (!isAnsweredCorrectly && !details.wasAccepted) {
-                            Future.delayed(Duration(milliseconds: 50), () {
-                              if (mounted) {
-                                setState(() {
-                                  if (!allBlocks.contains(block)) {
-                                    allBlocks.add(block);
-                                  }
-                                  droppedBlocks.remove(block);
-                                });
-                              }
+                    child: Wrap(
+                      spacing: 8 * _scaleFactor,
+                      runSpacing: 8 * _scaleFactor,
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: droppedBlocks.map((block) {
+                        return Draggable<String>(
+                          data: block,
+                          feedback: puzzleBlock(block, Colors.purpleAccent),
+                          childWhenDragging: puzzleBlock(block, Colors.purpleAccent.withOpacity(0.5)),
+                          child: puzzleBlock(block, Colors.purpleAccent),
+                          onDragStarted: () {
+                            final musicService = Provider.of<MusicService>(context, listen: false);
+                            musicService.playSoundEffect('block_pickup.mp3');
+                            setState(() {
+                              currentlyDraggedBlock = block;
                             });
-                          }
-                        },
-                      );
-                    }).toList(),
-                  ),
+                          },
+                          onDragEnd: (details) {
+                            setState(() {
+                              currentlyDraggedBlock = null;
+                            });
+                            if (!isAnsweredCorrectly && !details.wasAccepted) {
+                              Future.delayed(Duration(milliseconds: 50), () {
+                                if (mounted) {
+                                  setState(() {
+                                    if (!allBlocks.contains(block)) {
+                                      allBlocks.add(block);
+                                    }
+                                    droppedBlocks.remove(block);
+                                  });
+                                }
+                              });
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
                 );
               },
             ),
@@ -1089,12 +1105,12 @@ class _CppLevel6State extends State<CppLevel6> {
                     ? puzzleBlock(block, Colors.grey)
                     : Draggable<String>(
                   data: block,
-                  feedback: puzzleBlock(block, Colors.deepOrange),
+                  feedback: puzzleBlock(block, Colors.purple[700]!),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.deepOrange),
+                    child: puzzleBlock(block, Colors.purple[700]!),
                   ),
-                  child: puzzleBlock(block, Colors.deepOrange),
+                  child: puzzleBlock(block, Colors.purple[700]!),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
@@ -1133,7 +1149,7 @@ class _CppLevel6State extends State<CppLevel6> {
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepOrange,
+              backgroundColor: Colors.purple[700],
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,

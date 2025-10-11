@@ -29,6 +29,10 @@ import 'levels/cpp/level3.dart';
 import 'levels/cpp/level4.dart';
 import 'levels/cpp/level5.dart';
 import 'levels/cpp/level6.dart';
+import 'levels/cpp/level7.dart';
+import 'levels/cpp/level8.dart';
+import 'levels/cpp/level9.dart';
+import 'levels/cpp/level10.dart';
 
 import 'levels/php/level1.dart';
 import 'levels/php/level2.dart';
@@ -151,6 +155,10 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           '/cpp_level4': (context) => const CppLevel4(),
           '/cpp_level5': (context) => const CppLevel5(),
           '/cpp_level6': (context) => const CppLevel6(),
+          '/cpp_level7': (context) => const CppLevel7(),
+          '/cpp_level8': (context) => const CppLevel8(),
+          '/cpp_level9': (context) => const CppLevel9(),
+          '/cpp_level10': (context) => const CppLevel10(),
 
           // PHP levels
           '/php_level1': (context) => const PhpLevel1(),

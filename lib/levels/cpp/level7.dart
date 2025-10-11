@@ -6,25 +6,25 @@ import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
 import '../../services/music_service.dart';
 
-class CppLevel6 extends StatefulWidget {
-  const CppLevel6({super.key});
+class CppLevel7 extends StatefulWidget {
+  const CppLevel7({super.key});
 
   @override
-  State<CppLevel6> createState() => _CppLevel6State();
+  State<CppLevel7> createState() => _CppLevel7State();
 }
 
-class _CppLevel6State extends State<CppLevel6> {
+class _CppLevel7State extends State<CppLevel7> {
   List<String> allBlocks = [];
   List<String> droppedBlocks = [];
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level6Completed = false;
+  bool level7Completed = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 240;
+  int remainingSeconds = 180;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -80,54 +80,53 @@ class _CppLevel6State extends State<CppLevel6> {
 
   void resetBlocks() {
     List<String> correctBlocks = [
-      'for (int i = 1; i <= 5; i++) {',
-      '    for (int j = 1; j <= i; j++) {',
-      '        cout << "* ";',
-      '    }',
-      '    cout << endl;',
-      '}'
+      'double pi = 3.14159;',
+      'double radius = 5.5;',
+      'double area = pi * radius * radius;',
+      'double circumference = 2 * pi * radius;',
+      'cout << "Area: " << area << endl;',
+      'cout << "Circumference: " << circumference << endl;'
     ];
 
     // Incorrect/distractor blocks
     List<String> incorrectBlocks = [
-      'while (i <= 5) {',
-      'do {',
-      '} while (i <= 5);',
-      'for (int i = 5; i >= 1; i--) {',
-      'for (int j = 5; j >= i; j--) {',
-      'printf("* ");',
-      'print("* ")',
-      'System.out.print("* ");',
-      'Console.Write("* ");',
-      'cout >> "* ";',
-      'display "* ";',
-      'echo "* ";',
-      'if (j <= i) {',
-      'while (j <= i) {',
-      'int i = 1;',
-      'int j = 1;',
-      'i++;',
-      'j++;',
-      'cout << "\\n";',
-      'print("")',
-      'printf("\\n");',
-      'Console.WriteLine();',
-      'System.out.println();',
-      'return 0;',
+      'int pi = 3.14159;',
+      'float radius = 5.5;',
+      'string area = pi * radius * radius;',
+      'bool circumference = 2 * pi * radius;',
+      'char result = area;',
+      'int diameter = radius * 2;',
+      'float volume = 0.0;',
+      'printf("Area: %f", area);',
+      'print("Circumference: " + circumference);',
+      'System.out.println("Area: " + area);',
+      'Console.WriteLine("Circumference: " + circumference);',
+      'cout >> "Area: " >> area;',
+      'cin >> radius;',
+      'return area;',
       'break;',
       'continue;',
-      'switch(i) {',
-      'case 1:',
+      'if (area > 0) {',
+      'while (radius > 0) {',
+      'for (int i = 0; i < 10; i++) {',
+      'switch(radius) {',
+      'case 5.5:',
       'default:',
-      'function pattern() {',
-      'def pattern():',
-      'void pattern() {',
-      'pattern() {',
+      'void calculate() {',
+      'function calculate() {',
+      'def calculate():',
+      'calculate() {',
+      'area = radius * radius;',
+      'circumference = diameter * pi;',
+      'double diameter = radius + radius;',
+      'float pi = 3.14;',
+      'int radius = 5;',
+      'string output = "Result";',
     ];
 
-    // Shuffle incorrect blocks and take 6 random ones
+    // Shuffle incorrect blocks and take 4 random ones
     incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(6).toList();
+    List<String> selectedIncorrectBlocks = incorrectBlocks.take(4).toList();
 
     // Combine correct and incorrect blocks, then shuffle
     allBlocks = [
@@ -143,7 +142,7 @@ class _CppLevel6State extends State<CppLevel6> {
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 240;
+      remainingSeconds = 180;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       resetBlocks();
@@ -191,7 +190,7 @@ class _CppLevel6State extends State<CppLevel6> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 40), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -215,7 +214,7 @@ class _CppLevel6State extends State<CppLevel6> {
 
     setState(() {
       score = 3;
-      remainingSeconds = 240;
+      remainingSeconds = 180;
       gameStarted = false;
       isAnsweredCorrectly = false;
       droppedBlocks.clear();
@@ -232,14 +231,14 @@ class _CppLevel6State extends State<CppLevel6> {
       final response = await ApiService.saveScore(
         currentUser!['id'],
         'C++',
-        6,
+        7,
         score,
         score == 3, // perfect score
       );
 
       if (response['success'] == true) {
         setState(() {
-          level6Completed = score == 3;
+          level7Completed = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
@@ -259,22 +258,14 @@ class _CppLevel6State extends State<CppLevel6> {
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level6Data = scoresData['6'];
+        final level7Data = scoresData['7'];
 
-        if (level6Data != null) {
+        if (level7Data != null) {
           setState(() {
-            previousScore = level6Data['score'] ?? 0;
-            level6Completed = level6Data['completed'] ?? false;
+            previousScore = level7Data['score'] ?? 0;
+            level7Completed = level7Data['completed'] ?? false;
             hasPreviousScore = true;
             score = previousScore;
-          });
-        } else {
-          // FIX: Reset to default if no score exists
-          setState(() {
-            hasPreviousScore = false;
-            previousScore = 0;
-            level6Completed = false;
-            score = 3;
           });
         }
       }
@@ -289,19 +280,18 @@ class _CppLevel6State extends State<CppLevel6> {
         final response = await ApiService.getScores(currentUser!['id'], 'C++');
         if (response['success'] == true && response['scores'] != null) {
           final scoresData = response['scores'];
-          final level6Data = scoresData['6'];
+          final level7Data = scoresData['7'];
 
           setState(() {
-            if (level6Data != null) {
-              previousScore = level6Data['score'] ?? 0;
-              level6Completed = level6Data['completed'] ?? false;
+            if (level7Data != null) {
+              previousScore = level7Data['score'] ?? 0;
+              level7Completed = level7Data['completed'] ?? false;
               hasPreviousScore = true;
               score = previousScore;
             } else {
-              // FIX: Reset to default if no score exists
               hasPreviousScore = false;
               previousScore = 0;
-              level6Completed = false;
+              level7Completed = false;
               score = 3;
             }
           });
@@ -315,39 +305,38 @@ class _CppLevel6State extends State<CppLevel6> {
   // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
-      'while (i <= 5) {',
-      'do {',
-      '} while (i <= 5);',
-      'for (int i = 5; i >= 1; i--) {',
-      'for (int j = 5; j >= i; j--) {',
-      'printf("* ");',
-      'print("* ")',
-      'System.out.print("* ");',
-      'Console.Write("* ");',
-      'cout >> "* ";',
-      'display "* ";',
-      'echo "* ";',
-      'if (j <= i) {',
-      'while (j <= i) {',
-      'int i = 1;',
-      'int j = 1;',
-      'i++;',
-      'j++;',
-      'cout << "\\n";',
-      'print("")',
-      'printf("\\n");',
-      'Console.WriteLine();',
-      'System.out.println();',
-      'return 0;',
+      'int pi = 3.14159;',
+      'float radius = 5.5;',
+      'string area = pi * radius * radius;',
+      'bool circumference = 2 * pi * radius;',
+      'char result = area;',
+      'int diameter = radius * 2;',
+      'float volume = 0.0;',
+      'printf("Area: %f", area);',
+      'print("Circumference: " + circumference);',
+      'System.out.println("Area: " + area);',
+      'Console.WriteLine("Circumference: " + circumference);',
+      'cout >> "Area: " >> area;',
+      'cin >> radius;',
+      'return area;',
       'break;',
       'continue;',
-      'switch(i) {',
-      'case 1:',
+      'if (area > 0) {',
+      'while (radius > 0) {',
+      'for (int i = 0; i < 10; i++) {',
+      'switch(radius) {',
+      'case 5.5:',
       'default:',
-      'function pattern() {',
-      'def pattern():',
-      'void pattern() {',
-      'pattern() {',
+      'void calculate() {',
+      'function calculate() {',
+      'def calculate():',
+      'calculate() {',
+      'area = radius * radius;',
+      'circumference = diameter * pi;',
+      'double diameter = radius + radius;',
+      'float pi = 3.14;',
+      'int radius = 5;',
+      'string output = "Result";',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -404,26 +393,17 @@ class _CppLevel6State extends State<CppLevel6> {
       return;
     }
 
-    // Check for the correct sequence for star pattern
-    bool hasOuterFor = droppedBlocks.contains('for (int i = 1; i <= 5; i++) {');
-    bool hasInnerFor = droppedBlocks.contains('    for (int j = 1; j <= i; j++) {');
-    bool hasCoutStar = droppedBlocks.contains('        cout << "* ";');
-    bool hasInnerClose = droppedBlocks.contains('    }');
-    bool hasCoutEndl = droppedBlocks.contains('    cout << endl;');
-    bool hasOuterClose = droppedBlocks.contains('}');
+    // Check for the correct sequence for circle calculations
+    String answer = droppedBlocks.join(' ');
+    String normalizedAnswer = answer
+        .replaceAll(' ', '')
+        .replaceAll('\n', '')
+        .toLowerCase();
 
-    // Check if all correct blocks are present
-    bool allCorrectBlocksPresent = hasOuterFor &&
-        hasInnerFor &&
-        hasCoutStar &&
-        hasInnerClose &&
-        hasCoutEndl &&
-        hasOuterClose;
+    // Expected: doublepi=3.14159;doubleradius=5.5;doublearea=pi*radius*radius;doublecircumference=2*pi*radius;cout<<"area:"<<area<<endl;cout<<"circumference:"<<circumference<<endl;
+    String expected = 'doublepi=3.14159;doubleradius=5.5;doublearea=pi*radius*radius;doublecircumference=2*pi*radius;cout<<"area:"<<area<<endl;cout<<"circumference:"<<circumference<<endl;';
 
-    // Check if no extra correct blocks are used (should be exactly 6 blocks)
-    bool correctBlockCount = droppedBlocks.length == 6;
-
-    if (allCorrectBlocksPresent && correctBlockCount) {
+    if (normalizedAnswer == expected) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -448,34 +428,31 @@ class _CppLevel6State extends State<CppLevel6> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent! You've created a perfect star pattern generator!"),
+              Text("Excellent! You've created a perfect circle calculator using double variables!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've unlocked Level 7!",
+                  "🎉 Perfect! You've unlocked Level 8!",
                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "️ Get a perfect score (3/3) to unlock the next level!",
+                  "⚠️ Get a perfect score (3/3) to unlock the next level!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
               Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(4),
-                ),
+                padding: EdgeInsets.all(10),
+                color: Colors.black,
                 child: Text(
-                  '* \n* * \n* * * \n* * * * \n* * * * *',
+                  "Area: 95.0331\nCircumference: 34.5575",
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
-                    fontSize: 12,
+                    fontSize: 16,
                   ),
                 ),
               ),
@@ -486,15 +463,15 @@ class _CppLevel6State extends State<CppLevel6> {
               onPressed: () {
                 musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
-                if (score == 3) { // CHANGED TO 3
+                if (score == 3) {
                   musicService.playSoundEffect('level_complete.mp3');
-                  // NAVIGATE TO LEVEL 5 WHEN PERFECT SCORE
-                  Navigator.pushReplacementNamed(context, '/cpp_level7');
+                  // NAVIGATE TO LEVEL 8 WHEN PERFECT SCORE
+                  Navigator.pushReplacementNamed(context, '/cpp_level8');
                 } else {
                   Navigator.pushReplacementNamed(context, '/levels', arguments: 'C++');
                 }
               },
-              child: Text(score == 3 ? "Next Level" : "Go Back"), // CHANGED TO 3
+              child: Text(score == 3 ? "Next Level" : "Go Back"),
             )
           ],
         ),
@@ -506,18 +483,8 @@ class _CppLevel6State extends State<CppLevel6> {
         setState(() {
           score--;
         });
-
-        String errorMessage = "❌ Incorrect arrangement. -1 point. Current score: $score";
-
-        // Provide specific feedback
-        if (!allCorrectBlocksPresent) {
-          errorMessage = "❌ Missing some required code blocks. -1 point. Current score: $score";
-        } else if (!correctBlockCount) {
-          errorMessage = "❌ Used wrong number of blocks. -1 point. Current score: $score";
-        }
-
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
+          SnackBar(content: Text("❌ Incorrect arrangement. -1 point. Current score: $score")),
         );
       } else {
         setState(() {
@@ -582,7 +549,7 @@ class _CppLevel6State extends State<CppLevel6> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'star_pattern.cpp',
+                  'circle_calculator.cpp',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -615,8 +582,6 @@ class _CppLevel6State extends State<CppLevel6> {
                           _buildCodeLine(8),
                           _buildCodeLine(9),
                           _buildCodeLine(10),
-                          _buildCodeLine(11),
-                          _buildCodeLine(12),
                         ],
                       ),
                     ),
@@ -661,45 +626,62 @@ class _CppLevel6State extends State<CppLevel6> {
     }
 
     List<Widget> codeLines = [];
-    bool hasOuterFor = droppedBlocks.contains('for (int i = 1; i <= 5; i++) {');
-    bool hasInnerFor = droppedBlocks.contains('    for (int j = 1; j <= i; j++) {');
-    bool hasCoutStar = droppedBlocks.contains('        cout << "* ";');
-    bool hasInnerClose = droppedBlocks.contains('    }');
-    bool hasCoutEndl = droppedBlocks.contains('    cout << endl;');
-    bool hasOuterClose = droppedBlocks.contains('}');
+    bool hasPi = droppedBlocks.any((block) => block == 'double pi = 3.14159;');
+    bool hasRadius = droppedBlocks.any((block) => block == 'double radius = 5.5;');
+    bool hasArea = droppedBlocks.any((block) => block == 'double area = pi * radius * radius;');
+    bool hasCircumference = droppedBlocks.any((block) => block == 'double circumference = 2 * pi * radius;');
+    bool hasCoutArea = droppedBlocks.any((block) => block == 'cout << "Area: " << area << endl;');
+    bool hasCoutCircumference = droppedBlocks.any((block) => block == 'cout << "Circumference: " << circumference << endl;');
 
-    if (hasOuterFor) {
-      codeLines.add(_buildUserCodeLine('for (int i = 1; i <= 5; i++) {'));
+    if (hasPi) {
+      String block = droppedBlocks.firstWhere((block) => block == 'double pi = 3.14159;', orElse: () => '');
+      if (block.isNotEmpty) {
+        codeLines.add(_buildUserCodeLine(block));
+      }
     }
 
-    if (hasInnerFor) {
-      codeLines.add(_buildUserCodeLine('    for (int j = 1; j <= i; j++) {'));
+    if (hasRadius) {
+      String block = droppedBlocks.firstWhere((block) => block == 'double radius = 5.5;', orElse: () => '');
+      if (block.isNotEmpty) {
+        codeLines.add(_buildUserCodeLine(block));
+      }
     }
 
-    if (hasCoutStar) {
-      codeLines.add(_buildUserCodeLine('        cout << "* ";'));
+    if (hasArea) {
+      String block = droppedBlocks.firstWhere((block) => block == 'double area = pi * radius * radius;', orElse: () => '');
+      if (block.isNotEmpty) {
+        codeLines.add(_buildUserCodeLine(block));
+      }
     }
 
-    if (hasInnerClose) {
-      codeLines.add(_buildUserCodeLine('    }'));
+    if (hasCircumference) {
+      String block = droppedBlocks.firstWhere((block) => block == 'double circumference = 2 * pi * radius;', orElse: () => '');
+      if (block.isNotEmpty) {
+        codeLines.add(_buildUserCodeLine(block));
+      }
     }
 
-    if (hasCoutEndl) {
-      codeLines.add(_buildUserCodeLine('    cout << endl;'));
+    if (hasCoutArea) {
+      String block = droppedBlocks.firstWhere((block) => block == 'cout << "Area: " << area << endl;', orElse: () => '');
+      if (block.isNotEmpty) {
+        codeLines.add(_buildUserCodeLine(block));
+      }
     }
 
-    if (hasOuterClose) {
-      codeLines.add(_buildUserCodeLine('}'));
+    if (hasCoutCircumference) {
+      String block = droppedBlocks.firstWhere((block) => block == 'cout << "Circumference: " << circumference << endl;', orElse: () => '');
+      if (block.isNotEmpty) {
+        codeLines.add(_buildUserCodeLine(block));
+      }
     }
 
-    // Add any incorrect blocks that were used
     for (String block in droppedBlocks) {
-      if (!['for (int i = 1; i <= 5; i++) {',
-        '    for (int j = 1; j <= i; j++) {',
-        '        cout << "* ";',
-        '    }',
-        '    cout << endl;',
-        '}'].contains(block)) {
+      if (block != 'double pi = 3.14159;' &&
+          block != 'double radius = 5.5;' &&
+          block != 'double area = pi * radius * radius;' &&
+          block != 'double circumference = 2 * pi * radius;' &&
+          block != 'cout << "Area: " << area << endl;' &&
+          block != 'cout << "Circumference: " << circumference << endl;') {
         codeLines.add(_buildUserCodeLine(block));
       }
     }
@@ -786,8 +768,8 @@ class _CppLevel6State extends State<CppLevel6> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("⚡ C++ - Level 6", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.deepOrange,
+        title: Text("⚡ C++ - Level 7", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.purple,
         actions: gameStarted
             ? [
           Padding(
@@ -841,27 +823,26 @@ class _CppLevel6State extends State<CppLevel6> {
               label: Text("Start Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.deepOrange,
+                backgroundColor: Colors.purple,
               ),
             ),
 
             SizedBox(height: 20 * _scaleFactor),
 
-            // FIXED: Only show completion message if actually completed
-            if (level6Completed && previousScore == 3)
+            if (level7Completed)
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Level 6 completed with perfect score!",
+                      "✅ Level 7 completed with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "You've unlocked Level 7!",
-                      style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "You've unlocked Level 8!",
+                      style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -874,13 +855,13 @@ class _CppLevel6State extends State<CppLevel6> {
                   children: [
                     Text(
                       "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.deepOrange, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score and unlock Level 7!",
-                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                      "Try again to get a perfect score and unlock Level 8!",
+                      style: TextStyle(color: Colors.purple[300], fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -898,8 +879,8 @@ class _CppLevel6State extends State<CppLevel6> {
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
-                        "Don't give up! You can do better this time!",
-                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                        "Don't give up! Double variables are important for precise calculations!",
+                        style: TextStyle(color: Colors.purple[300], fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -911,30 +892,30 @@ class _CppLevel6State extends State<CppLevel6> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.deepOrange[50]!.withOpacity(0.9),
+                color: Colors.purple[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.deepOrange[200]!),
+                border: Border.all(color: Colors.purple[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎯 Level 6 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.deepOrange[800]),
+                    "🎯 Level 7 Objective",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.purple[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create a nested loop pattern that prints a right-angled triangle of stars",
+                    "Create a program that calculates the area and circumference of a circle using double variables",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.deepOrange[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎁 Get a perfect score (3/3) to complete this level!",
+                    "🎁 Get a perfect score (3/3) to unlock Level 8!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
-                        color: Colors.purple,
+                        color: Colors.deepOrange,
                         fontWeight: FontWeight.bold,
                         fontStyle: FontStyle.italic
                     ),
@@ -978,14 +959,14 @@ class _CppLevel6State extends State<CppLevel6> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Ngayon, gustong gumawa ni Alex ng star pattern gamit ang nested loops! Tulungan siyang bumuo ng program na magpi-print ng right-angled triangle na gawa sa stars. Gamitin ang outer loop para sa rows at inner loop para sa stars sa bawat row.'
-                : 'Now, Alex wants to create a star pattern using nested loops! Help him build a program that prints a right-angled triangle made of stars. Use an outer loop for rows and an inner loop for stars in each row.',
+                ? 'Ngayon, gusto ni Alex na kalkulahin ang area at circumference ng isang bilog! Gamitin ang double data type para sa mga decimal number at gumawa ng program na magko-compute ng area at circumference gamit ang mathematical formulas.'
+                : 'Now, Alex wants to calculate the area and circumference of a circle! Use the double data type for decimal numbers and create a program that computes area and circumference using mathematical formulas.',
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the 6 correct blocks to create the star pattern generator',
+          Text('🧩 Arrange the 6 correct blocks to create the circle calculator',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
@@ -994,13 +975,13 @@ class _CppLevel6State extends State<CppLevel6> {
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 220 * _scaleFactor,
-              maxHeight: 300 * _scaleFactor,
+              minHeight: 180 * _scaleFactor,
+              maxHeight: 250 * _scaleFactor,
             ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.deepOrange, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.purple, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -1027,9 +1008,9 @@ class _CppLevel6State extends State<CppLevel6> {
                     children: droppedBlocks.map((block) {
                       return Draggable<String>(
                         data: block,
-                        feedback: puzzleBlock(block, Colors.deepOrangeAccent),
-                        childWhenDragging: puzzleBlock(block, Colors.deepOrangeAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.deepOrangeAccent),
+                        feedback: puzzleBlock(block, Colors.purpleAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.purpleAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.purpleAccent),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
@@ -1072,7 +1053,7 @@ class _CppLevel6State extends State<CppLevel6> {
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 160 * _scaleFactor,
+              minHeight: 140 * _scaleFactor,
             ),
             padding: EdgeInsets.all(12 * _scaleFactor),
             decoration: BoxDecoration(
@@ -1089,12 +1070,12 @@ class _CppLevel6State extends State<CppLevel6> {
                     ? puzzleBlock(block, Colors.grey)
                     : Draggable<String>(
                   data: block,
-                  feedback: puzzleBlock(block, Colors.deepOrange),
+                  feedback: puzzleBlock(block, Colors.purple),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.deepOrange),
+                    child: puzzleBlock(block, Colors.purple),
                   ),
-                  child: puzzleBlock(block, Colors.deepOrange),
+                  child: puzzleBlock(block, Colors.purple),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
@@ -1133,7 +1114,7 @@ class _CppLevel6State extends State<CppLevel6> {
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepOrange,
+              backgroundColor: Colors.purple,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -1155,10 +1136,6 @@ class _CppLevel6State extends State<CppLevel6> {
 
   Widget puzzleBlock(String text, Color color) {
     return Container(
-      constraints: BoxConstraints(
-        minWidth: 80 * _scaleFactor,
-        maxWidth: 200 * _scaleFactor,
-      ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
         horizontal: 12 * _scaleFactor,
@@ -1185,10 +1162,11 @@ class _CppLevel6State extends State<CppLevel6> {
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
           fontSize: 14 * _scaleFactor,
+          color: Colors.white,
         ),
         textAlign: TextAlign.center,
-        overflow: TextOverflow.visible,
         softWrap: true,
+        overflow: TextOverflow.visible,
       ),
     );
   }
