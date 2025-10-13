@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
+import '../../services/music_service.dart';
 
 class PythonLevel2 extends StatefulWidget {
   const PythonLevel2({super.key});
@@ -22,7 +24,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 120;
+  int remainingSeconds = 90;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -32,7 +34,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
   // Scaling factors
   double _scaleFactor = 1.0;
-  final double _baseScreenWidth = 360.0;
+  final double _baseScreenWidth = 360.0; // Base width for scaling
 
   @override
   void initState() {
@@ -40,6 +42,17 @@ class _PythonLevel2State extends State<PythonLevel2> {
     resetBlocks();
     _loadUserData();
     _calculateScaleFactor();
+    _startGameMusic();
+  }
+
+  void _startGameMusic() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      await musicService.stopBackgroundMusic();
+      await musicService.playSoundEffect('game_start.mp3');
+      await Future.delayed(Duration(milliseconds: 500));
+      await musicService.playSoundEffect('game_music.mp3');
+    });
   }
 
   void _calculateScaleFactor() {
@@ -66,15 +79,12 @@ class _PythonLevel2State extends State<PythonLevel2> {
   }
 
   void resetBlocks() {
-    // Python variable assignment and print: name = "Juan" \n print(name)
+    // 4 blocks for Python: name = "Juan"
     List<String> correctBlocks = [
       'name',
       '=',
-      '"Juan"',
-      'print',
-      '(',
-      'name',
-      ')'
+      '"',
+      'Juan"'
     ];
 
     // Incorrect/distractor blocks
@@ -84,26 +94,20 @@ class _PythonLevel2State extends State<PythonLevel2> {
       'const',
       'String',
       'str',
-      'cout',
-      'printf',
-      'echo',
-      'System.out.println',
+      'variable',
+      'Maria',
+      'Pedro',
+      "'",
       ';',
       ':',
       '==',
-      '"Maria"',
-      '"Pedro"',
-      'age',
-      'score',
-      'print(',
-      'print()',
-      'write',
-      'puts',
+      '===',
+      'name:',
     ];
 
-    // Shuffle incorrect blocks and take 5 random ones
+    // Shuffle incorrect blocks and take 3 random ones
     incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(5).toList();
+    List<String> selectedIncorrectBlocks = incorrectBlocks.take(3).toList();
 
     // Combine correct and incorrect blocks, then shuffle
     allBlocks = [
@@ -113,10 +117,13 @@ class _PythonLevel2State extends State<PythonLevel2> {
   }
 
   void startGame() {
+    final musicService = Provider.of<MusicService>(context, listen: false);
+    musicService.playSoundEffect('level_start.mp3');
+
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 120;
+      remainingSeconds = 90;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       resetBlocks();
@@ -138,6 +145,10 @@ class _PythonLevel2State extends State<PythonLevel2> {
           timer.cancel();
           scoreReductionTimer?.cancel();
           saveScoreToDatabase(score);
+
+          final musicService = Provider.of<MusicService>(context, listen: false);
+          musicService.playSoundEffect('time_up.mp3');
+
           showDialog(
             context: context,
             builder: (_) => AlertDialog(
@@ -146,6 +157,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
               actions: [
                 TextButton(
                   onPressed: () {
+                    final musicService = Provider.of<MusicService>(context, listen: false);
+                    musicService.playSoundEffect('click.mp3');
                     resetGame();
                     Navigator.pop(context);
                   },
@@ -158,7 +171,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 60), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 30), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -166,6 +179,9 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
       setState(() {
         score--;
+        final musicService = Provider.of<MusicService>(context, listen: false);
+        musicService.playSoundEffect('penalty.mp3');
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
         );
@@ -174,9 +190,12 @@ class _PythonLevel2State extends State<PythonLevel2> {
   }
 
   void resetGame() {
+    final musicService = Provider.of<MusicService>(context, listen: false);
+    musicService.playSoundEffect('reset.mp3');
+
     setState(() {
       score = 3;
-      remainingSeconds = 120;
+      remainingSeconds = 90;
       gameStarted = false;
       isAnsweredCorrectly = false;
       droppedBlocks.clear();
@@ -195,7 +214,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
         'Python',
         2,
         score,
-        score == 3,
+        score == 3, // Only completed if perfect score
       );
 
       if (response['success'] == true) {
@@ -236,6 +255,34 @@ class _PythonLevel2State extends State<PythonLevel2> {
     }
   }
 
+  Future<void> refreshScore() async {
+    if (currentUser?['id'] != null) {
+      try {
+        final response = await ApiService.getScores(currentUser!['id'], 'Python');
+        if (response['success'] == true && response['scores'] != null) {
+          final scoresData = response['scores'];
+          final level2Data = scoresData['2'];
+
+          setState(() {
+            if (level2Data != null) {
+              previousScore = level2Data['score'] ?? 0;
+              level2Completed = level2Data['completed'] ?? false;
+              hasPreviousScore = true;
+              score = previousScore;
+            } else {
+              hasPreviousScore = false;
+              previousScore = 0;
+              level2Completed = false;
+              score = 3;
+            }
+          });
+        }
+      } catch (e) {
+        print('Error refreshing score: $e');
+      }
+    }
+  }
+
   // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
@@ -244,21 +291,15 @@ class _PythonLevel2State extends State<PythonLevel2> {
       'const',
       'String',
       'str',
-      'cout',
-      'printf',
-      'echo',
-      'System.out.println',
+      'variable',
+      'Maria',
+      'Pedro',
+      "'",
       ';',
       ':',
       '==',
-      '"Maria"',
-      '"Pedro"',
-      'age',
-      'score',
-      'print(',
-      'print()',
-      'write',
-      'puts',
+      '===',
+      'name:',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -266,10 +307,14 @@ class _PythonLevel2State extends State<PythonLevel2> {
   void checkAnswer() async {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
+    final musicService = Provider.of<MusicService>(context, listen: false);
+
     // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
+      musicService.playSoundEffect('error.mp3');
+
       if (score > 1) {
         setState(() {
           score--;
@@ -287,6 +332,9 @@ class _PythonLevel2State extends State<PythonLevel2> {
         countdownTimer?.cancel();
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
+
+        musicService.playSoundEffect('game_over.mp3');
+
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
@@ -295,6 +343,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
             actions: [
               TextButton(
                 onPressed: () {
+                  musicService.playSoundEffect('click.mp3');
                   Navigator.pop(context);
                   resetGame();
                 },
@@ -307,18 +356,17 @@ class _PythonLevel2State extends State<PythonLevel2> {
       return;
     }
 
-    // Check for: name = "Juan" \n print(name)
+    // Check for: name = "Juan"
     String answer = droppedBlocks.join(' ');
     String normalizedAnswer = answer
         .replaceAll(' ', '')
         .replaceAll('\n', '')
         .toLowerCase();
 
-    // Allow for both single line and multi-line arrangements
-    bool isCorrect = normalizedAnswer == 'name="juan"print(name)' ||
-        normalizedAnswer == 'name="juan"print(name)';
+    // Exact match for Python variable assignment
+    String expected = 'name="juan"';
 
-    if (isCorrect) {
+    if (normalizedAnswer == expected) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -328,6 +376,13 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
       saveScoreToDatabase(score);
 
+      // PLAY SUCCESS SOUND BASED ON SCORE
+      if (score == 3) {
+        musicService.playSoundEffect('perfect.mp3');
+      } else {
+        musicService.playSoundEffect('success.mp3');
+      }
+
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
@@ -336,14 +391,14 @@ class _PythonLevel2State extends State<PythonLevel2> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent Python Developer!"),
+              Text("Well done Python Developer!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
                   "🎉 Perfect! You've unlocked Level 3!",
-                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
@@ -364,41 +419,15 @@ class _PythonLevel2State extends State<PythonLevel2> {
                   ),
                 ),
               ),
-              SizedBox(height: 10),
-              Text("Your Code:", style: TextStyle(fontWeight: FontWeight.bold)),
-              Container(
-                padding: EdgeInsets.all(10),
-                color: Colors.blue[50],
-                child: Text(
-                  getPreviewCode(),
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-              SizedBox(height: 10),
-              Text("Python Concepts:", style: TextStyle(fontWeight: FontWeight.bold)),
-              Container(
-                padding: EdgeInsets.all(10),
-                color: Colors.green[50],
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("• Variables - store data values"),
-                    Text("• Assignment - = operator assigns values"),
-                    Text("• Strings - text in double quotes"),
-                    Text("• Print variables - use variable name without quotes"),
-                  ],
-                ),
-              ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () {
+                musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
                 if (score == 3) {
+                  musicService.playSoundEffect('level_complete.mp3');
                   Navigator.pushReplacementNamed(context, '/python_level3');
                 } else {
                   Navigator.pushReplacementNamed(context, '/levels',
@@ -411,6 +440,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
         ),
       );
     } else {
+      musicService.playSoundEffect('wrong.mp3');
+
       if (score > 1) {
         setState(() {
           score--;
@@ -425,6 +456,9 @@ class _PythonLevel2State extends State<PythonLevel2> {
         countdownTimer?.cancel();
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
+
+        musicService.playSoundEffect('game_over.mp3');
+
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
@@ -433,6 +467,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
             actions: [
               TextButton(
                 onPressed: () {
+                  musicService.playSoundEffect('click.mp3');
                   Navigator.pop(context);
                   resetGame();
                 },
@@ -451,11 +486,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
     return "$m:$s";
   }
 
+  // IMPROVED CODE PREVIEW WITH BETTER SCALING
   Widget getCodePreview() {
-    List<String> lines = getPreviewCode().split(' ');
-    bool hasVariable = lines.contains('name') && lines.contains('=') && lines.contains('"Juan"');
-    bool hasPrint = lines.contains('print') && lines.contains('(') && lines.contains('name') && lines.contains(')');
-
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -497,24 +529,27 @@ class _PythonLevel2State extends State<PythonLevel2> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Line numbers and code
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Line numbers
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        _buildCodeLine(1, ''),
-                        _buildCodeLine(2, ''),
-                      ],
+                    Container(
+                      width: 30 * _scaleFactor,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _buildCodeLine(1),
+                        ],
+                      ),
                     ),
                     SizedBox(width: 16 * _scaleFactor),
-                    // Actual code
+                    // Actual code with syntax highlighting
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildUserCodeLine(getPreviewCode(), isVariable: hasVariable, isPrint: hasPrint),
+                          _buildUserCodeLine(getPreviewCode()),
                         ],
                       ),
                     ),
@@ -528,12 +563,12 @@ class _PythonLevel2State extends State<PythonLevel2> {
     );
   }
 
-  Widget _buildUserCodeLine(String code, {bool isVariable = false, bool isPrint = false}) {
+  Widget _buildUserCodeLine(String code) {
     if (code.isEmpty) {
       return Container(
-        height: 40 * _scaleFactor,
+        height: 20 * _scaleFactor,
         child: Text(
-          '',
+          '', // Empty line
           style: TextStyle(
             color: Colors.white,
             fontSize: 12 * _scaleFactor,
@@ -543,42 +578,27 @@ class _PythonLevel2State extends State<PythonLevel2> {
       );
     }
 
-    // Split the code into parts for syntax highlighting
-    List<String> parts = code.split(' ');
-
     return Container(
-      height: 40 * _scaleFactor,
-      child: Wrap(
-        spacing: 4 * _scaleFactor,
-        runSpacing: 4 * _scaleFactor,
-        children: parts.map((part) {
-          Color color = Colors.white;
-
-          if (part == 'name' || part == 'print') {
-            color = Color(0xFF569CD6); // Blue for keywords
-          } else if (part == '=') {
-            color = Colors.white;
-          } else if (part == '"Juan"') {
-            color = Color(0xFFCE9178); // Orange for strings
-          } else if (part == '(' || part == ')') {
-            color = Colors.white;
-          }
-
-          return Text(
-            part,
-            style: TextStyle(
-              color: color,
-              fontFamily: 'monospace',
-              fontSize: 12 * _scaleFactor,
-              fontWeight: FontWeight.bold,
+      height: 20 * _scaleFactor,
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: code,
+              style: TextStyle(
+                color: Colors.greenAccent[400],
+                fontFamily: 'monospace',
+                fontSize: 12 * _scaleFactor,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          );
-        }).toList(),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildCodeLine(int lineNumber, String code) {
+  Widget _buildCodeLine(int lineNumber) {
     return Container(
       height: 20 * _scaleFactor,
       child: Text(
@@ -600,11 +620,18 @@ class _PythonLevel2State extends State<PythonLevel2> {
   void dispose() {
     countdownTimer?.cancel();
     scoreReductionTimer?.cancel();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      await musicService.playBackgroundMusic();
+    });
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Recalculate scale factor when screen size changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
       final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
@@ -619,7 +646,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
     return Scaffold(
       appBar: AppBar(
         title: Text("🐍 Python - Level 2", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.blue,
+        backgroundColor: Colors.green, // CHANGED TO GREEN THEME
         actions: gameStarted
             ? [
           Padding(
@@ -645,9 +672,9 @@ class _PythonLevel2State extends State<PythonLevel2> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF0D1B1B),
-              Color(0xFF1B2D2D),
-              Color(0xFF335555),
+              Color(0xFF0D1B0D), // DARK GREEN
+              Color(0xFF1B2D1B), // MEDIUM GREEN
+              Color(0xFF335533), // LIGHT GREEN
             ],
           ),
         ),
@@ -664,12 +691,16 @@ class _PythonLevel2State extends State<PythonLevel2> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              onPressed: startGame,
+              onPressed: () {
+                final musicService = Provider.of<MusicService>(context, listen: false);
+                musicService.playSoundEffect('button_click.mp3');
+                startGame();
+              },
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.blue,
+                backgroundColor: Colors.green, // CHANGED TO GREEN
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
@@ -687,7 +718,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
                       "You've unlocked Level 3!",
-                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -700,7 +731,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
                   children: [
                     Text(
                       "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
@@ -737,41 +768,33 @@ class _PythonLevel2State extends State<PythonLevel2> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.blue[50]!.withOpacity(0.9),
+                color: Colors.green[50]!.withOpacity(0.9), // CHANGED TO GREEN
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.blue[200]!),
+                border: Border.all(color: Colors.green[200]!), // CHANGED TO GREEN
               ),
               child: Column(
                 children: [
                   Text(
                     "🎯 Level 2 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.blue[800]),
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.green[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create a variable and print its value:\nname = \"Juan\"\nprint(name)",
+                    "Create a Python variable called 'name' and assign it the value 'Juan'",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.blue[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.green[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(10 * _scaleFactor),
-                    color: Colors.black,
-                    child: Text(
-                      "name = \"Juan\"\nprint(name)",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'monospace',
-                        fontSize: 14 * _scaleFactor,
-                      ),
+                  Text(
+                    "🎁 Get a perfect score (3/3) to unlock the Level 3!",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 12 * _scaleFactor,
+                        color: Colors.purple,
+                        fontWeight: FontWeight.bold,
+                        fontStyle: FontStyle.italic
                     ),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Text(
-                    "Learn Python variables and printing!",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12 * _scaleFactor, color: Colors.blue[600], fontStyle: FontStyle.italic),
                   ),
                 ],
               ),
@@ -783,221 +806,262 @@ class _PythonLevel2State extends State<PythonLevel2> {
   }
 
   Widget buildGameUI() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF0D1B1B),
-            Color(0xFF1B2D2D),
-            Color(0xFF335555),
-          ],
-        ),
-      ),
-      child: SingleChildScrollView(
-        padding: EdgeInsets.all(16 * _scaleFactor),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  child: Text('📖 Short Story',
-                      style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
-                ),
-                TextButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      isTagalog = !isTagalog;
-                    });
-                  },
-                  icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
-                  label: Text(isTagalog ? 'English' : 'Tagalog',
-                      style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
-                ),
-              ],
-            ),
-            SizedBox(height: 10 * _scaleFactor),
-            Text(
-              isTagalog
-                  ? 'Si Juan ay natututo ng variables sa Python! Kailangan niyang mag-store ng kanyang pangalan sa variable at i-print ito. Tulungan mo siyang buuin ang tamang code!'
-                  : 'Juan is learning about variables in Python! He needs to store his name in a variable and print it. Help him build the correct code!',
-              textAlign: TextAlign.justify,
-              style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
-            ),
-            SizedBox(height: 20 * _scaleFactor),
-
-            Text('🧩 Arrange the blocks to create:\nname = "Juan"\nprint(name)',
-                style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
-                textAlign: TextAlign.center),
-            SizedBox(height: 20 * _scaleFactor),
-
-            // TARGET AREA - FIXED VERSION
-            Container(
-              height: 160 * _scaleFactor,
-              width: double.infinity,
-              padding: EdgeInsets.all(16 * _scaleFactor),
-              decoration: BoxDecoration(
-                color: Colors.grey[100]!.withOpacity(0.9),
-                border: Border.all(color: Colors.blue, width: 2.5 * _scaleFactor),
-                borderRadius: BorderRadius.circular(20 * _scaleFactor),
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(16 * _scaleFactor),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Text('📖 Short Story',
+                    style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
-              child: DragTarget<String>(
-                onWillAccept: (data) {
-                  // Always accept blocks as long as game is not finished
-                  return !isAnsweredCorrectly;
+              TextButton.icon(
+                onPressed: () {
+                  final musicService = Provider.of<MusicService>(context, listen: false);
+                  musicService.playSoundEffect('toggle.mp3');
+                  setState(() {
+                    isTagalog = !isTagalog;
+                  });
                 },
-                onAccept: (data) {
-                  if (!isAnsweredCorrectly) {
-                    setState(() {
-                      droppedBlocks.add(data);
-                      allBlocks.remove(data);
-                    });
-                  }
-                },
-                builder: (context, candidateData, rejectedData) {
-                  return Center(
-                    child: SingleChildScrollView(
-                      child: Wrap(
-                        spacing: 6 * _scaleFactor,
-                        runSpacing: 6 * _scaleFactor,
-                        alignment: WrapAlignment.center,
-                        children: droppedBlocks.map((block) {
-                          return Draggable<String>(
-                            data: block,
-                            feedback: puzzleBlock(block, Colors.yellowAccent),
-                            childWhenDragging: puzzleBlock(block, Colors.yellowAccent.withOpacity(0.3)),
-                            child: puzzleBlock(block, Colors.yellowAccent),
-                            onDragStarted: () {
-                              setState(() {
-                                currentlyDraggedBlock = block;
-                              });
-                            },
-                            onDragEnd: (details) {
-                              setState(() {
-                                currentlyDraggedBlock = null;
-                              });
+                icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
+                label: Text(isTagalog ? 'English' : 'Tagalog',
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+              ),
+            ],
+          ),
+          SizedBox(height: 10 * _scaleFactor),
+          Text(
+            isTagalog
+                ? 'Ngayon, gusto ni Juan na gumawa ng variable para sa kanyang pangalan! Tulungan siyang gumawa ng variable na "name" at i-assign ang value na "Juan".'
+                : 'Now, Juan wants to create a variable for his name! Help him create a variable called "name" and assign it the value "Juan".',
+            textAlign: TextAlign.justify,
+            style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
+          ),
+          SizedBox(height: 20 * _scaleFactor),
 
-                              if (!isAnsweredCorrectly && !details.wasAccepted) {
-                                Future.delayed(Duration(milliseconds: 50), () {
-                                  if (mounted) {
-                                    setState(() {
-                                      if (!allBlocks.contains(block)) {
-                                        allBlocks.add(block);
-                                      }
-                                      droppedBlocks.remove(block);
-                                    });
+          Text('🧩 Arrange the blocks to create a variable called "name" with value "Juan"',
+              style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
+              textAlign: TextAlign.center),
+          SizedBox(height: 20 * _scaleFactor),
+
+          // IMPROVED TARGET AREA WITH BETTER OVERFLOW HANDLING
+          Container(
+            width: double.infinity,
+            constraints: BoxConstraints(
+              minHeight: 140 * _scaleFactor,
+              maxHeight: 200 * _scaleFactor,
+            ),
+            padding: EdgeInsets.all(16 * _scaleFactor),
+            decoration: BoxDecoration(
+              color: Colors.grey[100]!.withOpacity(0.9),
+              border: Border.all(color: Colors.green, width: 2.5 * _scaleFactor), // CHANGED TO GREEN
+              borderRadius: BorderRadius.circular(20 * _scaleFactor),
+            ),
+            child: DragTarget<String>(
+              onWillAccept: (data) {
+                return !droppedBlocks.contains(data);
+              },
+              onAccept: (data) {
+                if (!isAnsweredCorrectly) {
+                  final musicService = Provider.of<MusicService>(context, listen: false);
+                  musicService.playSoundEffect('block_drop.mp3');
+
+                  setState(() {
+                    droppedBlocks.add(data);
+                    allBlocks.remove(data);
+                  });
+                }
+              },
+              builder: (context, candidateData, rejectedData) {
+                return SingleChildScrollView(
+                  child: Wrap(
+                    spacing: 8 * _scaleFactor,
+                    runSpacing: 8 * _scaleFactor,
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: droppedBlocks.map((block) {
+                      return Draggable<String>(
+                        data: block,
+                        feedback: Material(
+                          color: Colors.transparent,
+                          child: puzzleBlock(block, Colors.lightGreenAccent), // CHANGED TO LIGHT GREEN
+                        ),
+                        childWhenDragging: puzzleBlock(block, Colors.lightGreenAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.lightGreenAccent),
+                        onDragStarted: () {
+                          final musicService = Provider.of<MusicService>(context, listen: false);
+                          musicService.playSoundEffect('block_pickup.mp3');
+
+                          setState(() {
+                            currentlyDraggedBlock = block;
+                          });
+                        },
+                        onDragEnd: (details) {
+                          setState(() {
+                            currentlyDraggedBlock = null;
+                          });
+
+                          if (!isAnsweredCorrectly && !details.wasAccepted) {
+                            Future.delayed(Duration(milliseconds: 50), () {
+                              if (mounted) {
+                                setState(() {
+                                  if (!allBlocks.contains(block)) {
+                                    allBlocks.add(block);
                                   }
+                                  droppedBlocks.remove(block);
                                 });
-                              }
-                            },
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            SizedBox(height: 20 * _scaleFactor),
-            Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
-            SizedBox(height: 10 * _scaleFactor),
-            getCodePreview(),
-            SizedBox(height: 20 * _scaleFactor),
-
-            // SOURCE AREA
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-              ),
-              child: Wrap(
-                spacing: 8 * _scaleFactor,
-                runSpacing: 10 * _scaleFactor,
-                alignment: WrapAlignment.center,
-                children: allBlocks.map((block) {
-                  return isAnsweredCorrectly
-                      ? puzzleBlock(block, Colors.grey)
-                      : Draggable<String>(
-                    data: block,
-                    feedback: puzzleBlock(block, Colors.blueAccent),
-                    childWhenDragging: Opacity(
-                      opacity: 0.3,
-                      child: puzzleBlock(block, Colors.blueAccent),
-                    ),
-                    child: puzzleBlock(block, Colors.blueAccent),
-                    onDragStarted: () {
-                      setState(() {
-                        currentlyDraggedBlock = block;
-                      });
-                    },
-                    onDragEnd: (details) {
-                      setState(() {
-                        currentlyDraggedBlock = null;
-                      });
-
-                      if (!isAnsweredCorrectly && !details.wasAccepted) {
-                        Future.delayed(Duration(milliseconds: 50), () {
-                          if (mounted) {
-                            setState(() {
-                              if (!allBlocks.contains(block)) {
-                                allBlocks.add(block);
                               }
                             });
                           }
-                        });
-                      }
-                    },
-                  );
-                }).toList(),
-              ),
+                        },
+                      );
+                    }).toList(),
+                  ),
+                );
+              },
             ),
+          ),
 
-            SizedBox(height: 30 * _scaleFactor),
-            ElevatedButton.icon(
-              onPressed: isAnsweredCorrectly ? null : checkAnswer,
-              icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
-              label: Text("Run Code", style: TextStyle(fontSize: 16 * _scaleFactor)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                padding: EdgeInsets.symmetric(
-                  horizontal: 24 * _scaleFactor,
-                  vertical: 16 * _scaleFactor,
-                ),
+          SizedBox(height: 20 * _scaleFactor),
+          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          SizedBox(height: 10 * _scaleFactor),
+          getCodePreview(),
+          SizedBox(height: 20 * _scaleFactor),
+
+          // SOURCE AREA WITH IMPROVED LAYOUT
+          Container(
+            width: double.infinity,
+            constraints: BoxConstraints(
+              minHeight: 100 * _scaleFactor,
+            ),
+            padding: EdgeInsets.all(12 * _scaleFactor),
+            decoration: BoxDecoration(
+              color: Colors.grey[800]!.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12 * _scaleFactor),
+            ),
+            child: Wrap(
+              spacing: 8 * _scaleFactor,
+              runSpacing: 10 * _scaleFactor,
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: allBlocks.map((block) {
+                return isAnsweredCorrectly
+                    ? puzzleBlock(block, Colors.grey)
+                    : Draggable<String>(
+                  data: block,
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: puzzleBlock(block, Colors.greenAccent), // CHANGED TO GREEN
+                  ),
+                  childWhenDragging: Opacity(
+                    opacity: 0.4,
+                    child: puzzleBlock(block, Colors.greenAccent),
+                  ),
+                  child: puzzleBlock(block, Colors.greenAccent),
+                  onDragStarted: () {
+                    final musicService = Provider.of<MusicService>(context, listen: false);
+                    musicService.playSoundEffect('block_pickup.mp3');
+
+                    setState(() {
+                      currentlyDraggedBlock = block;
+                    });
+                  },
+                  onDragEnd: (details) {
+                    setState(() {
+                      currentlyDraggedBlock = null;
+                    });
+
+                    if (!isAnsweredCorrectly && !details.wasAccepted) {
+                      Future.delayed(Duration(milliseconds: 50), () {
+                        if (mounted) {
+                          setState(() {
+                            if (!allBlocks.contains(block)) {
+                              allBlocks.add(block);
+                            }
+                          });
+                        }
+                      });
+                    }
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+
+          SizedBox(height: 30 * _scaleFactor),
+          ElevatedButton.icon(
+            onPressed: isAnsweredCorrectly ? null : () {
+              final musicService = Provider.of<MusicService>(context, listen: false);
+              musicService.playSoundEffect('compile.mp3');
+              checkAnswer();
+            },
+            icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
+            label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green, // CHANGED TO GREEN
+              padding: EdgeInsets.symmetric(
+                horizontal: 24 * _scaleFactor,
+                vertical: 16 * _scaleFactor,
               ),
             ),
-            TextButton(
-              onPressed: resetGame,
-              child: Text("🔁 Retry", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
-            ),
-            SizedBox(height: 20 * _scaleFactor),
-          ],
-        ),
+          ),
+          TextButton(
+            onPressed: () {
+              final musicService = Provider.of<MusicService>(context, listen: false);
+              musicService.playSoundEffect('button_click.mp3');
+              resetGame();
+            },
+            child: Text("🔁 Retry", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
 
   Widget puzzleBlock(String text, Color color) {
+    // Calculate text width to adjust block size
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontFamily: 'monospace',
+          fontSize: 14 * _scaleFactor,
+          color: Colors.black, // FORCE BLACK TEXT FOR VISIBILITY
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final textWidth = textPainter.width;
+    final minWidth = 60 * _scaleFactor;
+    final maxWidth = 200 * _scaleFactor; // Increased max width for longer text
+
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 2 * _scaleFactor),
+      constraints: BoxConstraints(
+        minWidth: minWidth,
+        maxWidth: maxWidth,
+      ),
+      margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 12 * _scaleFactor,
-        vertical: 10 * _scaleFactor,
+        horizontal: 16 * _scaleFactor, // Increased horizontal padding
+        vertical: 12 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(15 * _scaleFactor),
-          bottomRight: Radius.circular(15 * _scaleFactor),
+          topLeft: Radius.circular(20 * _scaleFactor),
+          bottomRight: Radius.circular(20 * _scaleFactor),
         ),
-        border: Border.all(color: Colors.black45, width: 1.5 * _scaleFactor),
+        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor), // Darker border for contrast
         boxShadow: [
           BoxShadow(
-            color: Colors.black26,
-            blurRadius: 3 * _scaleFactor,
-            offset: Offset(2 * _scaleFactor, 2 * _scaleFactor),
+            color: Colors.black45,
+            blurRadius: 6 * _scaleFactor,
+            offset: Offset(3 * _scaleFactor, 3 * _scaleFactor),
           )
         ],
       ),
@@ -1006,9 +1070,19 @@ class _PythonLevel2State extends State<PythonLevel2> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 12 * _scaleFactor,
+          fontSize: 14 * _scaleFactor,
+          color: Colors.black, // FORCE BLACK TEXT FOR MAXIMUM VISIBILITY
+          shadows: [
+            Shadow(
+              offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
+              blurRadius: 2 * _scaleFactor,
+              color: Colors.white.withOpacity(0.8), // White shadow for better contrast
+            ),
+          ],
         ),
         textAlign: TextAlign.center,
+        overflow: TextOverflow.visible, // Changed from ellipsis to visible
+        maxLines: 2, // Allow 2 lines for longer text
       ),
     );
   }

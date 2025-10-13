@@ -555,7 +555,7 @@ class _CppLevel1State extends State<CppLevel1> {
                           _buildSyntaxHighlightedLine('using namespace std;', isKeyword: true),
                           SizedBox(height: 8 * _scaleFactor),
                           _buildSyntaxHighlightedLine('int main() {', isKeyword: true),
-                          _buildSyntaxHighlightedLine('    ' + getPreviewCode(), isNormal: true),
+                          _buildUserCodeLine(getPreviewCode()),
                           _buildSyntaxHighlightedLine('    return 0;', isKeyword: true),
                           _buildSyntaxHighlightedLine('}', isNormal: true),
                         ],
@@ -567,6 +567,45 @@ class _CppLevel1State extends State<CppLevel1> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildUserCodeLine(String code) {
+    if (code.isEmpty) {
+      return Container(
+        height: 20 * _scaleFactor,
+        child: Text(
+          '        ',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 12 * _scaleFactor,
+            fontFamily: 'monospace',
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 20 * _scaleFactor,
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '        ',
+              style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12 * _scaleFactor),
+            ),
+            TextSpan(
+              text: code,
+              style: TextStyle(
+                color: Colors.greenAccent[400],
+                fontFamily: 'monospace',
+                fontSize: 12 * _scaleFactor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -594,32 +633,6 @@ class _CppLevel1State extends State<CppLevel1> {
       textColor = Color(0xFF569CD6);
     } else if (isNormal) {
       textColor = Colors.white;
-    }
-
-    // Highlight the user's code in green
-    if (isNormal && code.contains(getPreviewCode()) && getPreviewCode().isNotEmpty) {
-      return Container(
-        height: 20 * _scaleFactor,
-        child: RichText(
-          text: TextSpan(
-            children: [
-              TextSpan(
-                text: '    ',
-                style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12 * _scaleFactor),
-              ),
-              TextSpan(
-                text: getPreviewCode(),
-                style: TextStyle(
-                  color: Colors.greenAccent[400],
-                  fontFamily: 'monospace',
-                  fontSize: 12 * _scaleFactor,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
     }
 
     return Container(
@@ -875,7 +888,7 @@ class _CppLevel1State extends State<CppLevel1> {
             width: double.infinity,
             constraints: BoxConstraints(
               minHeight: 140 * _scaleFactor,
-              maxHeight: 200 * _scaleFactor, // Maximum height to prevent overflow
+              maxHeight: 200 * _scaleFactor,
             ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
@@ -899,7 +912,7 @@ class _CppLevel1State extends State<CppLevel1> {
                 }
               },
               builder: (context, candidateData, rejectedData) {
-                return SingleChildScrollView( // ADD SCROLLING FOR OVERFLOW
+                return SingleChildScrollView(
                   child: Wrap(
                     spacing: 8 * _scaleFactor,
                     runSpacing: 8 * _scaleFactor,
@@ -908,7 +921,10 @@ class _CppLevel1State extends State<CppLevel1> {
                     children: droppedBlocks.map((block) {
                       return Draggable<String>(
                         data: block,
-                        feedback: puzzleBlock(block, Colors.greenAccent),
+                        feedback: Material(
+                          color: Colors.transparent,
+                          child: puzzleBlock(block, Colors.greenAccent),
+                        ),
                         childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
                         child: puzzleBlock(block, Colors.greenAccent),
                         onDragStarted: () {
@@ -972,7 +988,10 @@ class _CppLevel1State extends State<CppLevel1> {
                     ? puzzleBlock(block, Colors.grey)
                     : Draggable<String>(
                   data: block,
-                  feedback: puzzleBlock(block, Colors.blueAccent),
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: puzzleBlock(block, Colors.blueAccent),
+                  ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
                     child: puzzleBlock(block, Colors.blueAccent),
@@ -1047,6 +1066,7 @@ class _CppLevel1State extends State<CppLevel1> {
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
           fontSize: 14 * _scaleFactor,
+          color: Colors.black, // FORCE BLACK TEXT FOR VISIBILITY
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -1054,7 +1074,7 @@ class _CppLevel1State extends State<CppLevel1> {
 
     final textWidth = textPainter.width;
     final minWidth = 60 * _scaleFactor;
-    final maxWidth = 150 * _scaleFactor;
+    final maxWidth = 200 * _scaleFactor; // Increased max width for longer text
 
     return Container(
       constraints: BoxConstraints(
@@ -1063,8 +1083,8 @@ class _CppLevel1State extends State<CppLevel1> {
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 12 * _scaleFactor,
-        vertical: 10 * _scaleFactor,
+        horizontal: 16 * _scaleFactor, // Increased horizontal padding
+        vertical: 12 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
@@ -1072,12 +1092,12 @@ class _CppLevel1State extends State<CppLevel1> {
           topLeft: Radius.circular(20 * _scaleFactor),
           bottomRight: Radius.circular(20 * _scaleFactor),
         ),
-        border: Border.all(color: Colors.black45, width: 1.5 * _scaleFactor),
+        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor), // Darker border for contrast
         boxShadow: [
           BoxShadow(
-            color: Colors.black26,
-            blurRadius: 4 * _scaleFactor,
-            offset: Offset(2 * _scaleFactor, 2 * _scaleFactor),
+            color: Colors.black45,
+            blurRadius: 6 * _scaleFactor,
+            offset: Offset(3 * _scaleFactor, 3 * _scaleFactor),
           )
         ],
       ),
@@ -1087,10 +1107,18 @@ class _CppLevel1State extends State<CppLevel1> {
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
           fontSize: 14 * _scaleFactor,
+          color: Colors.black, // FORCE BLACK TEXT FOR MAXIMUM VISIBILITY
+          shadows: [
+            Shadow(
+              offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
+              blurRadius: 2 * _scaleFactor,
+              color: Colors.white.withOpacity(0.8), // White shadow for better contrast
+            ),
+          ],
         ),
         textAlign: TextAlign.center,
-        overflow: TextOverflow.ellipsis,
-        maxLines: 1,
+        overflow: TextOverflow.visible, // Changed from ellipsis to visible
+        maxLines: 2, // Allow 2 lines for longer text
       ),
     );
   }

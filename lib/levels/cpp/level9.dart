@@ -530,7 +530,7 @@ class _CppLevel9State extends State<CppLevel9> {
     return "$m:$s";
   }
 
-  // CODE PREVIEW
+  // IMPROVED CODE PREVIEW WITH BETTER SCALING (SAME AS LEVEL 1)
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -542,6 +542,7 @@ class _CppLevel9State extends State<CppLevel9> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Code editor header
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
             decoration: BoxDecoration(
@@ -566,14 +567,17 @@ class _CppLevel9State extends State<CppLevel9> {
               ],
             ),
           ),
+          // Code content
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Line numbers and code
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Line numbers
                     Container(
                       width: 30 * _scaleFactor,
                       child: Column(
@@ -593,6 +597,7 @@ class _CppLevel9State extends State<CppLevel9> {
                       ),
                     ),
                     SizedBox(width: 16 * _scaleFactor),
+                    // Actual code with syntax highlighting
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -711,13 +716,23 @@ class _CppLevel9State extends State<CppLevel9> {
   Widget _buildUserCodeLine(String code) {
     return Container(
       height: 20 * _scaleFactor,
-      child: Text(
-        '    $code',
-        style: TextStyle(
-          color: Colors.greenAccent[400],
-          fontFamily: 'monospace',
-          fontSize: 12 * _scaleFactor,
-          fontWeight: FontWeight.bold,
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '    ',
+              style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12 * _scaleFactor),
+            ),
+            TextSpan(
+              text: code,
+              style: TextStyle(
+                color: Colors.greenAccent[400],
+                fontFamily: 'monospace',
+                fontSize: 12 * _scaleFactor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -739,6 +754,7 @@ class _CppLevel9State extends State<CppLevel9> {
 
   Widget _buildSyntaxHighlightedLine(String code, {bool isPreprocessor = false, bool isKeyword = false, bool isNormal = false}) {
     Color textColor = Colors.white;
+
     if (isPreprocessor) {
       textColor = Color(0xFFCE9178);
     } else if (isKeyword) {
@@ -746,6 +762,7 @@ class _CppLevel9State extends State<CppLevel9> {
     } else if (isNormal) {
       textColor = Colors.white;
     }
+
     return Container(
       height: 20 * _scaleFactor,
       child: Text(
@@ -763,18 +780,22 @@ class _CppLevel9State extends State<CppLevel9> {
   void dispose() {
     countdownTimer?.cancel();
     scoreReductionTimer?.cancel();
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final musicService = Provider.of<MusicService>(context, listen: false);
       await musicService.playBackgroundMusic();
     });
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Recalculate scale factor when screen size changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
       final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
+
       if (newScaleFactor != _scaleFactor) {
         setState(() {
           _scaleFactor = newScaleFactor;
@@ -785,7 +806,7 @@ class _CppLevel9State extends State<CppLevel9> {
     return Scaffold(
       appBar: AppBar(
         title: Text("⚡ C++ - Level 9", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.amber[700],
+        backgroundColor: Colors.blue, // SAME BLUE COLOR AS LEVEL 1
         actions: gameStarted
             ? [
           Padding(
@@ -811,9 +832,9 @@ class _CppLevel9State extends State<CppLevel9> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1A1A2E),
-              Color(0xFF16213E),
-              Color(0xFF0F3460),
+              Color(0xFF0D1B2A), // SAME GRADIENT AS LEVEL 1
+              Color(0xFF1B263B),
+              Color(0xFF415A77),
             ],
           ),
         ),
@@ -836,13 +857,12 @@ class _CppLevel9State extends State<CppLevel9> {
                 startGame();
               },
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.amber[700],
+                backgroundColor: Colors.blue, // SAME BLUE COLOR AS LEVEL 1
               ),
             ),
-
             SizedBox(height: 20 * _scaleFactor),
 
             if (level9Completed)
@@ -858,7 +878,7 @@ class _CppLevel9State extends State<CppLevel9> {
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
                       "You've unlocked Level 10!",
-                      style: TextStyle(color: Colors.amber[700], fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -871,13 +891,13 @@ class _CppLevel9State extends State<CppLevel9> {
                   children: [
                     Text(
                       "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.amber[700], fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
                       "Try again to get a perfect score and unlock Level 10!",
-                      style: TextStyle(color: Colors.amber[300], fontSize: 14 * _scaleFactor),
+                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -896,7 +916,7 @@ class _CppLevel9State extends State<CppLevel9> {
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
                         "Don't give up! You can do better this time!",
-                        style: TextStyle(color: Colors.amber[300], fontSize: 14 * _scaleFactor),
+                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -908,22 +928,22 @@ class _CppLevel9State extends State<CppLevel9> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.amber[50]!.withOpacity(0.9),
+                color: Colors.blue[50]!.withOpacity(0.9), // SAME BLUE THEME AS LEVEL 1
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.amber[200]!),
+                border: Border.all(color: Colors.blue[200]!),
               ),
               child: Column(
                 children: [
                   Text(
                     "🎯 Level 9 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.amber[800]),
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.blue[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
                     "Create a program that calculates the average of exam scores using arrays",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.amber[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.blue[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
@@ -931,7 +951,7 @@ class _CppLevel9State extends State<CppLevel9> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
-                        color: Colors.deepOrange,
+                        color: Colors.purple, // SAME PURPLE COLOR AS LEVEL 1
                         fontWeight: FontWeight.bold,
                         fontStyle: FontStyle.italic
                     ),
@@ -987,7 +1007,7 @@ class _CppLevel9State extends State<CppLevel9> {
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          // TARGET AREA
+          // IMPROVED TARGET AREA WITH BETTER OVERFLOW HANDLING (SAME AS LEVEL 1)
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
@@ -997,7 +1017,7 @@ class _CppLevel9State extends State<CppLevel9> {
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.amber[700]!, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.blue, width: 2.5 * _scaleFactor), // SAME BLUE BORDER AS LEVEL 1
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -1008,6 +1028,7 @@ class _CppLevel9State extends State<CppLevel9> {
                 if (!isAnsweredCorrectly) {
                   final musicService = Provider.of<MusicService>(context, listen: false);
                   musicService.playSoundEffect('block_drop.mp3');
+
                   setState(() {
                     droppedBlocks.add(data);
                     allBlocks.remove(data);
@@ -1024,12 +1045,16 @@ class _CppLevel9State extends State<CppLevel9> {
                     children: droppedBlocks.map((block) {
                       return Draggable<String>(
                         data: block,
-                        feedback: puzzleBlock(block, Colors.amberAccent),
-                        childWhenDragging: puzzleBlock(block, Colors.amberAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.amberAccent),
+                        feedback: Material(
+                          color: Colors.transparent,
+                          child: puzzleBlock(block, Colors.greenAccent), // SAME GREEN COLOR AS LEVEL 1
+                        ),
+                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.greenAccent),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
+
                           setState(() {
                             currentlyDraggedBlock = block;
                           });
@@ -1038,6 +1063,7 @@ class _CppLevel9State extends State<CppLevel9> {
                           setState(() {
                             currentlyDraggedBlock = null;
                           });
+
                           if (!isAnsweredCorrectly && !details.wasAccepted) {
                             Future.delayed(Duration(milliseconds: 50), () {
                               if (mounted) {
@@ -1065,7 +1091,7 @@ class _CppLevel9State extends State<CppLevel9> {
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
 
-          // SOURCE AREA
+          // SOURCE AREA WITH IMPROVED LAYOUT (SAME AS LEVEL 1)
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
@@ -1086,15 +1112,19 @@ class _CppLevel9State extends State<CppLevel9> {
                     ? puzzleBlock(block, Colors.grey)
                     : Draggable<String>(
                   data: block,
-                  feedback: puzzleBlock(block, Colors.amber[700]!),
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: puzzleBlock(block, Colors.blueAccent), // SAME BLUE COLOR AS LEVEL 1
+                  ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.amber[700]!),
+                    child: puzzleBlock(block, Colors.blueAccent),
                   ),
-                  child: puzzleBlock(block, Colors.amber[700]!),
+                  child: puzzleBlock(block, Colors.blueAccent),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
+
                     setState(() {
                       currentlyDraggedBlock = block;
                     });
@@ -1103,6 +1133,7 @@ class _CppLevel9State extends State<CppLevel9> {
                     setState(() {
                       currentlyDraggedBlock = null;
                     });
+
                     if (!isAnsweredCorrectly && !details.wasAccepted) {
                       Future.delayed(Duration(milliseconds: 50), () {
                         if (mounted) {
@@ -1130,7 +1161,7 @@ class _CppLevel9State extends State<CppLevel9> {
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber[700],
+              backgroundColor: Colors.blue, // SAME BLUE COLOR AS LEVEL 1
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -1150,12 +1181,35 @@ class _CppLevel9State extends State<CppLevel9> {
     );
   }
 
+  // IMPROVED PUZZLE BLOCK (SAME AS LEVEL 1)
   Widget puzzleBlock(String text, Color color) {
+    // Calculate text width to adjust block size
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontFamily: 'monospace',
+          fontSize: 14 * _scaleFactor,
+          color: Colors.black, // FORCE BLACK TEXT FOR VISIBILITY
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final textWidth = textPainter.width;
+    final minWidth = 80 * _scaleFactor;
+    final maxWidth = 250 * _scaleFactor; // Increased max width for longer array blocks
+
     return Container(
+      constraints: BoxConstraints(
+        minWidth: minWidth,
+        maxWidth: maxWidth,
+      ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 12 * _scaleFactor,
-        vertical: 10 * _scaleFactor,
+        horizontal: 16 * _scaleFactor, // Increased horizontal padding
+        vertical: 12 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
@@ -1163,12 +1217,12 @@ class _CppLevel9State extends State<CppLevel9> {
           topLeft: Radius.circular(20 * _scaleFactor),
           bottomRight: Radius.circular(20 * _scaleFactor),
         ),
-        border: Border.all(color: Colors.black45, width: 1.5 * _scaleFactor),
+        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor), // Darker border for contrast
         boxShadow: [
           BoxShadow(
-            color: Colors.black26,
-            blurRadius: 4 * _scaleFactor,
-            offset: Offset(2 * _scaleFactor, 2 * _scaleFactor),
+            color: Colors.black45,
+            blurRadius: 6 * _scaleFactor,
+            offset: Offset(3 * _scaleFactor, 3 * _scaleFactor),
           )
         ],
       ),
@@ -1178,11 +1232,18 @@ class _CppLevel9State extends State<CppLevel9> {
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
           fontSize: 14 * _scaleFactor,
-          color: Colors.white,
+          color: Colors.black, // FORCE BLACK TEXT FOR MAXIMUM VISIBILITY
+          shadows: [
+            Shadow(
+              offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
+              blurRadius: 2 * _scaleFactor,
+              color: Colors.white.withOpacity(0.8), // White shadow for better contrast
+            ),
+          ],
         ),
         textAlign: TextAlign.center,
-        softWrap: true,
-        overflow: TextOverflow.visible,
+        overflow: TextOverflow.visible, // Changed from ellipsis to visible
+        maxLines: 2, // Allow 2 lines for longer text
       ),
     );
   }

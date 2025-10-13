@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
+import 'level6.dart'; // Make sure this import is correct
 
 class JavaBonusGame extends StatefulWidget {
   const JavaBonusGame({super.key});
@@ -11,18 +12,19 @@ class JavaBonusGame extends StatefulWidget {
 }
 
 class _JavaBonusGameState extends State<JavaBonusGame> {
-  List<String> questionBlocks = [];
   List<String> answerBlocks = [];
   String selectedAnswer = '';
   bool gameStarted = false;
-  bool isTagalog = true; // Default to Tagalog
+  bool isTagalog = true;
   bool isAnsweredCorrectly = false;
   bool bonusCompleted = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
-  int score = 3;
-  int remainingSeconds = 10; // 10 seconds per question
+  int currentScore = 0;
+  int totalPossibleScore = 50;
+  int questionsCorrect = 0;
+  int remainingSeconds = 10;
   Timer? countdownTimer;
   Map<String, dynamic>? currentUser;
 
@@ -36,31 +38,36 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
       'question': 'What is used to output text in Java?',
       'tagalogQuestion': 'Ano ang ginagamit para mag-output ng text sa Java?',
       'correctAnswer': 'System.out.println',
-      'options': ['System.out.println', 'cout', 'printf', 'print']
+      'options': ['System.out.println', 'cout', 'printf', 'print'],
+      'points': 10
     },
     {
       'question': 'What is the correct operator for comparison?',
       'tagalogQuestion': 'Ano ang tamang operator para sa comparison?',
       'correctAnswer': '==',
-      'options': ['=', '==', '===', '!=']
+      'options': ['=', '==', '===', '!='],
+      'points': 10
     },
     {
       'question': 'What data type is used for whole numbers?',
       'tagalogQuestion': 'Ano ang data type para sa mga buong numero?',
       'correctAnswer': 'int',
-      'options': ['String', 'double', 'int', 'char']
+      'options': ['String', 'double', 'int', 'char'],
+      'points': 10
     },
     {
       'question': 'What should be placed at the end of every statement?',
       'tagalogQuestion': 'Ano ang dapat ilagay sa dulo ng bawat statement?',
       'correctAnswer': ';',
-      'options': [',', ';', ':', '.']
+      'options': [',', ';', ':', '.'],
+      'points': 10
     },
     {
       'question': 'What is used to get user input?',
       'tagalogQuestion': 'Ano ang ginagamit para kumuha ng user input?',
       'correctAnswer': 'Scanner',
-      'options': ['Scanner', 'cin', 'input', 'read']
+      'options': ['Scanner', 'cin', 'input', 'read'],
+      'points': 10
     }
   ];
 
@@ -100,8 +107,9 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
 
   void resetGame() {
     setState(() {
-      score = 3; // Always reset to 3
-      remainingSeconds = 10; // Reset to 10 seconds
+      currentScore = 0;
+      questionsCorrect = 0;
+      remainingSeconds = 10;
       gameStarted = false;
       isAnsweredCorrectly = false;
       selectedAnswer = '';
@@ -114,8 +122,9 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
   void startGame() {
     setState(() {
       gameStarted = true;
-      score = 3; // Always start with 3 points
-      remainingSeconds = 10; // Start with 10 seconds
+      currentScore = 0;
+      questionsCorrect = 0;
+      remainingSeconds = 10;
       isAnsweredCorrectly = false;
       selectedAnswer = '';
       currentQuestionIndex = 0;
@@ -126,10 +135,7 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
   }
 
   void startTimers() {
-    // Cancel any existing timers
     countdownTimer?.cancel();
-
-    // Start 10-second countdown for current question
     countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (isAnsweredCorrectly) {
         timer.cancel();
@@ -139,7 +145,6 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
       setState(() {
         remainingSeconds--;
         if (remainingSeconds <= 0) {
-          // Time's up for this question
           timer.cancel();
           handleTimeUp();
         }
@@ -148,28 +153,17 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
   }
 
   void handleTimeUp() {
-    if (score > 1) {
-      setState(() {
-        score--;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("⏰ Time's up! -1 point. Current score: $score"),
-          backgroundColor: Colors.orange,
-        ),
-      );
-    } else {
-      setState(() {
-        score = 0;
-      });
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("⏰ Time's up! Moving to next question."),
+        backgroundColor: Colors.orange[700],
+      ),
+    );
 
-    // Move to next question automatically
     Future.delayed(Duration(seconds: 1), () {
       if (mounted && currentQuestionIndex < questions.length - 1) {
         nextQuestion();
       } else if (mounted) {
-        // Last question completed
         completeBonusGame();
       }
     });
@@ -177,80 +171,137 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
 
   void completeBonusGame() {
     countdownTimer?.cancel();
-    saveScoreToDatabase(score);
+
+    // Only give points if ALL questions were correct
+    final finalScore = questionsCorrect == questions.length ? totalPossibleScore : 0;
+
+    // Save score to database for leaderboard
+    saveScoreToDatabase(finalScore);
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (_) => AlertDialog(
         title: Text("🎉 Bonus Game Completed!"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.celebration, size: 60, color: Colors.purple),
+            Icon(Icons.celebration, size: 60, color: Colors.amber[700]),
             SizedBox(height: 10),
             Text("You've completed the Java Bonus Game!"),
             SizedBox(height: 10),
-            Text("Final Score: $score/3",
-                style: TextStyle(fontWeight: FontWeight.bold,
-                    color: score == 3 ? Colors.green : Colors.orange)),
+            Text("Questions Correct: $questionsCorrect/${questions.length}",
+                style: TextStyle(fontWeight: FontWeight.bold)),
             SizedBox(height: 10),
-            Text(
-              "🔓 Level 5 is now unlocked!",
-              style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
-            ),
-            if (score < 3)
-              Text("Good job! You can now proceed to Level 5.",
-                  style: TextStyle(color: Colors.blue)),
+            if (questionsCorrect == questions.length)
+              Column(
+                children: [
+                  Text("🎉 PERFECT SCORE!",
+                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 18)),
+                  SizedBox(height: 10),
+                  Text("Bonus Points Earned: $totalPossibleScore",
+                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                  SizedBox(height: 10),
+                  Text(
+                    "🔓 Level 6 is now unlocked!",
+                    style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    "✅ $totalPossibleScore points added to your leaderboard!",
+                    style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              )
+            else
+              Column(
+                children: [
+                  SizedBox(height: 10),
+                  Text(
+                    "⚠️ Get all ${questions.length} questions correct to unlock Level 6!",
+                    style: TextStyle(color: Colors.orange[700], fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
           ],
         ),
         actions: [
+          if (questionsCorrect == questions.length)
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                _navigateToLevel6();
+              },
+              child: Text("Play Level 6"),
+            ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushReplacementNamed(context, '/levels', arguments: 'Java');
+              Navigator.of(context).pop(); // Close the dialog
+              _navigateToLevels();
             },
-            child: Text("Go to Levels"),
+            child: Text(questionsCorrect == questions.length ? "Back to Levels" : "Go to Levels"),
           )
         ],
       ),
     );
   }
 
+  void _navigateToLevel6() {
+    // Direct navigation to JavaLevel6 widget using MaterialPageRoute
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => JavaLevel6(),
+      ),
+    );
+  }
+
+  void _navigateToLevels() {
+    Navigator.pushReplacementNamed(context, '/levels', arguments: 'Java');
+  }
+
   Future<void> saveScoreToDatabase(int score) async {
     if (currentUser?['id'] == null) return;
 
     try {
-      // BONUS GAME: Use level 99 to avoid conflict with regular levels
+      print('🎯 SAVING BONUS POINTS: $score/$totalPossibleScore');
+
+      // SAVE BONUS POINTS TO LEVEL 99
       final response = await ApiService.saveScore(
         currentUser!['id'],
         'Java',
-        99, // CHANGED: Use level 99 for bonus game instead of level 4
-        score,
-        true, // Always true for bonus game to unlock next levels
+        99,  // BONUS LEVEL
+        score, // 50 POINTS FOR PERFECT SCORE
+        true,  // ALWAYS MARK AS COMPLETED IF PERFECT
       );
 
       if (response['success'] == true) {
+        print('✅ BONUS POINTS SAVED SUCCESSFULLY: $score points');
+
         setState(() {
-          bonusCompleted = true; // Always completed for bonus game
+          bonusCompleted = true;
           previousScore = score;
           hasPreviousScore = true;
         });
 
-        // Also unlock Level 5 if bonus game is completed with any score
-        if (score > 0) {
+        // UNLOCK LEVEL 6 IF PERFECT SCORE
+        if (score == totalPossibleScore) {
+          print('🔓 UNLOCKING LEVEL 6...');
           await ApiService.saveScore(
             currentUser!['id'],
             'Java',
-            5, // Unlock Level 5
-            0, // No score yet
-            true, // Mark as accessible
+            6,  // LEVEL 6
+            0,  // 0 POINTS - user needs to play level 6 to earn points
+            true, // MARK AS UNLOCKED
           );
+          print('✅ LEVEL 6 UNLOCKED');
         }
       } else {
-        print('Failed to save score: ${response['message']}');
+        print('❌ FAILED TO SAVE BONUS: ${response['message']}');
       }
     } catch (e) {
-      print('Error saving score: $e');
+      print('❌ ERROR SAVING BONUS: $e');
     }
   }
 
@@ -262,14 +313,13 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final bonusData = scoresData['99']; // CHANGED: Check level 99 for bonus game data
+        final bonusData = scoresData['99'];
 
         if (bonusData != null) {
           setState(() {
-            previousScore = bonusData['score'] ?? 0;
+            previousScore = (bonusData['score'] ?? 0) as int;
             bonusCompleted = bonusData['completed'] ?? false;
             hasPreviousScore = true;
-            // DON'T set current score to previous score - start fresh every time
           });
         }
       }
@@ -282,24 +332,26 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
     if (isAnsweredCorrectly || selectedAnswer.isEmpty) return;
 
     String correctAnswer = currentQuestion['correctAnswer'];
-
-    // Stop the timer when answer is submitted
     countdownTimer?.cancel();
 
     if (selectedAnswer == correctAnswer) {
       setState(() {
         isAnsweredCorrectly = true;
+        questionsCorrect++;
+        currentScore += (currentQuestion['points'] as int);
       });
 
-      // Check if it's the last question
       bool isLastQuestion = currentQuestionIndex == questions.length - 1;
 
+      // Save score immediately when last question is answered correctly
       if (isLastQuestion) {
-        saveScoreToDatabase(score);
+        final finalScore = questionsCorrect == questions.length ? totalPossibleScore : 0;
+        await saveScoreToDatabase(finalScore);
       }
 
       showDialog(
         context: context,
+        barrierDismissible: false,
         builder: (_) => AlertDialog(
           title: Text("✅ Correct!"),
           content: Column(
@@ -308,85 +360,60 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
             children: [
               Text("Great job! Your answer is correct!"),
               SizedBox(height: 10),
-              Text("Your Current Score: $score/3",
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+              Text("Current Progress: $questionsCorrect/${questions.length} correct",
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               SizedBox(height: 10),
-              if (isLastQuestion)
-                Column(
-                  children: [
-                    Text(
-                      "🎉 Bonus Game Completed!",
-                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      "🔓 Level 5 is now unlocked!",
-                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
-                    ),
-                  ],
+              if (questionsCorrect == questions.length)
+                Text(
+                  "🎉 Perfect! You Unlocked Level 6",
+                  style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                )
+              else if (isLastQuestion)
+                Text(
+                  "❌ Not perfect - No bonus points earned",
+                  style: TextStyle(color: Colors.orange[700], fontWeight: FontWeight.bold),
                 ),
-              SizedBox(height: 10),
-              Text("Explanation:", style: TextStyle(fontWeight: FontWeight.bold)),
-              Container(
-                padding: EdgeInsets.all(10),
-                color: Colors.blue[50],
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Question: ${isTagalog ? currentQuestion['tagalogQuestion'] : currentQuestion['question']}"),
-                    Text("Your Answer: $selectedAnswer"),
-                    Text("Correct Answer: $correctAnswer"),
-                    SizedBox(height: 5),
-                    Text("Time Remaining: ${remainingSeconds}s",
-                        style: TextStyle(fontWeight: FontWeight.bold,
-                            color: remainingSeconds > 5 ? Colors.green : Colors.orange)),
-                  ],
-                ),
-              ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.of(context).pop(); // Close the dialog
                 if (isLastQuestion) {
-                  Navigator.pushReplacementNamed(context, '/levels', arguments: 'Java');
+                  if (questionsCorrect == questions.length) {
+                    // Navigate directly to Level 6 when perfect
+                    _navigateToLevel6();
+                  } else {
+                    _navigateToLevels();
+                  }
                 } else {
                   nextQuestion();
                 }
               },
-              child: Text(isLastQuestion ? "Go Back to Levels" : "Next Question"),
+              child: Text(
+                  isLastQuestion
+                      ? (questionsCorrect == questions.length ? "Next Level" : "Back to Levels")
+                      : "Next Question"
+              ),
             )
           ],
         ),
       );
     } else {
-      if (score > 1) {
-        setState(() {
-          score--;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("❌ Incorrect answer. -1 point. Current score: $score"),
-            backgroundColor: Colors.red,
-          ),
-        );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("❌ Incorrect answer. Moving to next question."),
+          backgroundColor: Colors.red,
+        ),
+      );
 
-        // Move to next question even if wrong
-        Future.delayed(Duration(seconds: 1), () {
-          if (mounted && currentQuestionIndex < questions.length - 1) {
-            nextQuestion();
-          } else if (mounted) {
-            // Last question completed
-            completeBonusGame();
-          }
-        });
-      } else {
-        setState(() {
-          score = 0;
-        });
-        completeBonusGame();
-      }
+      Future.delayed(Duration(seconds: 1), () {
+        if (mounted && currentQuestionIndex < questions.length - 1) {
+          nextQuestion();
+        } else if (mounted) {
+          completeBonusGame();
+        }
+      });
     }
   }
 
@@ -395,12 +422,11 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
       currentQuestionIndex++;
       selectedAnswer = '';
       isAnsweredCorrectly = false;
-      remainingSeconds = 10; // Reset to 10 seconds for new question
+      remainingSeconds = 10;
       answerBlocks = List.from(questions[currentQuestionIndex]['options']);
       answerBlocks.shuffle();
     });
 
-    // Restart timer for new question
     startTimers();
   }
 
@@ -413,7 +439,7 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
   }
 
   String formatTime(int seconds) {
-    return "$seconds"; // Just show seconds since it's only 10 seconds
+    return "$seconds";
   }
 
   @override
@@ -438,14 +464,13 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
     return Scaffold(
       appBar: AppBar(
         title: Text("🎁 Java - Bonus Game", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.purple,
+        backgroundColor: Colors.amber[700],
         actions: gameStarted
             ? [
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor),
             child: Row(
               children: [
-                // Timer with color change when time is running out
                 Icon(Icons.timer,
                     size: 18 * _scaleFactor,
                     color: remainingSeconds <= 3 ? Colors.red : Colors.white),
@@ -456,8 +481,10 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
                         color: remainingSeconds <= 3 ? Colors.red : Colors.white,
                         fontWeight: remainingSeconds <= 3 ? FontWeight.bold : FontWeight.normal)),
                 SizedBox(width: 16 * _scaleFactor),
-                Icon(Icons.star, color: Colors.yellowAccent, size: 18 * _scaleFactor),
-                Text(" $score",
+                Icon(Icons.star,
+                    color: questionsCorrect == questions.length ? Colors.yellowAccent : Colors.grey,
+                    size: 18 * _scaleFactor),
+                Text(" $currentScore/$totalPossibleScore",
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor)),
                 SizedBox(width: 8 * _scaleFactor),
                 Text("Q: ${currentQuestionIndex + 1}/${questions.length}",
@@ -474,9 +501,9 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF0D1B2A),
-              Color(0xFF1B263B),
-              Color(0xFF415A77),
+              Color(0xFF1A1A00),
+              Color(0xFF333300),
+              Color(0xFF4D4D00),
             ],
           ),
         ),
@@ -498,7 +525,7 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
               label: Text("Start Bonus Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.purple,
+                backgroundColor: Colors.amber[700],
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
@@ -510,23 +537,33 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
                   children: [
                     Text(
                       "✅ Bonus Game Completed!",
-                      style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.amber[700], fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
-                    Text(
-                      "🔓 Level 5 is unlocked!",
-                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                    if (previousScore > 0)
-                      Padding(
-                        padding: EdgeInsets.only(top: 5 * _scaleFactor),
-                        child: Text(
-                          "Your Best Score: $previousScore/3",
-                          style: TextStyle(color: Colors.purpleAccent, fontSize: 14 * _scaleFactor),
-                          textAlign: TextAlign.center,
-                        ),
+                    if (previousScore == totalPossibleScore)
+                      Column(
+                        children: [
+                          Text(
+                            "🎉 You earned $totalPossibleScore bonus points! Level 6 is unlocked!",
+                            style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 10 * _scaleFactor),
+                          ElevatedButton(
+                            onPressed: _navigateToLevel6,
+                            child: Text("Play Level 6 Now"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      Text(
+                        "❌ Get perfect score to unlock Level 6",
+                        style: TextStyle(color: Colors.orange[700], fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                        textAlign: TextAlign.center,
                       ),
                   ],
                 ),
@@ -537,14 +574,14 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
                 child: Column(
                   children: [
                     Text(
-                      "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
+                      "📊 Your previous bonus score: $previousScore/$totalPossibleScore",
+                      style: TextStyle(color: Colors.amber[700], fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Play again to improve your score!",
-                      style: TextStyle(color: Colors.purpleAccent, fontSize: 14 * _scaleFactor),
+                      "Play again to get perfect score and unlock Level 6!",
+                      style: TextStyle(color: Colors.amber[600], fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -556,28 +593,28 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.purple[50]!.withOpacity(0.9),
+                color: Colors.amber[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.purple[200]!),
+                border: Border.all(color: Colors.amber[200]!),
               ),
               child: Column(
                 children: [
                   Text(
                     "🎁 JAVA BONUS GAME",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.purple[800]),
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.amber[900]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Complete this bonus game to unlock Level 5!",
+                    "Get Perfect Score to unlock Level 6",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700], fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.amber[800], fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Answer 5 questions about Java fundamentals!",
+                    "Answer all ${questions.length} questions correctly to unlock Level 6",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.amber[800]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Container(
@@ -595,7 +632,7 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
                         ),
                         SizedBox(height: 5 * _scaleFactor),
                         Text(
-                          "• 5 multiple choice questions\n• 10 seconds to answer each\n• Test your Java knowledge\n• Based on previous levels",
+                          "• ${questions.length} multiple choice questions\n• 10 seconds to answer each\n• Any wrong answer = 0 points\n• Perfect score unlocks Level 6",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 12 * _scaleFactor,
@@ -606,9 +643,14 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "💡 Complete this bonus game to unlock Level 5!",
+                    "🎁 Get a perfect score (5/5) to unlock Level 6",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12 * _scaleFactor, color: Colors.purple[600], fontStyle: FontStyle.italic),
+                    style: TextStyle(
+                        fontSize: 12 * _scaleFactor,
+                        color: Colors.amber[700],
+                        fontWeight: FontWeight.bold,
+                        fontStyle: FontStyle.italic
+                    ),
                   ),
                 ],
               ),
@@ -646,15 +688,14 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
           ),
           SizedBox(height: 10 * _scaleFactor),
 
-          // Question Card with timer indicator
           Container(
             width: double.infinity,
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
-              color: Colors.purple[100]!.withOpacity(0.9),
+              color: Colors.amber[100]!.withOpacity(0.9),
               borderRadius: BorderRadius.circular(12 * _scaleFactor),
               border: Border.all(
-                  color: remainingSeconds <= 3 ? Colors.red : Colors.purple,
+                  color: remainingSeconds <= 3 ? Colors.red : Colors.amber[700]!,
                   width: 2 * _scaleFactor
               ),
             ),
@@ -668,13 +709,13 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
                       style: TextStyle(
                         fontSize: 14 * _scaleFactor,
                         fontWeight: FontWeight.bold,
-                        color: Colors.purple[800],
+                        color: Colors.amber[900],
                       ),
                     ),
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 8 * _scaleFactor, vertical: 4 * _scaleFactor),
                       decoration: BoxDecoration(
-                        color: remainingSeconds <= 3 ? Colors.red : Colors.purple,
+                        color: remainingSeconds <= 3 ? Colors.red : Colors.amber[700],
                         borderRadius: BorderRadius.circular(8 * _scaleFactor),
                       ),
                       child: Text(
@@ -708,7 +749,6 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          // Answer Options
           Wrap(
             spacing: 12 * _scaleFactor,
             runSpacing: 12 * _scaleFactor,
@@ -723,7 +763,7 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
                     vertical: 15 * _scaleFactor,
                   ),
                   decoration: BoxDecoration(
-                    color: isSelected ? Colors.purpleAccent : Colors.purple,
+                    color: isSelected ? Colors.amber[600] : Colors.amber[700],
                     borderRadius: BorderRadius.circular(20 * _scaleFactor),
                     border: Border.all(
                       color: isSelected ? Colors.white : Colors.transparent,
@@ -760,7 +800,7 @@ class _JavaBonusGameState extends State<JavaBonusGame> {
               icon: Icon(Icons.check, size: 18 * _scaleFactor),
               label: Text("Submit Answer", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple,
+                backgroundColor: Colors.amber[700],
                 padding: EdgeInsets.symmetric(
                   horizontal: 24 * _scaleFactor,
                   vertical: 16 * _scaleFactor,

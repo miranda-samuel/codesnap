@@ -156,7 +156,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text("⏰ Time's up! Moving to next question."),
-        backgroundColor: Colors.orange,
+        backgroundColor: Colors.orange[700],
       ),
     );
 
@@ -186,7 +186,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.celebration, size: 60, color: Colors.purple),
+            Icon(Icons.celebration, size: 60, color: Colors.amber[700]),
             SizedBox(height: 10),
             Text("You've completed the C++ Bonus Game!"),
             SizedBox(height: 10),
@@ -219,7 +219,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
                   SizedBox(height: 10),
                   Text(
                     "⚠️ Get all ${questions.length} questions correct to earn unlock Level 6!",
-                    style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: Colors.orange[700], fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -371,7 +371,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
               else if (isLastQuestion)
                 Text(
                   "❌ Not perfect - No bonus points earned",
-                  style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: Colors.orange[700], fontWeight: FontWeight.bold),
                 ),
             ],
           ),
@@ -464,7 +464,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
     return Scaffold(
       appBar: AppBar(
         title: Text("🎁 C++ - Bonus Game", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.purple,
+        backgroundColor: Colors.amber[700],
         actions: gameStarted
             ? [
           Padding(
@@ -501,9 +501,9 @@ class _CppBonusGameState extends State<CppBonusGame> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF0D1B2A),
-              Color(0xFF1B263B),
-              Color(0xFF415A77),
+              Color(0xFF1A1A00),
+              Color(0xFF333300),
+              Color(0xFF4D4D00),
             ],
           ),
         ),
@@ -525,7 +525,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
               label: Text("Start Bonus Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.purple,
+                backgroundColor: Colors.amber[700],
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
@@ -537,7 +537,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
                   children: [
                     Text(
                       "✅ Bonus Game Completed!",
-                      style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.amber[700], fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
@@ -562,7 +562,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
                     else
                       Text(
                         "❌ Get perfect score to unlock Level 6",
-                        style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                        style: TextStyle(color: Colors.orange[700], fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                   ],
@@ -575,13 +575,13 @@ class _CppBonusGameState extends State<CppBonusGame> {
                   children: [
                     Text(
                       "📊 Your previous bonus score: $previousScore/$totalPossibleScore",
-                      style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.amber[700], fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
                       "Play again to get perfect score and unlock Level 6!",
-                      style: TextStyle(color: Colors.purpleAccent, fontSize: 14 * _scaleFactor),
+                      style: TextStyle(color: Colors.amber[600], fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -593,28 +593,28 @@ class _CppBonusGameState extends State<CppBonusGame> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.purple[50]!.withOpacity(0.9),
+                color: Colors.amber[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.purple[200]!),
+                border: Border.all(color: Colors.amber[200]!),
               ),
               child: Column(
                 children: [
                   Text(
                     "🎁 C++ BONUS GAME",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.purple[800]),
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.amber[900]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
                     "Get Perfect Score to unlock Level 6",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700], fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.amber[800], fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
                     "Answer all ${questions.length} questions correctly to unlock Level 6",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.amber[800]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Container(
@@ -647,7 +647,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
-                        color: Colors.purple,
+                        color: Colors.amber[700],
                         fontWeight: FontWeight.bold,
                         fontStyle: FontStyle.italic
                     ),
@@ -692,10 +692,10 @@ class _CppBonusGameState extends State<CppBonusGame> {
             width: double.infinity,
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
-              color: Colors.purple[100]!.withOpacity(0.9),
+              color: Colors.amber[100]!.withOpacity(0.9),
               borderRadius: BorderRadius.circular(12 * _scaleFactor),
               border: Border.all(
-                  color: remainingSeconds <= 3 ? Colors.red : Colors.purple,
+                  color: remainingSeconds <= 3 ? Colors.red : Colors.amber[700]!,
                   width: 2 * _scaleFactor
               ),
             ),
@@ -709,13 +709,13 @@ class _CppBonusGameState extends State<CppBonusGame> {
                       style: TextStyle(
                         fontSize: 14 * _scaleFactor,
                         fontWeight: FontWeight.bold,
-                        color: Colors.purple[800],
+                        color: Colors.amber[900],
                       ),
                     ),
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 8 * _scaleFactor, vertical: 4 * _scaleFactor),
                       decoration: BoxDecoration(
-                        color: remainingSeconds <= 3 ? Colors.red : Colors.purple,
+                        color: remainingSeconds <= 3 ? Colors.red : Colors.amber[700],
                         borderRadius: BorderRadius.circular(8 * _scaleFactor),
                       ),
                       child: Text(
@@ -763,7 +763,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
                     vertical: 15 * _scaleFactor,
                   ),
                   decoration: BoxDecoration(
-                    color: isSelected ? Colors.purpleAccent : Colors.purple,
+                    color: isSelected ? Colors.amber[600] : Colors.amber[700],
                     borderRadius: BorderRadius.circular(20 * _scaleFactor),
                     border: Border.all(
                       color: isSelected ? Colors.white : Colors.transparent,
@@ -800,7 +800,7 @@ class _CppBonusGameState extends State<CppBonusGame> {
               icon: Icon(Icons.check, size: 18 * _scaleFactor),
               label: Text("Submit Answer", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple,
+                backgroundColor: Colors.amber[700],
                 padding: EdgeInsets.symmetric(
                   horizontal: 24 * _scaleFactor,
                   vertical: 16 * _scaleFactor,

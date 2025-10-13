@@ -24,7 +24,7 @@ class _CppLevel6State extends State<CppLevel6> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 240;
+  int remainingSeconds = 90;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -34,7 +34,7 @@ class _CppLevel6State extends State<CppLevel6> {
 
   // Scaling factors
   double _scaleFactor = 1.0;
-  final double _baseScreenWidth = 360.0;
+  final double _baseScreenWidth = 360.0; // Base width for scaling
 
   @override
   void initState() {
@@ -79,6 +79,7 @@ class _CppLevel6State extends State<CppLevel6> {
   }
 
   void resetBlocks() {
+    // Correct blocks for nested loop star pattern
     List<String> correctBlocks = [
       'for (int i = 1; i <= 5; i++) {',
       '    for (int j = 1; j <= i; j++) {',
@@ -125,9 +126,9 @@ class _CppLevel6State extends State<CppLevel6> {
       'pattern() {',
     ];
 
-    // Shuffle incorrect blocks and take 6 random ones
+    // Shuffle incorrect blocks and take 4 random ones
     incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(6).toList();
+    List<String> selectedIncorrectBlocks = incorrectBlocks.take(4).toList();
 
     // Combine correct and incorrect blocks, then shuffle
     allBlocks = [
@@ -143,7 +144,7 @@ class _CppLevel6State extends State<CppLevel6> {
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 240;
+      remainingSeconds = 90;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       resetBlocks();
@@ -215,7 +216,7 @@ class _CppLevel6State extends State<CppLevel6> {
 
     setState(() {
       score = 3;
-      remainingSeconds = 240;
+      remainingSeconds = 90;
       gameStarted = false;
       isAnsweredCorrectly = false;
       droppedBlocks.clear();
@@ -234,7 +235,7 @@ class _CppLevel6State extends State<CppLevel6> {
         'C++',
         6,
         score,
-        score == 3, // perfect score
+        score == 3, // Only completed if perfect score
       );
 
       if (response['success'] == true) {
@@ -268,14 +269,6 @@ class _CppLevel6State extends State<CppLevel6> {
             hasPreviousScore = true;
             score = previousScore;
           });
-        } else {
-          // FIX: Reset to default if no score exists
-          setState(() {
-            hasPreviousScore = false;
-            previousScore = 0;
-            level6Completed = false;
-            score = 3;
-          });
         }
       }
     } catch (e) {
@@ -298,7 +291,6 @@ class _CppLevel6State extends State<CppLevel6> {
               hasPreviousScore = true;
               score = previousScore;
             } else {
-              // FIX: Reset to default if no score exists
               hasPreviousScore = false;
               previousScore = 0;
               level6Completed = false;
@@ -459,7 +451,7 @@ class _CppLevel6State extends State<CppLevel6> {
                 )
               else
                 Text(
-                  "️ Get a perfect score (3/3) to unlock the next level!",
+                  "⚠️ Get a perfect score (3/3) to unlock the next level!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
@@ -486,15 +478,14 @@ class _CppLevel6State extends State<CppLevel6> {
               onPressed: () {
                 musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
-                if (score == 3) { // CHANGED TO 3
+                if (score == 3) {
                   musicService.playSoundEffect('level_complete.mp3');
-                  // NAVIGATE TO LEVEL 5 WHEN PERFECT SCORE
                   Navigator.pushReplacementNamed(context, '/cpp_level7');
                 } else {
                   Navigator.pushReplacementNamed(context, '/levels', arguments: 'C++');
                 }
               },
-              child: Text(score == 3 ? "Next Level" : "Go Back"), // CHANGED TO 3
+              child: Text(score == 3 ? "Next Level" : "Go Back"),
             )
           ],
         ),
@@ -556,7 +547,7 @@ class _CppLevel6State extends State<CppLevel6> {
     return "$m:$s";
   }
 
-  // CODE PREVIEW
+  // IMPROVED CODE PREVIEW WITH BETTER SCALING
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -568,6 +559,7 @@ class _CppLevel6State extends State<CppLevel6> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Code editor header
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
             decoration: BoxDecoration(
@@ -592,14 +584,17 @@ class _CppLevel6State extends State<CppLevel6> {
               ],
             ),
           ),
+          // Code content
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Line numbers and code
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Line numbers
                     Container(
                       width: 30 * _scaleFactor,
                       child: Column(
@@ -621,6 +616,7 @@ class _CppLevel6State extends State<CppLevel6> {
                       ),
                     ),
                     SizedBox(width: 16 * _scaleFactor),
+                    // Actual code with syntax highlighting
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -741,6 +737,7 @@ class _CppLevel6State extends State<CppLevel6> {
 
   Widget _buildSyntaxHighlightedLine(String code, {bool isPreprocessor = false, bool isKeyword = false, bool isNormal = false}) {
     Color textColor = Colors.white;
+
     if (isPreprocessor) {
       textColor = Color(0xFFCE9178);
     } else if (isKeyword) {
@@ -748,6 +745,7 @@ class _CppLevel6State extends State<CppLevel6> {
     } else if (isNormal) {
       textColor = Colors.white;
     }
+
     return Container(
       height: 20 * _scaleFactor,
       child: Text(
@@ -765,18 +763,22 @@ class _CppLevel6State extends State<CppLevel6> {
   void dispose() {
     countdownTimer?.cancel();
     scoreReductionTimer?.cancel();
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final musicService = Provider.of<MusicService>(context, listen: false);
       await musicService.playBackgroundMusic();
     });
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Recalculate scale factor when screen size changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
       final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
+
       if (newScaleFactor != _scaleFactor) {
         setState(() {
           _scaleFactor = newScaleFactor;
@@ -787,7 +789,7 @@ class _CppLevel6State extends State<CppLevel6> {
     return Scaffold(
       appBar: AppBar(
         title: Text("⚡ C++ - Level 6", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.deepOrange,
+        backgroundColor: Colors.blue,
         actions: gameStarted
             ? [
           Padding(
@@ -813,9 +815,9 @@ class _CppLevel6State extends State<CppLevel6> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1A1A2E),
-              Color(0xFF16213E),
-              Color(0xFF0F3460),
+              Color(0xFF0D1B2A),
+              Color(0xFF1B263B),
+              Color(0xFF415A77),
             ],
           ),
         ),
@@ -838,17 +840,15 @@ class _CppLevel6State extends State<CppLevel6> {
                 startGame();
               },
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.deepOrange,
+                backgroundColor: Colors.blue,
               ),
             ),
-
             SizedBox(height: 20 * _scaleFactor),
 
-            // FIXED: Only show completion message if actually completed
-            if (level6Completed && previousScore == 3)
+            if (level6Completed)
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
@@ -861,7 +861,7 @@ class _CppLevel6State extends State<CppLevel6> {
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
                       "You've unlocked Level 7!",
-                      style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -874,7 +874,7 @@ class _CppLevel6State extends State<CppLevel6> {
                   children: [
                     Text(
                       "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.deepOrange, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
@@ -911,26 +911,26 @@ class _CppLevel6State extends State<CppLevel6> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.deepOrange[50]!.withOpacity(0.9),
+                color: Colors.blue[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.deepOrange[200]!),
+                border: Border.all(color: Colors.blue[200]!),
               ),
               child: Column(
                 children: [
                   Text(
                     "🎯 Level 6 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.deepOrange[800]),
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.blue[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
                     "Create a nested loop pattern that prints a right-angled triangle of stars",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.deepOrange[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.blue[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎁 Get a perfect score (3/3) to complete this level!",
+                    "🎁 Get a perfect score (3/3) to unlock the Level 7!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
@@ -985,12 +985,12 @@ class _CppLevel6State extends State<CppLevel6> {
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the 6 correct blocks to create the star pattern generator',
+          Text('🧩 Arrange the blocks to form the correct C++ code',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          // TARGET AREA
+          // IMPROVED TARGET AREA WITH BETTER OVERFLOW HANDLING
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
@@ -1000,7 +1000,7 @@ class _CppLevel6State extends State<CppLevel6> {
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.deepOrange, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.blue, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -1011,6 +1011,7 @@ class _CppLevel6State extends State<CppLevel6> {
                 if (!isAnsweredCorrectly) {
                   final musicService = Provider.of<MusicService>(context, listen: false);
                   musicService.playSoundEffect('block_drop.mp3');
+
                   setState(() {
                     droppedBlocks.add(data);
                     allBlocks.remove(data);
@@ -1027,12 +1028,16 @@ class _CppLevel6State extends State<CppLevel6> {
                     children: droppedBlocks.map((block) {
                       return Draggable<String>(
                         data: block,
-                        feedback: puzzleBlock(block, Colors.deepOrangeAccent),
-                        childWhenDragging: puzzleBlock(block, Colors.deepOrangeAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.deepOrangeAccent),
+                        feedback: Material(
+                          color: Colors.transparent,
+                          child: puzzleBlock(block, Colors.greenAccent),
+                        ),
+                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.greenAccent),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
+
                           setState(() {
                             currentlyDraggedBlock = block;
                           });
@@ -1041,6 +1046,7 @@ class _CppLevel6State extends State<CppLevel6> {
                           setState(() {
                             currentlyDraggedBlock = null;
                           });
+
                           if (!isAnsweredCorrectly && !details.wasAccepted) {
                             Future.delayed(Duration(milliseconds: 50), () {
                               if (mounted) {
@@ -1068,7 +1074,7 @@ class _CppLevel6State extends State<CppLevel6> {
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
 
-          // SOURCE AREA
+          // SOURCE AREA WITH IMPROVED LAYOUT
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
@@ -1089,15 +1095,19 @@ class _CppLevel6State extends State<CppLevel6> {
                     ? puzzleBlock(block, Colors.grey)
                     : Draggable<String>(
                   data: block,
-                  feedback: puzzleBlock(block, Colors.deepOrange),
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: puzzleBlock(block, Colors.blueAccent),
+                  ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.deepOrange),
+                    child: puzzleBlock(block, Colors.blueAccent),
                   ),
-                  child: puzzleBlock(block, Colors.deepOrange),
+                  child: puzzleBlock(block, Colors.blueAccent),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
+
                     setState(() {
                       currentlyDraggedBlock = block;
                     });
@@ -1106,6 +1116,7 @@ class _CppLevel6State extends State<CppLevel6> {
                     setState(() {
                       currentlyDraggedBlock = null;
                     });
+
                     if (!isAnsweredCorrectly && !details.wasAccepted) {
                       Future.delayed(Duration(milliseconds: 50), () {
                         if (mounted) {
@@ -1133,7 +1144,7 @@ class _CppLevel6State extends State<CppLevel6> {
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepOrange,
+              backgroundColor: Colors.blue,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -1154,15 +1165,33 @@ class _CppLevel6State extends State<CppLevel6> {
   }
 
   Widget puzzleBlock(String text, Color color) {
+    // Calculate text width to adjust block size
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontFamily: 'monospace',
+          fontSize: 14 * _scaleFactor,
+          color: Colors.black, // FORCE BLACK TEXT FOR VISIBILITY
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final textWidth = textPainter.width;
+    final minWidth = 80 * _scaleFactor;
+    final maxWidth = 220 * _scaleFactor; // Increased max width for longer text
+
     return Container(
       constraints: BoxConstraints(
-        minWidth: 80 * _scaleFactor,
-        maxWidth: 200 * _scaleFactor,
+        minWidth: minWidth,
+        maxWidth: maxWidth,
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 12 * _scaleFactor,
-        vertical: 10 * _scaleFactor,
+        horizontal: 16 * _scaleFactor, // Increased horizontal padding
+        vertical: 12 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
@@ -1170,12 +1199,12 @@ class _CppLevel6State extends State<CppLevel6> {
           topLeft: Radius.circular(20 * _scaleFactor),
           bottomRight: Radius.circular(20 * _scaleFactor),
         ),
-        border: Border.all(color: Colors.black45, width: 1.5 * _scaleFactor),
+        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor), // Darker border for contrast
         boxShadow: [
           BoxShadow(
-            color: Colors.black26,
-            blurRadius: 4 * _scaleFactor,
-            offset: Offset(2 * _scaleFactor, 2 * _scaleFactor),
+            color: Colors.black45,
+            blurRadius: 6 * _scaleFactor,
+            offset: Offset(3 * _scaleFactor, 3 * _scaleFactor),
           )
         ],
       ),
@@ -1185,10 +1214,18 @@ class _CppLevel6State extends State<CppLevel6> {
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
           fontSize: 14 * _scaleFactor,
+          color: Colors.black, // FORCE BLACK TEXT FOR MAXIMUM VISIBILITY
+          shadows: [
+            Shadow(
+              offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
+              blurRadius: 2 * _scaleFactor,
+              color: Colors.white.withOpacity(0.8), // White shadow for better contrast
+            ),
+          ],
         ),
         textAlign: TextAlign.center,
-        overflow: TextOverflow.visible,
-        softWrap: true,
+        overflow: TextOverflow.visible, // Changed from ellipsis to visible
+        maxLines: 2, // Allow 2 lines for longer text
       ),
     );
   }

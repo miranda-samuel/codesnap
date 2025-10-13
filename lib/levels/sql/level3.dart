@@ -1,9 +1,10 @@
-
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
-import 'SqlBonusGame.dart';
+import '../../services/music_service.dart';
 
 class SqlLevel3 extends StatefulWidget {
   const SqlLevel3({super.key});
@@ -23,14 +24,17 @@ class _SqlLevel3State extends State<SqlLevel3> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 180;
+  int remainingSeconds = 120;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
+  // Track currently dragged block
+  String? currentlyDraggedBlock;
+
   // Scaling factors
   double _scaleFactor = 1.0;
-  final double _baseScreenWidth = 360.0;
+  final double _baseScreenWidth = 360.0; // Base width for scaling
 
   @override
   void initState() {
@@ -38,6 +42,17 @@ class _SqlLevel3State extends State<SqlLevel3> {
     resetBlocks();
     _loadUserData();
     _calculateScaleFactor();
+    _startGameMusic();
+  }
+
+  void _startGameMusic() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      await musicService.stopBackgroundMusic();
+      await musicService.playSoundEffect('game_start.mp3');
+      await Future.delayed(Duration(milliseconds: 500));
+      await musicService.playSoundEffect('game_music.mp3');
+    });
   }
 
   void _calculateScaleFactor() {
@@ -64,34 +79,35 @@ class _SqlLevel3State extends State<SqlLevel3> {
   }
 
   void resetBlocks() {
-    // Correct blocks for: SELECT * FROM products ORDER BY price DESC LIMIT 5;
+    // 4 correct blocks for SQL: SELECT * FROM products WHERE price > 100 ORDER BY price DESC;
     List<String> correctBlocks = [
-      'SELECT',
-      '*',
-      'FROM',
-      'products',
-      'ORDER BY',
-      'price',
-      'DESC',
-      'LIMIT',
-      '5',
-      ';'
+      'SELECT * FROM products',
+      'WHERE price > 100',
+      'ORDER BY price',
+      'DESC;'
     ];
 
-    // Fewer and simpler incorrect blocks
+    // Incorrect/distractor blocks
     List<String> incorrectBlocks = [
-      'SELECT name',
-      'WHERE',
-      'price > 100',
-      'ASC',
+      'SELECT name FROM',
+      'SELECT price FROM',
+      'WHERE price <',
+      'WHERE price =',
+      '50',
+      '200',
+      'ORDER BY name',
+      'ORDER BY price ASC',
+      'ASC;',
+      'customers',
+      'orders',
+      'inventory',
+      'AND category =',
+      'OR price <=',
       'LIMIT 10',
-      'INSERT',
-      'UPDATE',
-      'category',
-      'FROM products'
+      'GROUP BY category',
     ];
 
-    // Take only 3 incorrect blocks to make it easier
+    // Shuffle incorrect blocks and take 3 random ones
     incorrectBlocks.shuffle();
     List<String> selectedIncorrectBlocks = incorrectBlocks.take(3).toList();
 
@@ -103,10 +119,13 @@ class _SqlLevel3State extends State<SqlLevel3> {
   }
 
   void startGame() {
+    final musicService = Provider.of<MusicService>(context, listen: false);
+    musicService.playSoundEffect('level_start.mp3');
+
     setState(() {
       gameStarted = true;
-      score = 3; // Always start with 3 points
-      remainingSeconds = 180;
+      score = 3;
+      remainingSeconds = 120;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       resetBlocks();
@@ -115,9 +134,6 @@ class _SqlLevel3State extends State<SqlLevel3> {
   }
 
   void startTimers() {
-    countdownTimer?.cancel();
-    scoreReductionTimer?.cancel();
-
     countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (isAnsweredCorrectly) {
         timer.cancel();
@@ -131,6 +147,10 @@ class _SqlLevel3State extends State<SqlLevel3> {
           timer.cancel();
           scoreReductionTimer?.cancel();
           saveScoreToDatabase(score);
+
+          final musicService = Provider.of<MusicService>(context, listen: false);
+          musicService.playSoundEffect('time_up.mp3');
+
           showDialog(
             context: context,
             builder: (_) => AlertDialog(
@@ -139,10 +159,12 @@ class _SqlLevel3State extends State<SqlLevel3> {
               actions: [
                 TextButton(
                   onPressed: () {
-                    Navigator.pop(context);
+                    final musicService = Provider.of<MusicService>(context, listen: false);
+                    musicService.playSoundEffect('click.mp3');
                     resetGame();
+                    Navigator.pop(context);
                   },
-                  child: Text("Try Again"),
+                  child: Text("Retry"),
                 )
               ],
             ),
@@ -151,7 +173,6 @@ class _SqlLevel3State extends State<SqlLevel3> {
       });
     });
 
-    // Less frequent penalties for beginners
     scoreReductionTimer = Timer.periodic(Duration(seconds: 30), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
@@ -160,20 +181,23 @@ class _SqlLevel3State extends State<SqlLevel3> {
 
       setState(() {
         score--;
+        final musicService = Provider.of<MusicService>(context, listen: false);
+        musicService.playSoundEffect('penalty.mp3');
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("⏰ Time penalty! -1 point. Current score: $score"),
-            backgroundColor: Colors.orange,
-          ),
+          SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
         );
       });
     });
   }
 
   void resetGame() {
+    final musicService = Provider.of<MusicService>(context, listen: false);
+    musicService.playSoundEffect('reset.mp3');
+
     setState(() {
-      score = 3; // Always reset to 3
-      remainingSeconds = 180;
+      score = 3;
+      remainingSeconds = 120;
       gameStarted = false;
       isAnsweredCorrectly = false;
       droppedBlocks.clear();
@@ -187,178 +211,26 @@ class _SqlLevel3State extends State<SqlLevel3> {
     if (currentUser?['id'] == null) return;
 
     try {
-      // Only mark as completed if score is perfect (3/3)
-      bool isPerfectScore = score == 3;
-
       final response = await ApiService.saveScore(
         currentUser!['id'],
         'SQL',
         3,
         score,
-        isPerfectScore, // Only true if perfect score
+        score == 3, // Only completed if perfect score
       );
 
       if (response['success'] == true) {
         setState(() {
-          level3Completed = isPerfectScore; // Only completed if perfect score
+          level3Completed = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
-
-        _showCompletionDialog(isPerfectScore);
       } else {
         print('Failed to save score: ${response['message']}');
       }
     } catch (e) {
       print('Error saving score: $e');
     }
-  }
-
-  void _showCompletionDialog(bool isPerfectScore) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: Text(isPerfectScore ? "🎉 Level 3 Completed!" : "✅ Level 3 Finished"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isPerfectScore ? Icons.celebration : Icons.check_circle,
-              size: 60,
-              color: isPerfectScore ? Colors.green : Colors.orange,
-            ),
-            SizedBox(height: 10),
-            Text(
-              "You've completed Level 3!",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 10),
-            Text(
-              "Your Score: $score/3",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: score == 3 ? Colors.green : Colors.orange,
-              ),
-            ),
-            SizedBox(height: 10),
-
-            if (isPerfectScore)
-              Column(
-                children: [
-                  Text(
-                    "🎁 Bonus Game Unlocked!",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.orange,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    "Complete the bonus game to unlock Level 4!",
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 10),
-                  Container(
-                    padding: EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.orange[50],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.star, color: Colors.yellow),
-                        SizedBox(width: 8),
-                        Text(
-                          "Perfect Score Achieved!",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange[800],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              )
-            else
-              Column(
-                children: [
-                  Text(
-                    "🎯 Almost There!",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.orange,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    "You need a perfect score (3/3) to unlock the Bonus Game",
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 10),
-                  Container(
-                    padding: EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.orange[50],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          "💡 Tips for perfect score:",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange[800],
-                          ),
-                        ),
-                        SizedBox(height: 5),
-                        Text("• Arrange blocks quickly"),
-                        Text("• Avoid incorrect blocks"),
-                        Text("• Complete before time runs out"),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-          ],
-        ),
-        actions: [
-          if (isPerfectScore)
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _navigateToBonusGame();
-              },
-              child: Text("Play Bonus Game"),
-            ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              if (!isPerfectScore) {
-                resetGame();
-              }
-            },
-            child: Text(isPerfectScore ? "Continue" : "Try Again"),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _navigateToBonusGame() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => SQLBonusGame()), // Changed to lowercase
-    );
   }
 
   Future<void> loadScoreFromDatabase() async {
@@ -376,6 +248,7 @@ class _SqlLevel3State extends State<SqlLevel3> {
             previousScore = level3Data['score'] ?? 0;
             level3Completed = level3Data['completed'] ?? false;
             hasPreviousScore = true;
+            score = previousScore;
           });
         }
       }
@@ -384,9 +257,25 @@ class _SqlLevel3State extends State<SqlLevel3> {
     }
   }
 
+  // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
-      'SELECT name', 'WHERE', 'price > 100', 'ASC', 'LIMIT 10', 'INSERT', 'UPDATE', 'category', 'FROM products'
+      'SELECT name FROM',
+      'SELECT price FROM',
+      'WHERE price <',
+      'WHERE price =',
+      '50',
+      '200',
+      'ORDER BY name',
+      'ORDER BY price ASC',
+      'ASC;',
+      'customers',
+      'orders',
+      'inventory',
+      'AND category =',
+      'OR price <=',
+      'LIMIT 10',
+      'GROUP BY category',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -394,17 +283,21 @@ class _SqlLevel3State extends State<SqlLevel3> {
   void checkAnswer() async {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
+    final musicService = Provider.of<MusicService>(context, listen: false);
+
     // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
+      musicService.playSoundEffect('error.mp3');
+
       if (score > 1) {
         setState(() {
           score--;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ You used incorrect SQL syntax! -1 point. Current score: $score"),
+            content: Text("❌ You used incorrect SQL! -1 point. Current score: $score"),
             backgroundColor: Colors.red,
           ),
         );
@@ -415,18 +308,22 @@ class _SqlLevel3State extends State<SqlLevel3> {
         countdownTimer?.cancel();
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
+
+        musicService.playSoundEffect('game_over.mp3');
+
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("You used incorrect SQL syntax and lost all points!"),
+            content: Text("You used incorrect SQL and lost all points!"),
             actions: [
               TextButton(
                 onPressed: () {
+                  musicService.playSoundEffect('click.mp3');
                   Navigator.pop(context);
                   resetGame();
                 },
-                child: Text("Try Again"),
+                child: Text("Retry"),
               )
             ],
           ),
@@ -435,14 +332,15 @@ class _SqlLevel3State extends State<SqlLevel3> {
       return;
     }
 
-    // Check for: SELECT * FROM products ORDER BY price DESC LIMIT 5;
+    // Check for: SELECT * FROM products WHERE price > 100 ORDER BY price DESC;
     String answer = droppedBlocks.join(' ');
     String normalizedAnswer = answer
         .replaceAll(' ', '')
         .replaceAll('\n', '')
         .toLowerCase();
 
-    String expected = 'select*fromproductsorderbypricedesclimit5;';
+    // Exact match for the 4-block version
+    String expected = "select*fromproductswhereprice>100orderbypricedesc;";
 
     if (normalizedAnswer == expected) {
       countdownTimer?.cancel();
@@ -453,16 +351,79 @@ class _SqlLevel3State extends State<SqlLevel3> {
       });
 
       saveScoreToDatabase(score);
+
+      // PLAY SUCCESS SOUND BASED ON SCORE
+      if (score == 3) {
+        musicService.playSoundEffect('perfect.mp3');
+      } else {
+        musicService.playSoundEffect('success.mp3');
+      }
+
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text("✅ Correct!"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Well done SQL Expert!"),
+              SizedBox(height: 10),
+              Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+              SizedBox(height: 10),
+              if (score == 3)
+                Text(
+                  "🎉 Perfect! You've unlocked Level 4!",
+                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                )
+              else
+                Text(
+                  "⚠️ Get a perfect score (3/3) to unlock the next level!",
+                  style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                ),
+              SizedBox(height: 10),
+              Text("Query Result:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Container(
+                padding: EdgeInsets.all(10),
+                color: Colors.black,
+                child: Text(
+                  "Will display all products priced above 100, sorted from highest to lowest price",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'monospace',
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                musicService.playSoundEffect('click.mp3');
+                Navigator.pop(context);
+                if (score == 3) {
+                  musicService.playSoundEffect('level_complete.mp3');
+                  Navigator.pushReplacementNamed(context, '/sql_level4');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/levels',
+                      arguments: 'SQL');
+                }
+              },
+              child: Text(score == 3 ? "Next Level" : "Go Back"),
+            )
+          ],
+        ),
+      );
     } else {
+      musicService.playSoundEffect('wrong.mp3');
+
       if (score > 1) {
         setState(() {
           score--;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("❌ Incorrect arrangement. -1 point. Current score: $score"),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text("❌ Incorrect SQL arrangement. -1 point. Current score: $score")),
         );
       } else {
         setState(() {
@@ -471,6 +432,9 @@ class _SqlLevel3State extends State<SqlLevel3> {
         countdownTimer?.cancel();
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
+
+        musicService.playSoundEffect('game_over.mp3');
+
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
@@ -479,10 +443,11 @@ class _SqlLevel3State extends State<SqlLevel3> {
             actions: [
               TextButton(
                 onPressed: () {
+                  musicService.playSoundEffect('click.mp3');
                   Navigator.pop(context);
                   resetGame();
                 },
-                child: Text("Try Again"),
+                child: Text("Retry"),
               )
             ],
           ),
@@ -497,6 +462,7 @@ class _SqlLevel3State extends State<SqlLevel3> {
     return "$m:$s";
   }
 
+  // CODE PREVIEW
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -508,6 +474,7 @@ class _SqlLevel3State extends State<SqlLevel3> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // SQL editor header
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
             decoration: BoxDecoration(
@@ -519,10 +486,10 @@ class _SqlLevel3State extends State<SqlLevel3> {
             ),
             child: Row(
               children: [
-                Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
+                Icon(Icons.storage, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'products_query.sql',
+                  'advanced_query.sql',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -532,26 +499,35 @@ class _SqlLevel3State extends State<SqlLevel3> {
               ],
             ),
           ),
+          // SQL content
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Line numbers and SQL
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        _buildCodeLine(1, getPreviewCode()),
-                      ],
+                    // Line numbers
+                    Container(
+                      width: 30 * _scaleFactor,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _buildCodeLine(1),
+                          _buildCodeLine(2),
+                        ],
+                      ),
                     ),
                     SizedBox(width: 16 * _scaleFactor),
+                    // Actual SQL with syntax highlighting
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildUserCodeLine(getPreviewCode()),
+                          _buildSyntaxHighlightedLine('-- Advanced query with filtering and sorting', isComment: true),
                         ],
                       ),
                     ),
@@ -570,7 +546,7 @@ class _SqlLevel3State extends State<SqlLevel3> {
       return Container(
         height: 20 * _scaleFactor,
         child: Text(
-          '        ',
+          ' ',
           style: TextStyle(
             color: Colors.white,
             fontSize: 12 * _scaleFactor,
@@ -588,7 +564,7 @@ class _SqlLevel3State extends State<SqlLevel3> {
             TextSpan(
               text: code,
               style: TextStyle(
-                color: Colors.greenAccent[400],
+                color: Colors.orangeAccent[400],
                 fontFamily: 'monospace',
                 fontSize: 12 * _scaleFactor,
                 fontWeight: FontWeight.bold,
@@ -600,7 +576,7 @@ class _SqlLevel3State extends State<SqlLevel3> {
     );
   }
 
-  Widget _buildCodeLine(int lineNumber, String code) {
+  Widget _buildCodeLine(int lineNumber) {
     return Container(
       height: 20 * _scaleFactor,
       child: Text(
@@ -614,6 +590,29 @@ class _SqlLevel3State extends State<SqlLevel3> {
     );
   }
 
+  Widget _buildSyntaxHighlightedLine(String code, {bool isComment = false, bool isKeyword = false}) {
+    Color textColor = Colors.white;
+
+    if (isComment) {
+      textColor = Color(0xFF6A9955);
+    } else if (isKeyword) {
+      textColor = Color(0xFF569CD6);
+    }
+
+    return Container(
+      height: 20 * _scaleFactor,
+      child: Text(
+        code,
+        style: TextStyle(
+          color: textColor,
+          fontSize: 12 * _scaleFactor,
+          fontFamily: 'monospace',
+          fontStyle: isComment ? FontStyle.italic : FontStyle.normal,
+        ),
+      ),
+    );
+  }
+
   String getPreviewCode() {
     return droppedBlocks.join(' ');
   }
@@ -622,11 +621,18 @@ class _SqlLevel3State extends State<SqlLevel3> {
   void dispose() {
     countdownTimer?.cancel();
     scoreReductionTimer?.cancel();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      await musicService.playBackgroundMusic();
+    });
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Recalculate scale factor when screen size changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
       final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
@@ -640,7 +646,7 @@ class _SqlLevel3State extends State<SqlLevel3> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("🗃️ SQL - Level 3", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        title: Text("⚡ SQL - Level 3", style: TextStyle(fontSize: 18 * _scaleFactor)),
         backgroundColor: Colors.orange,
         actions: gameStarted
             ? [
@@ -667,9 +673,9 @@ class _SqlLevel3State extends State<SqlLevel3> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1B150D),
-              Color(0xFF2D261B),
-              Color(0xFF554433),
+              Color(0xFF0D1B2A),
+              Color(0xFF1B263B),
+              Color(0xFF415A77),
             ],
           ),
         ),
@@ -686,9 +692,13 @@ class _SqlLevel3State extends State<SqlLevel3> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              onPressed: startGame,
+              onPressed: () {
+                final musicService = Provider.of<MusicService>(context, listen: false);
+                musicService.playSoundEffect('button_click.mp3');
+                startGame();
+              },
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Level 3", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
                 backgroundColor: Colors.orange,
@@ -702,25 +712,16 @@ class _SqlLevel3State extends State<SqlLevel3> {
                 child: Column(
                   children: [
                     Text(
-                      "✅ Level 3 Completed!",
+                      "✅ Level 3 completed with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "🎁 Bonus Game Unlocked!",
-                      style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "You've unlocked Level 4!",
+                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
-                    if (previousScore > 0)
-                      Padding(
-                        padding: EdgeInsets.only(top: 5 * _scaleFactor),
-                        child: Text(
-                          "Your Best Score: $previousScore/3",
-                          style: TextStyle(color: Colors.orangeAccent, fontSize: 14 * _scaleFactor),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
                   ],
                 ),
               )
@@ -731,35 +732,37 @@ class _SqlLevel3State extends State<SqlLevel3> {
                   children: [
                     Text(
                       "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.orange, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
-                    if (previousScore < 3)
-                      Column(
-                        children: [
-                          Text(
-                            "🎯 Get a perfect score (3/3) to unlock Bonus Game!",
-                            style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor, fontWeight: FontWeight.bold),
-                            textAlign: TextAlign.center,
-                          ),
-                          SizedBox(height: 5 * _scaleFactor),
-                          Text(
-                            "Complete without losing any points",
-                            style: TextStyle(color: Colors.orangeAccent, fontSize: 12 * _scaleFactor),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      )
-                    else
-                      Text(
-                        "Bonus Game is unlocked! Play to unlock Level 4",
-                        style: TextStyle(color: Colors.orangeAccent, fontSize: 14 * _scaleFactor),
-                        textAlign: TextAlign.center,
-                      ),
+                    Text(
+                      "Try again to get a perfect score and unlock Level 4!",
+                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                      textAlign: TextAlign.center,
+                    ),
                   ],
                 ),
-              ),
+              )
+            else if (hasPreviousScore && previousScore == 0)
+                Padding(
+                  padding: EdgeInsets.only(top: 10 * _scaleFactor),
+                  child: Column(
+                    children: [
+                      Text(
+                        "😅 Your previous score: $previousScore/3",
+                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 5 * _scaleFactor),
+                      Text(
+                        "Don't give up! You can do better this time!",
+                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
 
             SizedBox(height: 30 * _scaleFactor),
             Container(
@@ -773,86 +776,25 @@ class _SqlLevel3State extends State<SqlLevel3> {
               child: Column(
                 children: [
                   Text(
-                    "🎯 Level 3 - ORDER BY & LIMIT",
+                    "🎯 Level 3 Objective",
                     style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.orange[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create a query to get top 5 most expensive products:",
+                    "Create a SQL query to find expensive products sorted by price",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.orange[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(10 * _scaleFactor),
-                    color: Colors.black,
-                    child: Text(
-                      'SELECT * FROM products ORDER BY price DESC LIMIT 5;',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'monospace',
-                        fontSize: 14 * _scaleFactor,
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Learn how to sort and limit query results!",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12 * _scaleFactor, color: Colors.orange[600], fontStyle: FontStyle.italic),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(8 * _scaleFactor),
-                    color: Colors.blue[50],
-                    child: Column(
-                      children: [
-                        Text(
-                          "What you'll learn:",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12 * _scaleFactor),
-                        ),
-                        SizedBox(height: 5 * _scaleFactor),
-                        Text(
-                          "• Sorting results with ORDER BY\n• DESC for descending order\n• Limiting results with LIMIT\n• Complex query combinations",
-                          style: TextStyle(fontSize: 11 * _scaleFactor),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(8 * _scaleFactor),
-                    color: Colors.orange[50],
-                    child: Column(
-                      children: [
-                        Text(
-                          "🎁 BONUS GAME REQUIREMENT:",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12 * _scaleFactor, color: Colors.orange[800]),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: 5 * _scaleFactor),
-                        Text(
-                          "Get a PERFECT SCORE (3/3) to unlock the Bonus Game!",
-                          style: TextStyle(fontSize: 11 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.orange[700]),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: 3 * _scaleFactor),
-                        Text(
-                          "• Complete without time penalties\n• Don't use incorrect blocks\n• Finish with all 3 points",
-                          style: TextStyle(fontSize: 10 * _scaleFactor, color: Colors.orange[600]),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Text(
-                    "Complete the bonus game to unlock Level 4!",
+                    "🎁 Get a perfect score (3/3) to unlock Level 4!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 12 * _scaleFactor,
-                      color: Colors.orange,
-                      fontWeight: FontWeight.bold,
+                        fontSize: 12 * _scaleFactor,
+                        color: Colors.purple,
+                        fontWeight: FontWeight.bold,
+                        fontStyle: FontStyle.italic
                     ),
                   ),
                 ],
@@ -865,20 +807,6 @@ class _SqlLevel3State extends State<SqlLevel3> {
   }
 
   Widget buildGameUI() {
-    // Calculate dynamic height based on number of dropped blocks
-    double calculateTargetHeight() {
-      if (droppedBlocks.isEmpty) return 120 * _scaleFactor;
-
-      // Estimate rows needed based on block count
-      int estimatedRows = (droppedBlocks.length / 3).ceil();
-      double baseHeight = 80 * _scaleFactor;
-      double rowHeight = 60 * _scaleFactor;
-
-      return baseHeight + (estimatedRows * rowHeight);
-    }
-
-    final targetHeight = calculateTargetHeight().clamp(120 * _scaleFactor, 400 * _scaleFactor);
-
     return SingleChildScrollView(
       padding: EdgeInsets.all(16 * _scaleFactor),
       child: Column(
@@ -893,6 +821,8 @@ class _SqlLevel3State extends State<SqlLevel3> {
               ),
               TextButton.icon(
                 onPressed: () {
+                  final musicService = Provider.of<MusicService>(context, listen: false);
+                  musicService.playSoundEffect('toggle.mp3');
                   setState(() {
                     isTagalog = !isTagalog;
                   });
@@ -906,22 +836,25 @@ class _SqlLevel3State extends State<SqlLevel3> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Ngayon, natututo si Zeke tungkol sa pag-sort at pag-limit ng results sa SQL! Kailangan niyang kunin ang top 5 pinaka-mamahaling products mula sa products table. Pwede mo ba siyang tulungan?'
-                : 'Now, Zeke is learning about sorting and limiting results in SQL! He needs to retrieve the top 5 most expensive products from the products table. Can you help him?',
+                ? 'Kailangan ni Maria ng listahan ng mga mamahaling produkto! Gamitin ang comparison operator (>) para piliin ang mga produktong may presyo na higit sa 100 at i-sort ang resulta mula pinakamahal hanggang pinakamura.'
+                : 'Maria needs a list of expensive products! Use comparison operator (>) to select products with price greater than 100 and sort results from highest to lowest price.',
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the blocks to create: SELECT * FROM products ORDER BY price DESC LIMIT 5;',
+          Text('🧩 Arrange the blocks to form the correct SQL query',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          // AUTO-EXPANDING TARGET AREA
+          // TARGET AREA
           Container(
-            height: targetHeight,
             width: double.infinity,
+            constraints: BoxConstraints(
+              minHeight: 140 * _scaleFactor,
+              maxHeight: 200 * _scaleFactor,
+            ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
@@ -929,9 +862,14 @@ class _SqlLevel3State extends State<SqlLevel3> {
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
-              onWillAccept: (data) => true,
+              onWillAccept: (data) {
+                return !droppedBlocks.contains(data);
+              },
               onAccept: (data) {
                 if (!isAnsweredCorrectly) {
+                  final musicService = Provider.of<MusicService>(context, listen: false);
+                  musicService.playSoundEffect('block_drop.mp3');
+
                   setState(() {
                     droppedBlocks.add(data);
                     allBlocks.remove(data);
@@ -939,45 +877,50 @@ class _SqlLevel3State extends State<SqlLevel3> {
                 }
               },
               builder: (context, candidateData, rejectedData) {
-                return droppedBlocks.isEmpty
-                    ? Center(
-                  child: Text(
-                    'Drop SQL blocks here\n\n(Tap and drag blocks from below)',
-                    style: TextStyle(
-                      fontSize: 16 * _scaleFactor,
-                      color: Colors.grey[600],
-                      fontStyle: FontStyle.italic,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                )
-                    : Wrap(
-                  spacing: 8 * _scaleFactor,
-                  runSpacing: 8 * _scaleFactor,
-                  alignment: WrapAlignment.start,
-                  children: droppedBlocks.map((block) {
-                    return Draggable<String>(
-                      data: block,
-                      feedback: Material(
-                        elevation: 4.0,
-                        child: puzzleBlock(block, Colors.greenAccent),
-                      ),
-                      childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.3)),
-                      onDragStarted: () {
-                        setState(() {
-                          droppedBlocks.remove(block);
-                        });
-                      },
-                      onDragEnd: (details) {
-                        if (!details.wasAccepted) {
+                return SingleChildScrollView(
+                  child: Wrap(
+                    spacing: 8 * _scaleFactor,
+                    runSpacing: 8 * _scaleFactor,
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: droppedBlocks.map((block) {
+                      return Draggable<String>(
+                        data: block,
+                        feedback: Material(
+                          color: Colors.transparent,
+                          child: puzzleBlock(block, Colors.orangeAccent),
+                        ),
+                        childWhenDragging: puzzleBlock(block, Colors.orangeAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.orangeAccent),
+                        onDragStarted: () {
+                          final musicService = Provider.of<MusicService>(context, listen: false);
+                          musicService.playSoundEffect('block_pickup.mp3');
+
                           setState(() {
-                            allBlocks.add(block);
+                            currentlyDraggedBlock = block;
                           });
-                        }
-                      },
-                      child: puzzleBlock(block, Colors.greenAccent),
-                    );
-                  }).toList(),
+                        },
+                        onDragEnd: (details) {
+                          setState(() {
+                            currentlyDraggedBlock = null;
+                          });
+
+                          if (!isAnsweredCorrectly && !details.wasAccepted) {
+                            Future.delayed(Duration(milliseconds: 50), () {
+                              if (mounted) {
+                                setState(() {
+                                  if (!allBlocks.contains(block)) {
+                                    allBlocks.add(block);
+                                  }
+                                  droppedBlocks.remove(block);
+                                });
+                              }
+                            });
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
                 );
               },
             ),
@@ -990,45 +933,72 @@ class _SqlLevel3State extends State<SqlLevel3> {
           SizedBox(height: 20 * _scaleFactor),
 
           // SOURCE AREA
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Available Blocks:', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
-              SizedBox(height: 10 * _scaleFactor),
-              Container(
-                padding: EdgeInsets.all(12 * _scaleFactor),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                ),
-                child: Wrap(
-                  spacing: 8 * _scaleFactor,
-                  runSpacing: 8 * _scaleFactor,
-                  alignment: WrapAlignment.center,
-                  children: allBlocks.map((block) {
-                    return isAnsweredCorrectly
-                        ? puzzleBlock(block, Colors.grey)
-                        : Draggable<String>(
-                      data: block,
-                      feedback: Material(
-                        elevation: 4.0,
-                        child: puzzleBlock(block, Colors.orangeAccent),
-                      ),
-                      childWhenDragging: puzzleBlock(block, Colors.orangeAccent.withOpacity(0.3)),
-                      onDragCompleted: () {
-                        // Block was successfully dropped in target
-                      },
-                      child: puzzleBlock(block, Colors.orangeAccent),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ],
+          Container(
+            width: double.infinity,
+            constraints: BoxConstraints(
+              minHeight: 100 * _scaleFactor,
+            ),
+            padding: EdgeInsets.all(12 * _scaleFactor),
+            decoration: BoxDecoration(
+              color: Colors.grey[800]!.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12 * _scaleFactor),
+            ),
+            child: Wrap(
+              spacing: 8 * _scaleFactor,
+              runSpacing: 10 * _scaleFactor,
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: allBlocks.map((block) {
+                return isAnsweredCorrectly
+                    ? puzzleBlock(block, Colors.grey)
+                    : Draggable<String>(
+                  data: block,
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: puzzleBlock(block, Colors.orange[400]!),
+                  ),
+                  childWhenDragging: Opacity(
+                    opacity: 0.4,
+                    child: puzzleBlock(block, Colors.orange[400]!),
+                  ),
+                  child: puzzleBlock(block, Colors.orange[400]!),
+                  onDragStarted: () {
+                    final musicService = Provider.of<MusicService>(context, listen: false);
+                    musicService.playSoundEffect('block_pickup.mp3');
+
+                    setState(() {
+                      currentlyDraggedBlock = block;
+                    });
+                  },
+                  onDragEnd: (details) {
+                    setState(() {
+                      currentlyDraggedBlock = null;
+                    });
+
+                    if (!isAnsweredCorrectly && !details.wasAccepted) {
+                      Future.delayed(Duration(milliseconds: 50), () {
+                        if (mounted) {
+                          setState(() {
+                            if (!allBlocks.contains(block)) {
+                              allBlocks.add(block);
+                            }
+                          });
+                        }
+                      });
+                    }
+                  },
+                );
+              }).toList(),
+            ),
           ),
 
           SizedBox(height: 30 * _scaleFactor),
           ElevatedButton.icon(
-            onPressed: isAnsweredCorrectly ? null : checkAnswer,
+            onPressed: isAnsweredCorrectly ? null : () {
+              final musicService = Provider.of<MusicService>(context, listen: false);
+              musicService.playSoundEffect('compile.mp3');
+              checkAnswer();
+            },
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Run Query", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
@@ -1039,10 +1009,13 @@ class _SqlLevel3State extends State<SqlLevel3> {
               ),
             ),
           ),
-          SizedBox(height: 10 * _scaleFactor),
           TextButton(
-            onPressed: resetGame,
-            child: Text("🔁 Restart Level", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+            onPressed: () {
+              final musicService = Provider.of<MusicService>(context, listen: false);
+              musicService.playSoundEffect('button_click.mp3');
+              resetGame();
+            },
+            child: Text("🔁 Retry", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
           ),
         ],
       ),
@@ -1050,20 +1023,45 @@ class _SqlLevel3State extends State<SqlLevel3> {
   }
 
   Widget puzzleBlock(String text, Color color) {
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontFamily: 'monospace',
+          fontSize: 14 * _scaleFactor,
+          color: Colors.black,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final textWidth = textPainter.width;
+    final minWidth = 60 * _scaleFactor;
+    final maxWidth = 200 * _scaleFactor;
+
     return Container(
+      constraints: BoxConstraints(
+        minWidth: minWidth,
+        maxWidth: maxWidth,
+      ),
+      margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 12 * _scaleFactor,
-        vertical: 10 * _scaleFactor,
+        horizontal: 16 * _scaleFactor,
+        vertical: 12 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(8 * _scaleFactor),
-        border: Border.all(color: Colors.black45, width: 1.0 * _scaleFactor),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20 * _scaleFactor),
+          bottomRight: Radius.circular(20 * _scaleFactor),
+        ),
+        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black26,
-            blurRadius: 2 * _scaleFactor,
-            offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
+            color: Colors.black45,
+            blurRadius: 6 * _scaleFactor,
+            offset: Offset(3 * _scaleFactor, 3 * _scaleFactor),
           )
         ],
       ),
@@ -1072,10 +1070,19 @@ class _SqlLevel3State extends State<SqlLevel3> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 13 * _scaleFactor,
-          color: Colors.white,
+          fontSize: 14 * _scaleFactor,
+          color: Colors.black,
+          shadows: [
+            Shadow(
+              offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
+              blurRadius: 2 * _scaleFactor,
+              color: Colors.white.withOpacity(0.8),
+            ),
+          ],
         ),
         textAlign: TextAlign.center,
+        overflow: TextOverflow.visible,
+        maxLines: 2,
       ),
     );
   }

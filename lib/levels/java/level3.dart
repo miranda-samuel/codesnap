@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
-import 'JavaBonusGame.dart';
+import '../../services/music_service.dart';
 
 class JavaLevel3 extends StatefulWidget {
   const JavaLevel3({super.key});
@@ -22,14 +24,17 @@ class _JavaLevel3State extends State<JavaLevel3> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 180;
+  int remainingSeconds = 90;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
+  // Track currently dragged block
+  String? currentlyDraggedBlock;
+
   // Scaling factors
   double _scaleFactor = 1.0;
-  final double _baseScreenWidth = 360.0;
+  final double _baseScreenWidth = 360.0; // Base width for scaling
 
   @override
   void initState() {
@@ -37,6 +42,17 @@ class _JavaLevel3State extends State<JavaLevel3> {
     resetBlocks();
     _loadUserData();
     _calculateScaleFactor();
+    _startGameMusic();
+  }
+
+  void _startGameMusic() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      await musicService.stopBackgroundMusic();
+      await musicService.playSoundEffect('game_start.mp3');
+      await Future.delayed(Duration(milliseconds: 500));
+      await musicService.playSoundEffect('game_music.mp3');
+    });
   }
 
   void _calculateScaleFactor() {
@@ -63,30 +79,31 @@ class _JavaLevel3State extends State<JavaLevel3> {
   }
 
   void resetBlocks() {
-    // Simplified blocks for: if (number > 5) {
+    // Correct blocks for Java: for loop
     List<String> correctBlocks = [
-      'if',
-      '(',
-      'number',
-      '>',
-      '5',
-      ')',
-      '{'
+      'for (int i = 1; i <= 5; i++) {',
+      'System.out.println',
+      '("Count: " + i);',
+      '}'
     ];
 
-    // Fewer and simpler incorrect blocks for beginners
+    // Incorrect/distractor blocks
     List<String> incorrectBlocks = [
-      'else',
-      'while',
-      'for',
-      '==',
-      '<',
-      '10',
-      '}',
-      ']'
+      'for i = 1 to 5',
+      'for (int i = 0; i < 5; i++)',
+      'while (i <= 5)',
+      'System.out.print',
+      'cout << "Count: " << i;',
+      'printf("Count: %d", i);',
+      'print("Count: " + i)',
+      'console.log("Count: " + i)',
+      'for (int i = 1; i < 5; i++)',
+      '} else {',
+      'if (i <= 5)',
+      'int i = 1;',
     ];
 
-    // Take only 3 incorrect blocks to make it easier
+    // Shuffle incorrect blocks and take 3 random ones
     incorrectBlocks.shuffle();
     List<String> selectedIncorrectBlocks = incorrectBlocks.take(3).toList();
 
@@ -98,10 +115,13 @@ class _JavaLevel3State extends State<JavaLevel3> {
   }
 
   void startGame() {
+    final musicService = Provider.of<MusicService>(context, listen: false);
+    musicService.playSoundEffect('level_start.mp3');
+
     setState(() {
       gameStarted = true;
-      score = 3; // Always start with 3 points
-      remainingSeconds = 180;
+      score = 3;
+      remainingSeconds = 90;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       resetBlocks();
@@ -123,6 +143,10 @@ class _JavaLevel3State extends State<JavaLevel3> {
           timer.cancel();
           scoreReductionTimer?.cancel();
           saveScoreToDatabase(score);
+
+          final musicService = Provider.of<MusicService>(context, listen: false);
+          musicService.playSoundEffect('time_up.mp3');
+
           showDialog(
             context: context,
             builder: (_) => AlertDialog(
@@ -131,10 +155,12 @@ class _JavaLevel3State extends State<JavaLevel3> {
               actions: [
                 TextButton(
                   onPressed: () {
+                    final musicService = Provider.of<MusicService>(context, listen: false);
+                    musicService.playSoundEffect('click.mp3');
                     resetGame();
                     Navigator.pop(context);
                   },
-                  child: Text("Try Again"),
+                  child: Text("Retry"),
                 )
               ],
             ),
@@ -143,7 +169,6 @@ class _JavaLevel3State extends State<JavaLevel3> {
       });
     });
 
-    // Less frequent penalties for beginners
     scoreReductionTimer = Timer.periodic(Duration(seconds: 30), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
@@ -152,6 +177,9 @@ class _JavaLevel3State extends State<JavaLevel3> {
 
       setState(() {
         score--;
+        final musicService = Provider.of<MusicService>(context, listen: false);
+        musicService.playSoundEffect('penalty.mp3');
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
         );
@@ -160,9 +188,12 @@ class _JavaLevel3State extends State<JavaLevel3> {
   }
 
   void resetGame() {
+    final musicService = Provider.of<MusicService>(context, listen: false);
+    musicService.playSoundEffect('reset.mp3');
+
     setState(() {
-      score = 3; // Always reset to 3
-      remainingSeconds = 180;
+      score = 3;
+      remainingSeconds = 90;
       gameStarted = false;
       isAnsweredCorrectly = false;
       droppedBlocks.clear();
@@ -176,183 +207,26 @@ class _JavaLevel3State extends State<JavaLevel3> {
     if (currentUser?['id'] == null) return;
 
     try {
-      // Only mark as completed if score is perfect (3/3)
-      bool isPerfectScore = score == 3;
-
       final response = await ApiService.saveScore(
         currentUser!['id'],
         'Java',
-        3,
+        3, // Level 3
         score,
-        isPerfectScore, // Only true if perfect score
+        score == 3, // Only completed if perfect score
       );
 
       if (response['success'] == true) {
         setState(() {
-          level3Completed = isPerfectScore; // Only completed if perfect score
+          level3Completed = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
-
-        _showCompletionDialog(isPerfectScore);
       } else {
         print('Failed to save score: ${response['message']}');
       }
     } catch (e) {
       print('Error saving score: $e');
     }
-  }
-
-  void _showCompletionDialog(bool isPerfectScore) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: Text(isPerfectScore ? "🎉 Level 3 Completed!" : "✅ Level 3 Finished"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isPerfectScore ? Icons.celebration : Icons.check_circle,
-              size: 60,
-              color: isPerfectScore ? Colors.green : Colors.orange,
-            ),
-            SizedBox(height: 10),
-            Text(
-              "You've completed Level 3!",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 10),
-            Text(
-              "Your Score: $score/3",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: score == 3 ? Colors.green : Colors.orange,
-              ),
-            ),
-            SizedBox(height: 10),
-
-            if (isPerfectScore)
-              Column(
-                children: [
-                  Text(
-                    "🎁 Bonus Game Unlocked!",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.purple,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    "Complete the bonus game to unlock Level 4!",
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 10),
-                  Container(
-                    padding: EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.purple[50],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.star, color: Colors.yellow),
-                        SizedBox(width: 8),
-                        Text(
-                          "Perfect Score Achieved!",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.purple[800],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              )
-            else
-              Column(
-                children: [
-                  Text(
-                    "🎯 Almost There!",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.orange,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    "You need a perfect score (3/3) to unlock the Bonus Game",
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 10),
-                  Container(
-                    padding: EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.orange[50],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          "💡 Tips for perfect score:",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange[800],
-                          ),
-                        ),
-                        SizedBox(height: 5),
-                        Text("• Arrange blocks quickly"),
-                        Text("• Avoid incorrect blocks"),
-                        Text("• Complete before time runs out"),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-          ],
-        ),
-        actions: [
-          if (isPerfectScore)
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _navigateToBonusGame();
-              },
-              child: Text("Play Bonus Game"),
-            )
-          else
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                resetGame();
-              },
-              child: Text("Try Again"),
-            ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: Text("Continue"),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _navigateToBonusGame() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => JavaBonusGame()),
-    );
   }
 
   Future<void> loadScoreFromDatabase() async {
@@ -363,15 +237,14 @@ class _JavaLevel3State extends State<JavaLevel3> {
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level3Data = scoresData['3'];
+        final level3Data = scoresData['3']; // Level 3
 
         if (level3Data != null) {
           setState(() {
             previousScore = level3Data['score'] ?? 0;
             level3Completed = level3Data['completed'] ?? false;
             hasPreviousScore = true;
-            // DON'T set current score to previous score
-            // score = previousScore; // REMOVED THIS LINE
+            score = previousScore;
           });
         }
       }
@@ -380,9 +253,49 @@ class _JavaLevel3State extends State<JavaLevel3> {
     }
   }
 
+  Future<void> refreshScore() async {
+    if (currentUser?['id'] != null) {
+      try {
+        final response = await ApiService.getScores(currentUser!['id'], 'Java');
+        if (response['success'] == true && response['scores'] != null) {
+          final scoresData = response['scores'];
+          final level3Data = scoresData['3'];
+
+          setState(() {
+            if (level3Data != null) {
+              previousScore = level3Data['score'] ?? 0;
+              level3Completed = level3Data['completed'] ?? false;
+              hasPreviousScore = true;
+              score = previousScore;
+            } else {
+              hasPreviousScore = false;
+              previousScore = 0;
+              level3Completed = false;
+              score = 3;
+            }
+          });
+        }
+      } catch (e) {
+        print('Error refreshing score: $e');
+      }
+    }
+  }
+
+  // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
-      'else', 'while', 'for', '==', '<', '10', '}', ']'
+      'for i = 1 to 5',
+      'for (int i = 0; i < 5; i++)',
+      'while (i <= 5)',
+      'System.out.print',
+      'cout << "Count: " << i;',
+      'printf("Count: %d", i);',
+      'print("Count: " + i)',
+      'console.log("Count: " + i)',
+      'for (int i = 1; i < 5; i++)',
+      '} else {',
+      'if (i <= 5)',
+      'int i = 1;',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -390,10 +303,14 @@ class _JavaLevel3State extends State<JavaLevel3> {
   void checkAnswer() async {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
+    final musicService = Provider.of<MusicService>(context, listen: false);
+
     // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
+      musicService.playSoundEffect('error.mp3');
+
       if (score > 1) {
         setState(() {
           score--;
@@ -411,6 +328,9 @@ class _JavaLevel3State extends State<JavaLevel3> {
         countdownTimer?.cancel();
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
+
+        musicService.playSoundEffect('game_over.mp3');
+
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
@@ -419,10 +339,11 @@ class _JavaLevel3State extends State<JavaLevel3> {
             actions: [
               TextButton(
                 onPressed: () {
+                  musicService.playSoundEffect('click.mp3');
                   Navigator.pop(context);
                   resetGame();
                 },
-                child: Text("Try Again"),
+                child: Text("Retry"),
               )
             ],
           ),
@@ -431,14 +352,15 @@ class _JavaLevel3State extends State<JavaLevel3> {
       return;
     }
 
-    // Check for: if (number > 5) {
+    // Check for correct for loop structure
     String answer = droppedBlocks.join(' ');
     String normalizedAnswer = answer
         .replaceAll(' ', '')
         .replaceAll('\n', '')
         .toLowerCase();
 
-    String expected = 'if(number>5){';
+    // Expected: for(inti=1;i<=5;i++){system.out.println("count:"+i);}
+    String expected = 'for(inti=1;i<=5;i++){system.out.println("count:"+i);}';
 
     if (normalizedAnswer == expected) {
       countdownTimer?.cancel();
@@ -449,7 +371,74 @@ class _JavaLevel3State extends State<JavaLevel3> {
       });
 
       saveScoreToDatabase(score);
+
+      // PLAY SUCCESS SOUND BASED ON SCORE
+      if (score == 3) {
+        musicService.playSoundEffect('perfect.mp3');
+      } else {
+        musicService.playSoundEffect('success.mp3');
+      }
+
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text("✅ Correct!"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Excellent Java Programming!"),
+              SizedBox(height: 10),
+              Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+              SizedBox(height: 10),
+              if (score == 3)
+                Text(
+                  "🎉 Perfect! You've unlocked Level 4!",
+                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                )
+              else
+                Text(
+                  "⚠️ Get a perfect score (3/3) to complete this level!",
+                  style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                ),
+              SizedBox(height: 10),
+              Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Container(
+                padding: EdgeInsets.all(10),
+                color: Colors.black,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Count: 1", style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 14)),
+                    Text("Count: 2", style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 14)),
+                    Text("Count: 3", style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 14)),
+                    Text("Count: 4", style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 14)),
+                    Text("Count: 5", style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 14)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                musicService.playSoundEffect('click.mp3');
+                Navigator.pop(context);
+                if (score == 3) {
+                  musicService.playSoundEffect('level_complete.mp3');
+                  Navigator.pushReplacementNamed(context, '/java_level4');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/levels', arguments: 'Java');
+                }
+              },
+              child: Text(score == 3 ? "Next Level" : "Go Back"),
+            )
+          ],
+        ),
+      );
     } else {
+      musicService.playSoundEffect('wrong.mp3');
+
       if (score > 1) {
         setState(() {
           score--;
@@ -464,6 +453,9 @@ class _JavaLevel3State extends State<JavaLevel3> {
         countdownTimer?.cancel();
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
+
+        musicService.playSoundEffect('game_over.mp3');
+
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
@@ -472,10 +464,11 @@ class _JavaLevel3State extends State<JavaLevel3> {
             actions: [
               TextButton(
                 onPressed: () {
+                  musicService.playSoundEffect('click.mp3');
                   Navigator.pop(context);
                   resetGame();
                 },
-                child: Text("Try Again"),
+                child: Text("Retry"),
               )
             ],
           ),
@@ -490,6 +483,7 @@ class _JavaLevel3State extends State<JavaLevel3> {
     return "$m:$s";
   }
 
+  // CODE PREVIEW WITH ORGANIZED LAYOUT
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -501,6 +495,7 @@ class _JavaLevel3State extends State<JavaLevel3> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Code editor header
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
             decoration: BoxDecoration(
@@ -525,38 +520,44 @@ class _JavaLevel3State extends State<JavaLevel3> {
               ],
             ),
           ),
+          // Code content
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Line numbers and code
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        _buildCodeLine(1, 'public class Main {'),
-                        _buildCodeLine(2, '    public static void main(String[] args) {'),
-                        _buildCodeLine(3, '        int number = 10;'),
-                        _buildCodeLine(4, '        ' + getPreviewCode()),
-                        _buildCodeLine(5, '            System.out.println("Number > 5");'),
-                        _buildCodeLine(6, '        }'),
-                        _buildCodeLine(7, '    }'),
-                        _buildCodeLine(8, '}'),
-                      ],
+                    // Line numbers
+                    Container(
+                      width: 30 * _scaleFactor,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _buildCodeLine(1),
+                          _buildCodeLine(2),
+                          _buildCodeLine(3),
+                          _buildCodeLine(4),
+                          _buildCodeLine(5),
+                          _buildCodeLine(6),
+                          _buildCodeLine(7),
+                        ],
+                      ),
                     ),
                     SizedBox(width: 16 * _scaleFactor),
+                    // Actual code with syntax highlighting
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildSyntaxHighlightedLine('public class Main {', isKeyword: true),
                           _buildSyntaxHighlightedLine('    public static void main(String[] args) {', isKeyword: true),
-                          _buildSyntaxHighlightedLine('        int number = 10;', isNormal: true),
-                          _buildUserCodeLine(getPreviewCode()),
-                          _buildSyntaxHighlightedLine('            System.out.println("Number > 5");', isNormal: true),
-                          _buildSyntaxHighlightedLine('        }', isNormal: true),
+                          _buildUserCodeLine(1, droppedBlocks.length > 0 ? droppedBlocks[0] : ''),
+                          _buildUserCodeLine(2, droppedBlocks.length > 1 ? droppedBlocks[1] : ''),
+                          _buildUserCodeLine(3, droppedBlocks.length > 2 ? droppedBlocks[2] : ''),
+                          _buildUserCodeLine(4, droppedBlocks.length > 3 ? droppedBlocks[3] : ''),
                           _buildSyntaxHighlightedLine('    }', isNormal: true),
                           _buildSyntaxHighlightedLine('}', isNormal: true),
                         ],
@@ -572,7 +573,7 @@ class _JavaLevel3State extends State<JavaLevel3> {
     );
   }
 
-  Widget _buildUserCodeLine(String code) {
+  Widget _buildUserCodeLine(int lineNumber, String code) {
     if (code.isEmpty) {
       return Container(
         height: 20 * _scaleFactor,
@@ -611,7 +612,7 @@ class _JavaLevel3State extends State<JavaLevel3> {
     );
   }
 
-  Widget _buildCodeLine(int lineNumber, String code) {
+  Widget _buildCodeLine(int lineNumber) {
     return Container(
       height: 20 * _scaleFactor,
       child: Text(
@@ -647,19 +648,22 @@ class _JavaLevel3State extends State<JavaLevel3> {
     );
   }
 
-  String getPreviewCode() {
-    return droppedBlocks.join(' ');
-  }
-
   @override
   void dispose() {
     countdownTimer?.cancel();
     scoreReductionTimer?.cancel();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      await musicService.playBackgroundMusic();
+    });
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Recalculate scale factor when screen size changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
       final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
@@ -674,7 +678,7 @@ class _JavaLevel3State extends State<JavaLevel3> {
     return Scaffold(
       appBar: AppBar(
         title: Text("☕ Java - Level 3", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.green,
+        backgroundColor: Colors.red,
         actions: gameStarted
             ? [
           Padding(
@@ -700,9 +704,9 @@ class _JavaLevel3State extends State<JavaLevel3> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF0D1B0D),
-              Color(0xFF1B2D1B),
-              Color(0xFF335533),
+              Color(0xFF1B0D0D),
+              Color(0xFF2D1B1B),
+              Color(0xFF553333),
             ],
           ),
         ),
@@ -719,12 +723,16 @@ class _JavaLevel3State extends State<JavaLevel3> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              onPressed: startGame,
+              onPressed: () {
+                final musicService = Provider.of<MusicService>(context, listen: false);
+                musicService.playSoundEffect('button_click.mp3');
+                startGame();
+              },
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Level 3", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.green,
+                backgroundColor: Colors.red,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
@@ -735,25 +743,16 @@ class _JavaLevel3State extends State<JavaLevel3> {
                 child: Column(
                   children: [
                     Text(
-                      "✅ Level 3 Completed!",
+                      "✅ Level 3 completed with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "🎁 Bonus Game Unlocked!",
-                      style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "You've unlocked Level 4!",
+                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
-                    if (previousScore > 0)
-                      Padding(
-                        padding: EdgeInsets.only(top: 5 * _scaleFactor),
-                        child: Text(
-                          "Your Best Score: $previousScore/3",
-                          style: TextStyle(color: Colors.greenAccent, fontSize: 14 * _scaleFactor),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
                   ],
                 ),
               )
@@ -764,128 +763,69 @@ class _JavaLevel3State extends State<JavaLevel3> {
                   children: [
                     Text(
                       "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
-                    if (previousScore < 3)
-                      Column(
-                        children: [
-                          Text(
-                            "🎯 Get a perfect score (3/3) to unlock Bonus Game!",
-                            style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor, fontWeight: FontWeight.bold),
-                            textAlign: TextAlign.center,
-                          ),
-                          SizedBox(height: 5 * _scaleFactor),
-                          Text(
-                            "Complete without losing any points",
-                            style: TextStyle(color: Colors.greenAccent, fontSize: 12 * _scaleFactor),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      )
-                    else
-                      Text(
-                        "Bonus Game is unlocked! Play to unlock Level 4",
-                        style: TextStyle(color: Colors.greenAccent, fontSize: 14 * _scaleFactor),
-                        textAlign: TextAlign.center,
-                      ),
+                    Text(
+                      "Try again to get a perfect score and unlock Level 4!",
+                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                      textAlign: TextAlign.center,
+                    ),
                   ],
                 ),
-              ),
+              )
+            else if (hasPreviousScore && previousScore == 0)
+                Padding(
+                  padding: EdgeInsets.only(top: 10 * _scaleFactor),
+                  child: Column(
+                    children: [
+                      Text(
+                        "😅 Your previous score: $previousScore/3",
+                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 5 * _scaleFactor),
+                      Text(
+                        "Don't give up! You can do better this time!",
+                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
 
             SizedBox(height: 30 * _scaleFactor),
             Container(
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.green[50]!.withOpacity(0.9),
+                color: Colors.red[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.green[200]!),
+                border: Border.all(color: Colors.red[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎯 Level 3 - If Statements",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.green[800]),
+                    "🎯 Level 3 Objective",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.red[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create an if statement: if (number > 5) {",
+                    "Create a Java program that uses a for loop to count from 1 to 5",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.green[700]),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(10 * _scaleFactor),
-                    color: Colors.black,
-                    child: Text(
-                      'if (number > 5) {',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'monospace',
-                        fontSize: 14 * _scaleFactor,
-                      ),
-                    ),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.red[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Learn how to make decisions in your code!",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12 * _scaleFactor, color: Colors.green[600], fontStyle: FontStyle.italic),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(8 * _scaleFactor),
-                    color: Colors.blue[50],
-                    child: Column(
-                      children: [
-                        Text(
-                          "What you'll learn:",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12 * _scaleFactor),
-                        ),
-                        SizedBox(height: 5 * _scaleFactor),
-                        Text(
-                          "• How to use if statements\n• Comparison operators\n• Making decisions in code\n• Code blocks with { }",
-                          style: TextStyle(fontSize: 11 * _scaleFactor),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(8 * _scaleFactor),
-                    color: Colors.purple[50],
-                    child: Column(
-                      children: [
-                        Text(
-                          "🎁 BONUS GAME REQUIREMENT:",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12 * _scaleFactor, color: Colors.purple[800]),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: 5 * _scaleFactor),
-                        Text(
-                          "Get a PERFECT SCORE (3/3) to unlock the Bonus Game!",
-                          style: TextStyle(fontSize: 11 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.purple[700]),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: 3 * _scaleFactor),
-                        Text(
-                          "• Complete without time penalties\n• Don't use incorrect blocks\n• Finish with all 3 points",
-                          style: TextStyle(fontSize: 10 * _scaleFactor, color: Colors.purple[600]),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Text(
-                    "Complete the bonus game to unlock Level 4!",
+                    "🎁  Get a perfect score (3/3) to unlock Level 4!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 12 * _scaleFactor,
-                      color: Colors.purple,
-                      fontWeight: FontWeight.bold,
+                        fontSize: 12 * _scaleFactor,
+                        color: Colors.purple,
+                        fontWeight: FontWeight.bold,
+                        fontStyle: FontStyle.italic
                     ),
                   ),
                 ],
@@ -912,6 +852,8 @@ class _JavaLevel3State extends State<JavaLevel3> {
               ),
               TextButton.icon(
                 onPressed: () {
+                  final musicService = Provider.of<MusicService>(context, listen: false);
+                  musicService.playSoundEffect('toggle.mp3');
                   setState(() {
                     isTagalog = !isTagalog;
                   });
@@ -925,26 +867,29 @@ class _JavaLevel3State extends State<JavaLevel3> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Si Maria ay gustong gumawa ng decision sa program! Kailangan niyang gumamit ng if statement para i-check kung ang number ay greater than 5. Tulungan siyang buuin ang condition!'
-                : 'Maria wants to make a decision in her program! She needs to use an if statement to check if the number is greater than 5. Help her build the condition!',
+                ? 'Si Maria ay natututo ng loops sa Java! Kailangan niyang gumamit ng for loop para mag-count mula 1 hanggang 5. Tulungan mo siya!'
+                : 'Maria is learning about loops in Java! She needs to use a for loop to count from 1 to 5. Help her!',
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the blocks to create: if (number > 5) {',
+          Text('🧩 Arrange the 4 correct blocks to create the program',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          // TARGET AREA - Larger for better visibility
+          // TARGET AREA - EXACTLY LIKE LEVEL 1
           Container(
-            height: 160 * _scaleFactor,
             width: double.infinity,
+            constraints: BoxConstraints(
+              minHeight: 140 * _scaleFactor,
+              maxHeight: 200 * _scaleFactor,
+            ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.green, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.red, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -953,6 +898,9 @@ class _JavaLevel3State extends State<JavaLevel3> {
               },
               onAccept: (data) {
                 if (!isAnsweredCorrectly) {
+                  final musicService = Provider.of<MusicService>(context, listen: false);
+                  musicService.playSoundEffect('block_drop.mp3');
+
                   setState(() {
                     droppedBlocks.add(data);
                     allBlocks.remove(data);
@@ -960,17 +908,47 @@ class _JavaLevel3State extends State<JavaLevel3> {
                 }
               },
               builder: (context, candidateData, rejectedData) {
-                return Center(
+                return SingleChildScrollView(
                   child: Wrap(
-                    spacing: 6 * _scaleFactor,
-                    runSpacing: 6 * _scaleFactor,
+                    spacing: 8 * _scaleFactor,
+                    runSpacing: 8 * _scaleFactor,
                     alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: droppedBlocks.map((block) {
                       return Draggable<String>(
                         data: block,
-                        feedback: puzzleBlock(block, Colors.greenAccent, isSmall: true),
-                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5), isSmall: true),
-                        child: puzzleBlock(block, Colors.greenAccent, isSmall: true),
+                        feedback: Material(
+                          color: Colors.transparent,
+                          child: puzzleBlock(block, Colors.orangeAccent),
+                        ),
+                        childWhenDragging: puzzleBlock(block, Colors.orangeAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.orangeAccent),
+                        onDragStarted: () {
+                          final musicService = Provider.of<MusicService>(context, listen: false);
+                          musicService.playSoundEffect('block_pickup.mp3');
+
+                          setState(() {
+                            currentlyDraggedBlock = block;
+                          });
+                        },
+                        onDragEnd: (details) {
+                          setState(() {
+                            currentlyDraggedBlock = null;
+                          });
+
+                          if (!isAnsweredCorrectly && !details.wasAccepted) {
+                            Future.delayed(Duration(milliseconds: 50), () {
+                              if (mounted) {
+                                setState(() {
+                                  if (!allBlocks.contains(block)) {
+                                    allBlocks.add(block);
+                                  }
+                                  droppedBlocks.remove(block);
+                                });
+                              }
+                            });
+                          }
+                        },
                       );
                     }).toList(),
                   ),
@@ -985,8 +963,12 @@ class _JavaLevel3State extends State<JavaLevel3> {
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
 
-          // SOURCE AREA - Better layout with smaller blocks
+          // SOURCE AREA
           Container(
+            width: double.infinity,
+            constraints: BoxConstraints(
+              minHeight: 100 * _scaleFactor,
+            ),
             padding: EdgeInsets.all(12 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[800]!.withOpacity(0.3),
@@ -994,19 +976,48 @@ class _JavaLevel3State extends State<JavaLevel3> {
             ),
             child: Wrap(
               spacing: 8 * _scaleFactor,
-              runSpacing: 8 * _scaleFactor,
+              runSpacing: 10 * _scaleFactor,
               alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: allBlocks.map((block) {
                 return isAnsweredCorrectly
-                    ? puzzleBlock(block, Colors.grey, isSmall: true)
+                    ? puzzleBlock(block, Colors.grey)
                     : Draggable<String>(
                   data: block,
-                  feedback: puzzleBlock(block, Colors.green, isSmall: true),
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: puzzleBlock(block, Colors.redAccent),
+                  ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.green, isSmall: true),
+                    child: puzzleBlock(block, Colors.redAccent),
                   ),
-                  child: puzzleBlock(block, Colors.green, isSmall: true),
+                  child: puzzleBlock(block, Colors.redAccent),
+                  onDragStarted: () {
+                    final musicService = Provider.of<MusicService>(context, listen: false);
+                    musicService.playSoundEffect('block_pickup.mp3');
+
+                    setState(() {
+                      currentlyDraggedBlock = block;
+                    });
+                  },
+                  onDragEnd: (details) {
+                    setState(() {
+                      currentlyDraggedBlock = null;
+                    });
+
+                    if (!isAnsweredCorrectly && !details.wasAccepted) {
+                      Future.delayed(Duration(milliseconds: 50), () {
+                        if (mounted) {
+                          setState(() {
+                            if (!allBlocks.contains(block)) {
+                              allBlocks.add(block);
+                            }
+                          });
+                        }
+                      });
+                    }
+                  },
                 );
               }).toList(),
             ),
@@ -1014,11 +1025,15 @@ class _JavaLevel3State extends State<JavaLevel3> {
 
           SizedBox(height: 30 * _scaleFactor),
           ElevatedButton.icon(
-            onPressed: isAnsweredCorrectly ? null : checkAnswer,
+            onPressed: isAnsweredCorrectly ? null : () {
+              final musicService = Provider.of<MusicService>(context, listen: false);
+              musicService.playSoundEffect('compile.mp3');
+              checkAnswer();
+            },
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
-            label: Text("Compile & Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
+            label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: Colors.red,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -1026,37 +1041,59 @@ class _JavaLevel3State extends State<JavaLevel3> {
             ),
           ),
           TextButton(
-            onPressed: resetGame,
-            child: Text("🔁 Restart Level", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+            onPressed: () {
+              final musicService = Provider.of<MusicService>(context, listen: false);
+              musicService.playSoundEffect('button_click.mp3');
+              resetGame();
+            },
+            child: Text("🔁 Retry", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
-  Widget puzzleBlock(String text, Color color, {bool isSmall = false}) {
-    double horizontalPadding = isSmall ? 12 * _scaleFactor : 16 * _scaleFactor;
-    double verticalPadding = isSmall ? 8 * _scaleFactor : 12 * _scaleFactor;
-    double fontSize = isSmall ? 12 * _scaleFactor : 14 * _scaleFactor;
+  Widget puzzleBlock(String text, Color color) {
+    // Calculate text width to adjust block size
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontFamily: 'monospace',
+          fontSize: 14 * _scaleFactor,
+          color: Colors.black,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final textWidth = textPainter.width;
+    final minWidth = 80 * _scaleFactor;
+    final maxWidth = 220 * _scaleFactor;
 
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 2 * _scaleFactor),
+      constraints: BoxConstraints(
+        minWidth: minWidth,
+        maxWidth: maxWidth,
+      ),
+      margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: horizontalPadding,
-        vertical: verticalPadding,
+        horizontal: 16 * _scaleFactor,
+        vertical: 12 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(15 * _scaleFactor),
-          bottomRight: Radius.circular(15 * _scaleFactor),
+          topLeft: Radius.circular(20 * _scaleFactor),
+          bottomRight: Radius.circular(20 * _scaleFactor),
         ),
-        border: Border.all(color: Colors.black45, width: 1.5 * _scaleFactor),
+        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black26,
-            blurRadius: 3 * _scaleFactor,
-            offset: Offset(2 * _scaleFactor, 2 * _scaleFactor),
+            color: Colors.black45,
+            blurRadius: 6 * _scaleFactor,
+            offset: Offset(3 * _scaleFactor, 3 * _scaleFactor),
           )
         ],
       ),
@@ -1065,9 +1102,19 @@ class _JavaLevel3State extends State<JavaLevel3> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: fontSize,
+          fontSize: 14 * _scaleFactor,
+          color: Colors.black,
+          shadows: [
+            Shadow(
+              offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
+              blurRadius: 2 * _scaleFactor,
+              color: Colors.white.withOpacity(0.8),
+            ),
+          ],
         ),
         textAlign: TextAlign.center,
+        overflow: TextOverflow.visible,
+        maxLines: 2,
       ),
     );
   }

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
+import '../../services/music_service.dart';
 
 class PhpLevel1 extends StatefulWidget {
   const PhpLevel1({super.key});
@@ -40,6 +42,17 @@ class _PhpLevel1State extends State<PhpLevel1> {
     resetBlocks();
     _loadUserData();
     _calculateScaleFactor();
+    _startGameMusic();
+  }
+
+  void _startGameMusic() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      await musicService.stopBackgroundMusic();
+      await musicService.playSoundEffect('game_start.mp3');
+      await Future.delayed(Duration(milliseconds: 500));
+      await musicService.playSoundEffect('game_music.mp3');
+    });
   }
 
   void _calculateScaleFactor() {
@@ -102,6 +115,9 @@ class _PhpLevel1State extends State<PhpLevel1> {
   }
 
   void startGame() {
+    final musicService = Provider.of<MusicService>(context, listen: false);
+    musicService.playSoundEffect('level_start.mp3');
+
     setState(() {
       gameStarted = true;
       score = 3;
@@ -127,6 +143,10 @@ class _PhpLevel1State extends State<PhpLevel1> {
           timer.cancel();
           scoreReductionTimer?.cancel();
           saveScoreToDatabase(score);
+
+          final musicService = Provider.of<MusicService>(context, listen: false);
+          musicService.playSoundEffect('time_up.mp3');
+
           showDialog(
             context: context,
             builder: (_) => AlertDialog(
@@ -135,6 +155,8 @@ class _PhpLevel1State extends State<PhpLevel1> {
               actions: [
                 TextButton(
                   onPressed: () {
+                    final musicService = Provider.of<MusicService>(context, listen: false);
+                    musicService.playSoundEffect('click.mp3');
                     resetGame();
                     Navigator.pop(context);
                   },
@@ -147,7 +169,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 15), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 30), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -155,6 +177,9 @@ class _PhpLevel1State extends State<PhpLevel1> {
 
       setState(() {
         score--;
+        final musicService = Provider.of<MusicService>(context, listen: false);
+        musicService.playSoundEffect('penalty.mp3');
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
         );
@@ -163,6 +188,9 @@ class _PhpLevel1State extends State<PhpLevel1> {
   }
 
   void resetGame() {
+    final musicService = Provider.of<MusicService>(context, listen: false);
+    musicService.playSoundEffect('reset.mp3');
+
     setState(() {
       score = 3;
       remainingSeconds = 90;
@@ -276,10 +304,14 @@ class _PhpLevel1State extends State<PhpLevel1> {
   void checkAnswer() async {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
+    final musicService = Provider.of<MusicService>(context, listen: false);
+
     // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
+      musicService.playSoundEffect('error.mp3');
+
       if (score > 1) {
         setState(() {
           score--;
@@ -297,6 +329,9 @@ class _PhpLevel1State extends State<PhpLevel1> {
         countdownTimer?.cancel();
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
+
+        musicService.playSoundEffect('game_over.mp3');
+
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
@@ -305,6 +340,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
             actions: [
               TextButton(
                 onPressed: () {
+                  musicService.playSoundEffect('click.mp3');
                   Navigator.pop(context);
                   resetGame();
                 },
@@ -336,6 +372,13 @@ class _PhpLevel1State extends State<PhpLevel1> {
       });
 
       saveScoreToDatabase(score);
+
+      // PLAY SUCCESS SOUND BASED ON SCORE
+      if (score == 3) {
+        musicService.playSoundEffect('perfect.mp3');
+      } else {
+        musicService.playSoundEffect('success.mp3');
+      }
 
       showDialog(
         context: context,
@@ -373,41 +416,15 @@ class _PhpLevel1State extends State<PhpLevel1> {
                   ),
                 ),
               ),
-              SizedBox(height: 10),
-              Text("Your Code:", style: TextStyle(fontWeight: FontWeight.bold)),
-              Container(
-                padding: EdgeInsets.all(10),
-                color: Colors.purple[50],
-                child: Text(
-                  getPreviewCode(),
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-              SizedBox(height: 10),
-              Text("PHP Syntax:", style: TextStyle(fontWeight: FontWeight.bold)),
-              Container(
-                padding: EdgeInsets.all(10),
-                color: Colors.green[50],
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("• echo - outputs one or more strings"),
-                    Text("• \" \" - double quotes for strings"),
-                    Text("• ; - semicolon ends the statement"),
-                    Text("• <?php ?> - PHP opening and closing tags"),
-                  ],
-                ),
-              ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () {
+                musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
                 if (score == 3) {
+                  musicService.playSoundEffect('level_complete.mp3');
                   Navigator.pushReplacementNamed(context, '/php_level2');
                 } else {
                   Navigator.pushReplacementNamed(context, '/levels',
@@ -420,6 +437,8 @@ class _PhpLevel1State extends State<PhpLevel1> {
         ),
       );
     } else {
+      musicService.playSoundEffect('wrong.mp3');
+
       if (score > 1) {
         setState(() {
           score--;
@@ -434,6 +453,9 @@ class _PhpLevel1State extends State<PhpLevel1> {
         countdownTimer?.cancel();
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
+
+        musicService.playSoundEffect('game_over.mp3');
+
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
@@ -442,6 +464,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
             actions: [
               TextButton(
                 onPressed: () {
+                  musicService.playSoundEffect('click.mp3');
                   Navigator.pop(context);
                   resetGame();
                 },
@@ -460,11 +483,12 @@ class _PhpLevel1State extends State<PhpLevel1> {
     return "$m:$s";
   }
 
+  // IMPROVED CODE PREVIEW WITH BETTER SCALING
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Color(0xFF1E1E1E), // Dark background like VS Code
+        color: Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(8 * _scaleFactor),
         border: Border.all(color: Colors.grey[700]!),
       ),
@@ -507,13 +531,16 @@ class _PhpLevel1State extends State<PhpLevel1> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Line numbers
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        _buildCodeLine(1, '<?php'),
-                        _buildCodeLine(2, getPreviewCode()),
-                        _buildCodeLine(3, '?>'),
-                      ],
+                    Container(
+                      width: 30 * _scaleFactor,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _buildCodeLine(1),
+                          _buildCodeLine(2),
+                          _buildCodeLine(3),
+                        ],
+                      ),
                     ),
                     SizedBox(width: 16 * _scaleFactor),
                     // Actual code with syntax highlighting
@@ -542,7 +569,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
       return Container(
         height: 20 * _scaleFactor,
         child: Text(
-          '        ', // Empty line
+          '        ',
           style: TextStyle(
             color: Colors.white,
             fontSize: 12 * _scaleFactor,
@@ -572,7 +599,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
     );
   }
 
-  Widget _buildCodeLine(int lineNumber, String code) {
+  Widget _buildCodeLine(int lineNumber) {
     return Container(
       height: 20 * _scaleFactor,
       child: Text(
@@ -587,11 +614,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
   }
 
   Widget _buildSyntaxHighlightedLine(String code, {bool isPreprocessor = false}) {
-    Color textColor = Colors.white;
-
-    if (isPreprocessor) {
-      textColor = Color(0xFF569CD6); // Blue for PHP tags
-    }
+    Color textColor = Color(0xFF569CD6); // Blue for PHP tags
 
     return Container(
       height: 20 * _scaleFactor,
@@ -614,6 +637,12 @@ class _PhpLevel1State extends State<PhpLevel1> {
   void dispose() {
     countdownTimer?.cancel();
     scoreReductionTimer?.cancel();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      await musicService.playBackgroundMusic();
+    });
+
     super.dispose();
   }
 
@@ -660,7 +689,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1B0D1B), // Dark purple theme for PHP
+              Color(0xFF1B0D1B),
               Color(0xFF2D1B2D),
               Color(0xFF553355),
             ],
@@ -679,9 +708,13 @@ class _PhpLevel1State extends State<PhpLevel1> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              onPressed: startGame,
+              onPressed: () {
+                final musicService = Provider.of<MusicService>(context, listen: false);
+                musicService.playSoundEffect('button_click.mp3');
+                startGame();
+              },
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
                 backgroundColor: Colors.purple,
@@ -765,28 +798,20 @@ class _PhpLevel1State extends State<PhpLevel1> {
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Arrange the code blocks to create: echo \"Hello World\";",
+                    "Create a PHP program that displays 'Hello World' on the screen",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(10 * _scaleFactor),
-                    color: Colors.black,
-                    child: Text(
-                      "echo \"Hello World\";",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'monospace',
-                        fontSize: 14 * _scaleFactor,
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Learn PHP's echo statement!",
+                    "🎁 Get a perfect score (3/3) to unlock the Level 2!",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12 * _scaleFactor, color: Colors.purple[600], fontStyle: FontStyle.italic),
+                    style: TextStyle(
+                        fontSize: 12 * _scaleFactor,
+                        color: Colors.purple,
+                        fontWeight: FontWeight.bold,
+                        fontStyle: FontStyle.italic
+                    ),
                   ),
                 ],
               ),
@@ -812,6 +837,8 @@ class _PhpLevel1State extends State<PhpLevel1> {
               ),
               TextButton.icon(
                 onPressed: () {
+                  final musicService = Provider.of<MusicService>(context, listen: false);
+                  musicService.playSoundEffect('toggle.mp3');
                   setState(() {
                     isTagalog = !isTagalog;
                   });
@@ -832,15 +859,18 @@ class _PhpLevel1State extends State<PhpLevel1> {
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the blocks to form: echo "Hello World";',
+          Text('🧩 Arrange the blocks to form the correct PHP code',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          // TARGET AREA
+          // IMPROVED TARGET AREA WITH BETTER OVERFLOW HANDLING
           Container(
-            height: 140 * _scaleFactor,
             width: double.infinity,
+            constraints: BoxConstraints(
+              minHeight: 140 * _scaleFactor,
+              maxHeight: 200 * _scaleFactor,
+            ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
@@ -853,6 +883,9 @@ class _PhpLevel1State extends State<PhpLevel1> {
               },
               onAccept: (data) {
                 if (!isAnsweredCorrectly) {
+                  final musicService = Provider.of<MusicService>(context, listen: false);
+                  musicService.playSoundEffect('block_drop.mp3');
+
                   setState(() {
                     droppedBlocks.add(data);
                     allBlocks.remove(data);
@@ -860,18 +893,25 @@ class _PhpLevel1State extends State<PhpLevel1> {
                 }
               },
               builder: (context, candidateData, rejectedData) {
-                return Center(
+                return SingleChildScrollView(
                   child: Wrap(
                     spacing: 8 * _scaleFactor,
                     runSpacing: 8 * _scaleFactor,
                     alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: droppedBlocks.map((block) {
                       return Draggable<String>(
                         data: block,
-                        feedback: puzzleBlock(block, Colors.greenAccent),
+                        feedback: Material(
+                          color: Colors.transparent,
+                          child: puzzleBlock(block, Colors.greenAccent),
+                        ),
                         childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
                         child: puzzleBlock(block, Colors.greenAccent),
                         onDragStarted: () {
+                          final musicService = Provider.of<MusicService>(context, listen: false);
+                          musicService.playSoundEffect('block_pickup.mp3');
+
                           setState(() {
                             currentlyDraggedBlock = block;
                           });
@@ -908,53 +948,75 @@ class _PhpLevel1State extends State<PhpLevel1> {
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
 
-          // SOURCE AREA
-          Wrap(
-            spacing: 10 * _scaleFactor,
-            runSpacing: 12 * _scaleFactor,
-            alignment: WrapAlignment.center,
-            children: allBlocks.map((block) {
-              return isAnsweredCorrectly
-                  ? puzzleBlock(block, Colors.grey)
-                  : Draggable<String>(
-                data: block,
-                feedback: puzzleBlock(block, Colors.purpleAccent),
-                childWhenDragging: Opacity(
-                  opacity: 0.4,
+          // SOURCE AREA WITH IMPROVED LAYOUT
+          Container(
+            width: double.infinity,
+            constraints: BoxConstraints(
+              minHeight: 100 * _scaleFactor,
+            ),
+            padding: EdgeInsets.all(12 * _scaleFactor),
+            decoration: BoxDecoration(
+              color: Colors.grey[800]!.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12 * _scaleFactor),
+            ),
+            child: Wrap(
+              spacing: 8 * _scaleFactor,
+              runSpacing: 10 * _scaleFactor,
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: allBlocks.map((block) {
+                return isAnsweredCorrectly
+                    ? puzzleBlock(block, Colors.grey)
+                    : Draggable<String>(
+                  data: block,
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: puzzleBlock(block, Colors.purpleAccent),
+                  ),
+                  childWhenDragging: Opacity(
+                    opacity: 0.4,
+                    child: puzzleBlock(block, Colors.purpleAccent),
+                  ),
                   child: puzzleBlock(block, Colors.purpleAccent),
-                ),
-                child: puzzleBlock(block, Colors.purpleAccent),
-                onDragStarted: () {
-                  setState(() {
-                    currentlyDraggedBlock = block;
-                  });
-                },
-                onDragEnd: (details) {
-                  setState(() {
-                    currentlyDraggedBlock = null;
-                  });
+                  onDragStarted: () {
+                    final musicService = Provider.of<MusicService>(context, listen: false);
+                    musicService.playSoundEffect('block_pickup.mp3');
 
-                  if (!isAnsweredCorrectly && !details.wasAccepted) {
-                    Future.delayed(Duration(milliseconds: 50), () {
-                      if (mounted) {
-                        setState(() {
-                          if (!allBlocks.contains(block)) {
-                            allBlocks.add(block);
-                          }
-                        });
-                      }
+                    setState(() {
+                      currentlyDraggedBlock = block;
                     });
-                  }
-                },
-              );
-            }).toList(),
+                  },
+                  onDragEnd: (details) {
+                    setState(() {
+                      currentlyDraggedBlock = null;
+                    });
+
+                    if (!isAnsweredCorrectly && !details.wasAccepted) {
+                      Future.delayed(Duration(milliseconds: 50), () {
+                        if (mounted) {
+                          setState(() {
+                            if (!allBlocks.contains(block)) {
+                              allBlocks.add(block);
+                            }
+                          });
+                        }
+                      });
+                    }
+                  },
+                );
+              }).toList(),
+            ),
           ),
 
           SizedBox(height: 30 * _scaleFactor),
           ElevatedButton.icon(
-            onPressed: isAnsweredCorrectly ? null : checkAnswer,
+            onPressed: isAnsweredCorrectly ? null : () {
+              final musicService = Provider.of<MusicService>(context, listen: false);
+              musicService.playSoundEffect('compile.mp3');
+              checkAnswer();
+            },
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
-            label: Text("Run Code", style: TextStyle(fontSize: 16 * _scaleFactor)),
+            label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.purple,
               padding: EdgeInsets.symmetric(
@@ -964,7 +1026,11 @@ class _PhpLevel1State extends State<PhpLevel1> {
             ),
           ),
           TextButton(
-            onPressed: resetGame,
+            onPressed: () {
+              final musicService = Provider.of<MusicService>(context, listen: false);
+              musicService.playSoundEffect('button_click.mp3');
+              resetGame();
+            },
             child: Text("🔁 Retry", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
           ),
         ],
@@ -973,10 +1039,32 @@ class _PhpLevel1State extends State<PhpLevel1> {
   }
 
   Widget puzzleBlock(String text, Color color) {
+    // Calculate text width to adjust block size
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontFamily: 'monospace',
+          fontSize: 14 * _scaleFactor,
+          color: Colors.black, // FORCE BLACK TEXT FOR VISIBILITY
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final textWidth = textPainter.width;
+    final minWidth = 60 * _scaleFactor;
+    final maxWidth = 200 * _scaleFactor; // Increased max width for longer text
+
     return Container(
+      constraints: BoxConstraints(
+        minWidth: minWidth,
+        maxWidth: maxWidth,
+      ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 16 * _scaleFactor,
+        horizontal: 16 * _scaleFactor, // Increased horizontal padding
         vertical: 12 * _scaleFactor,
       ),
       decoration: BoxDecoration(
@@ -985,12 +1073,12 @@ class _PhpLevel1State extends State<PhpLevel1> {
           topLeft: Radius.circular(20 * _scaleFactor),
           bottomRight: Radius.circular(20 * _scaleFactor),
         ),
-        border: Border.all(color: Colors.black45, width: 1.5 * _scaleFactor),
+        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor), // Darker border for contrast
         boxShadow: [
           BoxShadow(
-            color: Colors.black26,
-            blurRadius: 4 * _scaleFactor,
-            offset: Offset(2 * _scaleFactor, 2 * _scaleFactor),
+            color: Colors.black45,
+            blurRadius: 6 * _scaleFactor,
+            offset: Offset(3 * _scaleFactor, 3 * _scaleFactor),
           )
         ],
       ),
@@ -1000,8 +1088,18 @@ class _PhpLevel1State extends State<PhpLevel1> {
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
           fontSize: 14 * _scaleFactor,
+          color: Colors.black, // FORCE BLACK TEXT FOR MAXIMUM VISIBILITY
+          shadows: [
+            Shadow(
+              offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
+              blurRadius: 2 * _scaleFactor,
+              color: Colors.white.withOpacity(0.8), // White shadow for better contrast
+            ),
+          ],
         ),
         textAlign: TextAlign.center,
+        overflow: TextOverflow.visible, // Changed from ellipsis to visible
+        maxLines: 2, // Allow 2 lines for longer text
       ),
     );
   }

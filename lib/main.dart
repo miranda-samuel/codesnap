@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'services/music_service.dart';
-import 'levels/java/level4.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_page.dart';
 import 'screens/signup_page.dart';
@@ -18,10 +17,20 @@ import 'screens/settings_screen.dart';
 import 'levels/python/level1.dart';
 import 'levels/python/level2.dart';
 import 'levels/python/level3.dart';
+import 'levels/python/level4.dart';
+import 'levels/python/level5.dart';
+import 'levels/python/level6.dart';
 
 import 'levels/java/level1.dart';
 import 'levels/java/level2.dart';
 import 'levels/java/level3.dart';
+import 'levels/java/level4.dart';
+import 'levels/java/level5.dart';
+import 'levels/java/level6.dart';
+import 'levels/java/level7.dart';
+import 'levels/java/level8.dart';
+import 'levels/java/level9.dart';
+import 'levels/java/level10.dart';
 
 import 'levels/cpp/level1.dart';
 import 'levels/cpp/level2.dart';
@@ -37,10 +46,16 @@ import 'levels/cpp/level10.dart';
 import 'levels/php/level1.dart';
 import 'levels/php/level2.dart';
 import 'levels/php/level3.dart';
+import 'levels/php/level4.dart';
+import 'levels/php/level5.dart';
+import 'levels/php/level6.dart';
 
 import 'levels/sql/level1.dart';
 import 'levels/sql/level2.dart';
 import 'levels/sql/level3.dart';
+import 'levels/sql/level4.dart';
+import 'levels/sql/level5.dart';
+import 'levels/sql/level6.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -141,12 +156,21 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           '/python_level1': (context) => const PythonLevel1(),
           '/python_level2': (context) => const PythonLevel2(),
           '/python_level3': (context) => const PythonLevel3(),
+          '/python_level4': (context) => const PythonLevel4(),
+          '/python_level5': (context) => const PythonLevel5(),
+          '/python_level6': (context) => const PythonLevel6(),
 
           // Java levels
           '/java_level1': (context) => const JavaLevel1(),
           '/java_level2': (context) => const JavaLevel2(),
           '/java_level3': (context) => const JavaLevel3(),
           '/java_level4': (context) => const JavaLevel4(),
+          '/java_level5': (context) => const JavaLevel5(),
+          '/java_level6': (context) => const JavaLevel6(),
+          '/java_level7': (context) => const JavaLevel7(),
+          '/java_level8': (context) => const JavaLevel8(),
+          '/java_level9': (context) => const JavaLevel9(),
+          '/java_level10': (context) => const JavaLevel10(),
 
           // C++ levels
           '/cpp_level1': (context) => const CppLevel1(),
@@ -164,11 +188,17 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           '/php_level1': (context) => const PhpLevel1(),
           '/php_level2': (context) => const PhpLevel2(),
           '/php_level3': (context) => const PhpLevel3(),
+          '/php_level4': (context) => const PhpLevel4(),
+          '/php_level5': (context) => const PhpLevel5(),
+          '/php_level6': (context) => const PhpLevel6(),
 
           // SQL levels
           '/sql_level1': (context) => const SqlLevel1(),
           '/sql_level2': (context) => const SqlLevel2(),
           '/sql_level3': (context) => const SqlLevel3(),
+          '/sql_level4': (context) => const SqlLevel4(),
+          '/sql_level5': (context) => const SqlLevel5(),
+          '/sql_level6': (context) => const SqlLevel6(),
         },
       ),
     );

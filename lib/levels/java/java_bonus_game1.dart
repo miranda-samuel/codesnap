@@ -3,14 +3,14 @@ import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
 
-class CppBonusGame1 extends StatefulWidget {
-  const CppBonusGame1({super.key});
+class JavaBonusGame1 extends StatefulWidget {
+  const JavaBonusGame1({super.key});
 
   @override
-  State<CppBonusGame1> createState() => _CppBonusGame1State();
+  State<JavaBonusGame1> createState() => _JavaBonusGame1State();
 }
 
-class _CppBonusGame1State extends State<CppBonusGame1> {
+class _JavaBonusGame1State extends State<JavaBonusGame1> {
   List<String> answerBlocks = [];
   String selectedAnswer = '';
   bool gameStarted = false;
@@ -31,41 +31,41 @@ class _CppBonusGame1State extends State<CppBonusGame1> {
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // Questions and Answers for C++ - Array Topics
+  // Questions and Answers for Java
   List<Map<String, dynamic>> questions = [
     {
-      'question': 'What is the correct way to declare a 2D array in C++?',
-      'tagalogQuestion': 'Ano ang tamang paraan para mag-declare ng 2D array sa C++?',
-      'correctAnswer': 'int arr[3][3];',
-      'options': ['int arr[3,3];', 'int arr[3][3];', 'array arr[3][3];', '2d int arr[3][3];'],
+      'question': 'Which keyword is used to prevent a class from being inherited?',
+      'tagalogQuestion': 'Aling keyword ang ginagamit para pigilan ang isang klase na ma-inherit?',
+      'correctAnswer': 'final',
+      'options': ['final', 'static', 'private', 'abstract'],
       'points': 10
     },
     {
-      'question': 'Which loop is best for array traversal?',
-      'tagalogQuestion': 'Aling loop ang pinakamainam para sa array traversal?',
-      'correctAnswer': 'for loop',
-      'options': ['while loop', 'for loop', 'do-while loop', 'foreach loop'],
+      'question': 'What is the return type of a constructor?',
+      'tagalogQuestion': 'Ano ang return type ng isang constructor?',
+      'correctAnswer': 'No return type',
+      'options': ['void', 'int', 'Object', 'No return type'],
       'points': 10
     },
     {
-      'question': 'What does arr[i] represent in an array?',
-      'tagalogQuestion': 'Ano ang kinakatawan ng arr[i] sa isang array?',
-      'correctAnswer': 'Element at index i',
-      'options': ['Address of element i', 'Element at index i', 'Size of array', 'Index of element'],
+      'question': 'Which method must be implemented when using Runnable interface?',
+      'tagalogQuestion': 'Aling method ang dapat i-implement kapag gumagamit ng Runnable interface?',
+      'correctAnswer': 'run()',
+      'options': ['start()', 'run()', 'execute()', 'main()'],
       'points': 10
     },
     {
-      'question': 'How to initialize all array elements to zero?',
-      'tagalogQuestion': 'Paano i-initialize ang lahat ng array elements sa zero?',
-      'correctAnswer': 'int arr[5] = {0};',
-      'options': ['int arr[5] = 0;', 'int arr[5] = {0};', 'int arr[5] = zero;', 'int arr[5] = {0,0,0,0,0};'],
+      'question': 'What is the size of int data type in Java?',
+      'tagalogQuestion': 'Ano ang size ng int data type sa Java?',
+      'correctAnswer': '4 bytes',
+      'options': ['2 bytes', '4 bytes', '8 bytes', 'Depends on platform'],
       'points': 10
     },
     {
-      'question': 'What is the index of first element in an array?',
-      'tagalogQuestion': 'Ano ang index ng unang elemento sa isang array?',
-      'correctAnswer': '0',
-      'options': ['0', '1', '-1', 'first'],
+      'question': 'Which collection class allows duplicate elements?',
+      'tagalogQuestion': 'Aling collection class ang nagpapahintulot ng duplicate elements?',
+      'correctAnswer': 'ArrayList',
+      'options': ['HashSet', 'ArrayList', 'HashMap', 'TreeSet'],
       'points': 10
     }
   ];
@@ -187,7 +187,7 @@ class _CppBonusGame1State extends State<CppBonusGame1> {
           children: [
             Icon(Icons.celebration, size: 60, color: Colors.amber[700]),
             SizedBox(height: 10),
-            Text("You've completed the C++ Bonus Game!"),
+            Text("You've completed the Java Bonus Game!"),
             SizedBox(height: 10),
             Text("Questions Correct: $questionsCorrect/${questions.length}",
                 style: TextStyle(fontWeight: FontWeight.bold)),
@@ -234,7 +234,7 @@ class _CppBonusGame1State extends State<CppBonusGame1> {
   }
 
   void _navigateToLevels() {
-    Navigator.pushReplacementNamed(context, '/levels', arguments: 'C++');
+    Navigator.pushReplacementNamed(context, '/levels', arguments: 'Java');
   }
 
   Future<void> saveScoreToDatabase(int score) async {
@@ -246,7 +246,7 @@ class _CppBonusGame1State extends State<CppBonusGame1> {
       // SAVE BONUS POINTS TO LEVEL 98 (Bonus Game 1)
       final response = await ApiService.saveScore(
         currentUser!['id'],
-        'C++',
+        'Java',
         98,  // BONUS GAME 1 LEVEL
         score, // 50 POINTS FOR PERFECT SCORE
         true,  // ALWAYS MARK AS COMPLETED IF PERFECT
@@ -272,7 +272,7 @@ class _CppBonusGame1State extends State<CppBonusGame1> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScores(currentUser!['id'], 'C++');
+      final response = await ApiService.getScores(currentUser!['id'], 'Java');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
@@ -425,7 +425,7 @@ class _CppBonusGame1State extends State<CppBonusGame1> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("🎁 C++ - Bonus Game", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        title: Text("🎁 Java - Bonus Game", style: TextStyle(fontSize: 18 * _scaleFactor)),
         backgroundColor: Colors.amber[700],
         actions: gameStarted
             ? [
@@ -555,13 +555,13 @@ class _CppBonusGame1State extends State<CppBonusGame1> {
               child: Column(
                 children: [
                   Text(
-                    "🎯 C++ BONUS GAME",
+                    "🎯 JAVA BONUS GAME",
                     style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.amber[900]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Test Your Knowledge",
+                    "Advanced Java Concepts Challenge",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.amber[800], fontWeight: FontWeight.bold),
                   ),
@@ -598,7 +598,7 @@ class _CppBonusGame1State extends State<CppBonusGame1> {
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎁 Topics: 2D arrays, loops, array initialization, indexing",
+                    "🎁 Topics: Inheritance, Constructors, Interfaces, Data Types, Collections",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,

@@ -6,35 +6,32 @@ import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
 import '../../services/music_service.dart';
 
-class JavaLevel2 extends StatefulWidget {
-  const JavaLevel2({super.key});
+class PhpLevel4 extends StatefulWidget {
+  const PhpLevel4({super.key});
 
   @override
-  State<JavaLevel2> createState() => _JavaLevel2State();
+  State<PhpLevel4> createState() => _PhpLevel4State();
 }
 
-class _JavaLevel2State extends State<JavaLevel2> {
+class _PhpLevel4State extends State<PhpLevel4> {
   List<String> allBlocks = [];
   List<String> droppedBlocks = [];
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level2Completed = false;
+  bool level4Completed = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
-  int score = 3;
-  int remainingSeconds = 90;
+  int score = 3; // Mananatiling 3
+  int remainingSeconds = 120;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
-  // Track currently dragged block
   String? currentlyDraggedBlock;
-
-  // Scaling factors
   double _scaleFactor = 1.0;
-  final double _baseScreenWidth = 360.0; // Base width for scaling
+  final double _baseScreenWidth = 360.0;
 
   @override
   void initState() {
@@ -79,35 +76,36 @@ class _JavaLevel2State extends State<JavaLevel2> {
   }
 
   void resetBlocks() {
-    // Correct blocks for Java: variable declaration and sum calculation
+    // Correct blocks for PHP function with parameters and return value - 4 BLOCKS NA
     List<String> correctBlocks = [
-      'int x = 5;',
-      'int y = 10;',
-      'int sum = x + y;',
-      'System.out.println(sum);'
+      'function addNumbers(\$a, \$b) {',
+      'return \$a + \$b;',
+      '}',
+      '\$result = addNumbers(5, 10);' // Added function call as 4th correct block
     ];
 
-    // Incorrect/distractor blocks
+    // Incorrect blocks
     List<String> incorrectBlocks = [
-      'x = 5;',
-      'y = 10;',
-      'sum = x + y;',
-      'cout << sum;',
-      'printf(sum);',
-      'print(sum);',
-      'var x = 5;',
-      'var y = 10;',
-      'let sum = x + y;',
-      'System.out.print(sum);',
-      'console.log(sum);',
-      'int z = 15;',
+      'func addNumbers(a, b)',
+      'def addNumbers(a, b):',
+      'addNumbers function(a, b)',
+      'echo \$a + \$b;',
+      'print \$a + \$b;',
+      'return a + b',
+      'function addNumbers(a, b)',
+      'function addNumbers() {',
+      'return \$a - \$b;',
+      'return \$a * \$b;',
+      'printf(\$a + \$b);',
+      'cout << \$a + \$b;',
+      'addNumbers(5, 10)', // Added more incorrect options
+      'result = addNumbers(5, 10)',
     ];
 
-    // Shuffle incorrect blocks and take 3 random ones
+    // Shuffle incorrect blocks and take 2 random ones (4 correct + 2 incorrect = 6 total)
     incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(3).toList();
+    List<String> selectedIncorrectBlocks = incorrectBlocks.take(2).toList();
 
-    // Combine correct and incorrect blocks, then shuffle
     allBlocks = [
       ...correctBlocks,
       ...selectedIncorrectBlocks,
@@ -120,8 +118,8 @@ class _JavaLevel2State extends State<JavaLevel2> {
 
     setState(() {
       gameStarted = true;
-      score = 3;
-      remainingSeconds = 90;
+      score = 3; // Mananatiling 3
+      remainingSeconds = 120;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       resetBlocks();
@@ -192,8 +190,8 @@ class _JavaLevel2State extends State<JavaLevel2> {
     musicService.playSoundEffect('reset.mp3');
 
     setState(() {
-      score = 3;
-      remainingSeconds = 90;
+      score = 3; // Mananatiling 3
+      remainingSeconds = 120;
       gameStarted = false;
       isAnsweredCorrectly = false;
       droppedBlocks.clear();
@@ -209,15 +207,15 @@ class _JavaLevel2State extends State<JavaLevel2> {
     try {
       final response = await ApiService.saveScore(
         currentUser!['id'],
-        'Java',
-        2, // Level 2
+        'PHP',
+        4,
         score,
-        score == 3, // Only completed if perfect score
+        score == 3, // Mananatiling 3
       );
 
       if (response['success'] == true) {
         setState(() {
-          level2Completed = score == 3;
+          level4Completed = score == 3; // Mananatiling 3
           previousScore = score;
           hasPreviousScore = true;
         });
@@ -233,16 +231,16 @@ class _JavaLevel2State extends State<JavaLevel2> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScores(currentUser!['id'], 'Java');
+      final response = await ApiService.getScores(currentUser!['id'], 'PHP');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level2Data = scoresData['2']; // Level 2
+        final level4Data = scoresData['4'];
 
-        if (level2Data != null) {
+        if (level4Data != null) {
           setState(() {
-            previousScore = level2Data['score'] ?? 0;
-            level2Completed = level2Data['completed'] ?? false;
+            previousScore = level4Data['score'] ?? 0;
+            level4Completed = level4Data['completed'] ?? false;
             hasPreviousScore = true;
             score = previousScore;
           });
@@ -253,49 +251,22 @@ class _JavaLevel2State extends State<JavaLevel2> {
     }
   }
 
-  Future<void> refreshScore() async {
-    if (currentUser?['id'] != null) {
-      try {
-        final response = await ApiService.getScores(currentUser!['id'], 'Java');
-        if (response['success'] == true && response['scores'] != null) {
-          final scoresData = response['scores'];
-          final level2Data = scoresData['2'];
-
-          setState(() {
-            if (level2Data != null) {
-              previousScore = level2Data['score'] ?? 0;
-              level2Completed = level2Data['completed'] ?? false;
-              hasPreviousScore = true;
-              score = previousScore;
-            } else {
-              hasPreviousScore = false;
-              previousScore = 0;
-              level2Completed = false;
-              score = 3;
-            }
-          });
-        }
-      } catch (e) {
-        print('Error refreshing score: $e');
-      }
-    }
-  }
-
-  // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
-      'x = 5;',
-      'y = 10;',
-      'sum = x + y;',
-      'cout << sum;',
-      'printf(sum);',
-      'print(sum);',
-      'var x = 5;',
-      'var y = 10;',
-      'let sum = x + y;',
-      'System.out.print(sum);',
-      'console.log(sum);',
-      'int z = 15;',
+      'func addNumbers(a, b)',
+      'def addNumbers(a, b):',
+      'addNumbers function(a, b)',
+      'echo \$a + \$b;',
+      'print \$a + \$b;',
+      'return a + b',
+      'function addNumbers(a, b)',
+      'function addNumbers() {',
+      'return \$a - \$b;',
+      'return \$a * \$b;',
+      'printf(\$a + \$b);',
+      'cout << \$a + \$b;',
+      'addNumbers(5, 10)',
+      'result = addNumbers(5, 10)',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -305,7 +276,6 @@ class _JavaLevel2State extends State<JavaLevel2> {
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
-    // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
@@ -352,15 +322,15 @@ class _JavaLevel2State extends State<JavaLevel2> {
       return;
     }
 
-    // Check for correct order: variable declarations first, then calculation, then output
-    String answer = droppedBlocks.join('\n');
+    // Check for correct PHP function with parameters and return including function call
+    String answer = droppedBlocks.join(' ');
     String normalizedAnswer = answer
-        .replaceAll('\n', '')
         .replaceAll(' ', '')
+        .replaceAll('\n', '')
         .toLowerCase();
 
-    // Expected: intx=5;inty=10;intsum=x+y;system.out.println(sum);
-    String expected = 'intx=5;inty=10;intsum=x+y;system.out.println(sum);';
+    // Expected: functionaddnumbers($a,$b){return$a+$b;}$result=addnumbers(5,10);
+    String expected = 'functionaddnumbers(\$a,\$b){return\$a+\$b;}\$result=addnumbers(5,10);';
 
     if (normalizedAnswer == expected) {
       countdownTimer?.cancel();
@@ -372,8 +342,7 @@ class _JavaLevel2State extends State<JavaLevel2> {
 
       saveScoreToDatabase(score);
 
-      // PLAY SUCCESS SOUND BASED ON SCORE
-      if (score == 3) {
+      if (score == 3) { // Mananatiling 3
         musicService.playSoundEffect('perfect.mp3');
       } else {
         musicService.playSoundEffect('success.mp3');
@@ -387,18 +356,18 @@ class _JavaLevel2State extends State<JavaLevel2> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent Java Programming!"),
+              Text("Excellent! You created a PHP function with parameters and called it!"),
               SizedBox(height: 10),
-              Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+              Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)), // Mananatiling 3/3
               SizedBox(height: 10),
-              if (score == 3)
+              if (score == 3) // Mananatiling 3
                 Text(
-                  "🎉 Perfect! You've unlocked Level 3!",
-                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                  "🎉 Perfect! You've unlocked Level 5!",
+                  style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) to unlock the next level!",
+                  "⚠️ Get a perfect score (3/3) to complete the level!", // Mananatiling 3/3
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
@@ -407,7 +376,7 @@ class _JavaLevel2State extends State<JavaLevel2> {
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  "15",
+                  "Result: 15",
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
@@ -422,14 +391,14 @@ class _JavaLevel2State extends State<JavaLevel2> {
               onPressed: () {
                 musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
-                if (score == 3) {
+                if (score == 3) { // Mananatiling 3
                   musicService.playSoundEffect('level_complete.mp3');
-                  Navigator.pushReplacementNamed(context, '/java_level3');
+                  Navigator.pushReplacementNamed(context, '/php_level5');
                 } else {
-                  Navigator.pushReplacementNamed(context, '/levels', arguments: 'Java');
+                  Navigator.pushReplacementNamed(context, '/levels', arguments: 'PHP');
                 }
               },
-              child: Text(score == 3 ? "Next Level" : "Go Back"),
+              child: Text(score == 3 ? "Next Level" : "Go Back"), // Mananatiling 3
             )
           ],
         ),
@@ -481,7 +450,6 @@ class _JavaLevel2State extends State<JavaLevel2> {
     return "$m:$s";
   }
 
-  // IMPROVED CODE PREVIEW WITH ORGANIZED LAYOUT
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -508,7 +476,7 @@ class _JavaLevel2State extends State<JavaLevel2> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'Main.java',
+                  'calculator.php',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -543,6 +511,7 @@ class _JavaLevel2State extends State<JavaLevel2> {
                           _buildCodeLine(7),
                           _buildCodeLine(8),
                           _buildCodeLine(9),
+                          _buildCodeLine(10),
                         ],
                       ),
                     ),
@@ -552,14 +521,16 @@ class _JavaLevel2State extends State<JavaLevel2> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildSyntaxHighlightedLine('public class Main {', isKeyword: true),
-                          _buildSyntaxHighlightedLine('    public static void main(String[] args) {', isKeyword: true),
+                          _buildSyntaxHighlightedLine('<?php', isKeyword: true),
                           _buildUserCodeLine(1, droppedBlocks.length > 0 ? droppedBlocks[0] : ''),
                           _buildUserCodeLine(2, droppedBlocks.length > 1 ? droppedBlocks[1] : ''),
                           _buildUserCodeLine(3, droppedBlocks.length > 2 ? droppedBlocks[2] : ''),
-                          _buildUserCodeLine(4, droppedBlocks.length > 3 ? droppedBlocks[3] : ''),
-                          _buildSyntaxHighlightedLine('    }', isNormal: true),
-                          _buildSyntaxHighlightedLine('}', isNormal: true),
+                          _buildUserCodeLine(4, droppedBlocks.length > 3 ? droppedBlocks[3] : ''), // Added 4th line
+                          _buildSyntaxHighlightedLine('', isNormal: true),
+                          _buildSyntaxHighlightedLine('// Display the result', isComment: true),
+                          _buildSyntaxHighlightedLine('echo "Result: " . \$result;', isNormal: true),
+                          _buildSyntaxHighlightedLine('', isNormal: true),
+                          _buildSyntaxHighlightedLine('?>', isKeyword: true),
                         ],
                       ),
                     ),
@@ -626,11 +597,17 @@ class _JavaLevel2State extends State<JavaLevel2> {
     );
   }
 
-  Widget _buildSyntaxHighlightedLine(String code, {bool isPreprocessor = false, bool isKeyword = false, bool isNormal = false}) {
+  Widget _buildSyntaxHighlightedLine(String code, {bool isPreprocessor = false, bool isKeyword = false, bool isNormal = false, bool isComment = false}) {
     Color textColor = Colors.white;
 
     if (isKeyword) {
-      textColor = Color(0xFF569CD6);
+      textColor = Color(0xFF569CD6); // Blue for PHP tags
+    } else if (isComment) {
+      textColor = Color(0xFF6A9955); // Green for comments
+    } else if (isNormal && code.contains('addNumbers')) {
+      textColor = Color(0xFFDCDCAA); // Light yellow for function calls
+    } else if (isNormal && code.contains('\$')) {
+      textColor = Color(0xFF9CDCFE); // Light blue for variables
     } else if (isNormal) {
       textColor = Colors.white;
     }
@@ -663,7 +640,6 @@ class _JavaLevel2State extends State<JavaLevel2> {
 
   @override
   Widget build(BuildContext context) {
-    // Recalculate scale factor when screen size changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
       final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
@@ -677,8 +653,8 @@ class _JavaLevel2State extends State<JavaLevel2> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("☕ Java - Level 2", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.red,
+        title: Text("🐘 PHP - Level 4", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.deepPurple,
         actions: gameStarted
             ? [
           Padding(
@@ -704,9 +680,9 @@ class _JavaLevel2State extends State<JavaLevel2> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1B0D0D),
-              Color(0xFF2D1B1B),
-              Color(0xFF553333),
+              Color(0xFF1B0D1B),
+              Color(0xFF2D1B2D),
+              Color(0xFF553355),
             ],
           ),
         ),
@@ -732,25 +708,25 @@ class _JavaLevel2State extends State<JavaLevel2> {
               label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.red,
+                backgroundColor: Colors.deepPurple,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
 
-            if (level2Completed)
+            if (level4Completed)
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Level 2 completed with perfect score!",
+                      "✅ Level 4 completed with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "You've unlocked Level 3!",
-                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "You've unlocked Level 5!",
+                      style: TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -762,13 +738,13 @@ class _JavaLevel2State extends State<JavaLevel2> {
                 child: Column(
                   children: [
                     Text(
-                      "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                      "📊 Your previous score: $previousScore/3", // Mananatiling 3/3
+                      style: TextStyle(color: Colors.deepPurple, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score and unlock Level 3!",
+                      "Try again to get a perfect score and unlock Level 5!",
                       style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -781,8 +757,8 @@ class _JavaLevel2State extends State<JavaLevel2> {
                   child: Column(
                     children: [
                       Text(
-                        "😅 Your previous score: $previousScore/3",
-                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                        "😅 Your previous score: $previousScore/3", // Mananatiling 3/3
+                        style: TextStyle(color: Colors.deepPurple, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
@@ -800,26 +776,26 @@ class _JavaLevel2State extends State<JavaLevel2> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.red[50]!.withOpacity(0.9),
+                color: Colors.deepPurple[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.red[200]!),
+                border: Border.all(color: Colors.deepPurple[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎯 Level 2 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.red[800]),
+                    "🎯 Level 4 Objective",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.deepPurple[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create a Java program that declares variables, calculates their sum, and displays the result",
+                    "Create a PHP function with parameters that returns the sum of two numbers and call it", // Updated objective
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.red[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.deepPurple[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎁 Get a perfect score (3/3) to unlock Level 3!",
+                    "🎁  Get a perfect score (3/3) to unlock Level 5!", // Mananatiling 3/3
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
@@ -867,19 +843,19 @@ class _JavaLevel2State extends State<JavaLevel2> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Si Maria ay natututo ng variables at calculations sa Java! Kailangan niyang ideklara ang x at y, kalkulahin ang sum, at ipakita ang resulta. Tulungan mo siya!'
-                : 'Maria is learning about variables and calculations in Java! She needs to declare x and y, calculate their sum, and display the result. Help her!',
+                ? 'Si Zeke ay gumagawa ng calculator gamit ang PHP! Kailangan niyang gumawa ng function na may parameters para mag-add ng dalawang numbers at tawagin ito. Tulungan siyang pumili ng tamang code!'
+                : 'Zeke is building a calculator using PHP! He needs to create a function with parameters to add two numbers and call it. Help him choose the correct code!',
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the 4 correct blocks to create the program',
+          Text('🧩 Arrange the 4 correct blocks to create and call the function with parameters', // 4 blocks na
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          // TARGET AREA - EXACTLY LIKE LEVEL 1
+          // TARGET AREA
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
@@ -889,7 +865,7 @@ class _JavaLevel2State extends State<JavaLevel2> {
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.red, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.deepPurple, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -919,10 +895,10 @@ class _JavaLevel2State extends State<JavaLevel2> {
                         data: block,
                         feedback: Material(
                           color: Colors.transparent,
-                          child: puzzleBlock(block, Colors.orangeAccent),
+                          child: puzzleBlock(block, Colors.greenAccent),
                         ),
-                        childWhenDragging: puzzleBlock(block, Colors.orangeAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.orangeAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.greenAccent),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
@@ -986,13 +962,13 @@ class _JavaLevel2State extends State<JavaLevel2> {
                   data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(block, Colors.redAccent),
+                    child: puzzleBlock(block, Colors.deepPurpleAccent),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.redAccent),
+                    child: puzzleBlock(block, Colors.deepPurpleAccent),
                   ),
-                  child: puzzleBlock(block, Colors.redAccent),
+                  child: puzzleBlock(block, Colors.deepPurpleAccent),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
@@ -1033,7 +1009,7 @@ class _JavaLevel2State extends State<JavaLevel2> {
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: Colors.deepPurple,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -1054,7 +1030,6 @@ class _JavaLevel2State extends State<JavaLevel2> {
   }
 
   Widget puzzleBlock(String text, Color color) {
-    // Calculate text width to adjust block size
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,

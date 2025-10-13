@@ -79,50 +79,35 @@ class _CppLevel8State extends State<CppLevel8> {
   }
 
   void resetBlocks() {
+    // Correct blocks for C++: String manipulation - reverse a string (6 blocks)
     List<String> correctBlocks = [
-      'float temperature = 98.6;',
-      'float weight = 65.5;',
-      'float height = 1.75;',
-      'float bmi = weight / (height * height);',
-      'cout << fixed << setprecision(2);',
-      'cout << "BMI: " << bmi << endl;'
+      'string reverseString(string str) {',
+      'string reversed = "";',
+      'for (int i = str.length() - 1; i >= 0; i--) {',
+      'reversed += str[i];',
+      '}',
+      'return reversed;',
     ];
 
     // Incorrect/distractor blocks
     List<String> incorrectBlocks = [
-      'double temperature = 98.6;',
-      'int weight = 65;',
-      'string height = "1.75";',
-      'bool bmi = weight / (height * height);',
-      'char result = bmi;',
-      'int age = 25;',
-      'double bmi = weight / (height * height);',
-      'printf("BMI: %.2f", bmi);',
-      'print("BMI: " + bmi);',
-      'System.out.println("BMI: " + bmi);',
-      'Console.WriteLine("BMI: " + bmi);',
-      'cout >> "BMI: " >> bmi;',
-      'cin >> weight;',
-      'return bmi;',
+      'void reverseString(string str) {',
+      'string reverseString(string str)',
+      'string reversed;',
+      'string reversed = str;',
+      'for (int i = 0; i < str.length(); i++) {',
+      'for (int i = str.length(); i > 0; i--) {',
+      'while (i >= 0) {',
+      'reversed.append(str[i]);',
+      'reversed.push_back(str[i]);',
+      'reversed = str[i] + reversed;',
+      'return str;',
+      'cout << reversed;',
+      'return reversed.toString();',
+      'reverse(str.begin(), str.end());',
+      '} else {',
       'break;',
-      'continue;',
-      'if (bmi > 25) {',
-      'while (bmi > 0) {',
-      'for (int i = 0; i < 10; i++) {',
-      'switch(bmi) {',
-      'case 25.0:',
-      'default:',
-      'void calculate() {',
-      'function calculate() {',
-      'def calculate():',
-      'calculate() {',
-      'bmi = weight / height * height;',
-      'float result = bmi;',
-      'double precise = 98.6000001;',
-      'int rounded = 99;',
-      'string output = "Healthy";',
-      'cout << "Result: " << bmi;',
-      'cout << setprecision(4);',
+      'i++'
     ];
 
     // Shuffle incorrect blocks and take 4 random ones
@@ -232,7 +217,7 @@ class _CppLevel8State extends State<CppLevel8> {
       final response = await ApiService.saveScore(
         currentUser!['id'],
         'C++',
-        8,
+        8, // LEVEL 8
         score,
         score == 3, // perfect score
       );
@@ -275,70 +260,26 @@ class _CppLevel8State extends State<CppLevel8> {
     }
   }
 
-  Future<void> refreshScore() async {
-    if (currentUser?['id'] != null) {
-      try {
-        final response = await ApiService.getScores(currentUser!['id'], 'C++');
-        if (response['success'] == true && response['scores'] != null) {
-          final scoresData = response['scores'];
-          final level8Data = scoresData['8'];
-
-          setState(() {
-            if (level8Data != null) {
-              previousScore = level8Data['score'] ?? 0;
-              level8Completed = level8Data['completed'] ?? false;
-              hasPreviousScore = true;
-              score = previousScore;
-            } else {
-              hasPreviousScore = false;
-              previousScore = 0;
-              level8Completed = false;
-              score = 3;
-            }
-          });
-        }
-      } catch (e) {
-        print('Error refreshing score: $e');
-      }
-    }
-  }
-
   // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
-      'double temperature = 98.6;',
-      'int weight = 65;',
-      'string height = "1.75";',
-      'bool bmi = weight / (height * height);',
-      'char result = bmi;',
-      'int age = 25;',
-      'double bmi = weight / (height * height);',
-      'printf("BMI: %.2f", bmi);',
-      'print("BMI: " + bmi);',
-      'System.out.println("BMI: " + bmi);',
-      'Console.WriteLine("BMI: " + bmi);',
-      'cout >> "BMI: " >> bmi;',
-      'cin >> weight;',
-      'return bmi;',
+      'void reverseString(string str) {',
+      'string reverseString(string str)',
+      'string reversed;',
+      'string reversed = str;',
+      'for (int i = 0; i < str.length(); i++) {',
+      'for (int i = str.length(); i > 0; i--) {',
+      'while (i >= 0) {',
+      'reversed.append(str[i]);',
+      'reversed.push_back(str[i]);',
+      'reversed = str[i] + reversed;',
+      'return str;',
+      'cout << reversed;',
+      'return reversed.toString();',
+      'reverse(str.begin(), str.end());',
+      '} else {',
       'break;',
-      'continue;',
-      'if (bmi > 25) {',
-      'while (bmi > 0) {',
-      'for (int i = 0; i < 10; i++) {',
-      'switch(bmi) {',
-      'case 25.0:',
-      'default:',
-      'void calculate() {',
-      'function calculate() {',
-      'def calculate():',
-      'calculate() {',
-      'bmi = weight / height * height;',
-      'float result = bmi;',
-      'double precise = 98.6000001;',
-      'int rounded = 99;',
-      'string output = "Healthy";',
-      'cout << "Result: " << bmi;',
-      'cout << setprecision(4);',
+      'i++'
     ];
     return incorrectBlocks.contains(block);
   }
@@ -395,17 +336,26 @@ class _CppLevel8State extends State<CppLevel8> {
       return;
     }
 
-    // Check for the correct sequence for BMI calculator
-    String answer = droppedBlocks.join(' ');
-    String normalizedAnswer = answer
-        .replaceAll(' ', '')
-        .replaceAll('\n', '')
-        .toLowerCase();
+    // Check for the correct sequence for reverseString function (6 blocks)
+    bool hasFunctionSignature = droppedBlocks.contains('string reverseString(string str) {');
+    bool hasStringDeclaration = droppedBlocks.contains('string reversed = "";');
+    bool hasForLoop = droppedBlocks.contains('for (int i = str.length() - 1; i >= 0; i--) {');
+    bool hasAppend = droppedBlocks.contains('reversed += str[i];');
+    bool hasClosingBrace = droppedBlocks.contains('}');
+    bool hasReturn = droppedBlocks.contains('return reversed;');
 
-    // Expected: floattemperature=98.6;floatweight=65.5;floatheight=1.75;floatbmi=weight/(height*height);cout<<fixed<<setprecision(2);cout<<"bmi:"<<bmi<<endl;
-    String expected = 'floattemperature=98.6;floatweight=65.5;floatheight=1.75;floatbmi=weight/(height*height);cout<<fixed<<setprecision(2);cout<<"bmi:"<<bmi<<endl;';
+    // Check if all correct blocks are present
+    bool allCorrectBlocksPresent = hasFunctionSignature &&
+        hasStringDeclaration &&
+        hasForLoop &&
+        hasAppend &&
+        hasClosingBrace &&
+        hasReturn;
 
-    if (normalizedAnswer == expected) {
+    // Check if no extra correct blocks are used (should be exactly 6 blocks)
+    bool correctBlockCount = droppedBlocks.length == 6;
+
+    if (allCorrectBlocksPresent && correctBlockCount) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -430,27 +380,36 @@ class _CppLevel8State extends State<CppLevel8> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent! You've created a perfect BMI calculator using float variables!"),
+              Text("Excellent! You've created a perfect string reversal function!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
-                Text(
-                  "🎉 Perfect! You've unlocked Level 9!",
-                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                Column(
+                  children: [
+                    Text(
+                      "🎉 Perfect! You've completed C++ Level 8!",
+                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      "Congratulations on mastering String manipulation!",
+                      style: TextStyle(color: Colors.purple, fontSize: 12),
+                    ),
+                  ],
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) to unlock the next level!",
+                  "⚠️ Get a perfect score (3/3) to complete Level 8!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
-              Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("Function Output for \"hello\":", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  "BMI: 21.39",
+                  "Reversed: olleh",
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
@@ -467,7 +426,6 @@ class _CppLevel8State extends State<CppLevel8> {
                 Navigator.pop(context);
                 if (score == 3) {
                   musicService.playSoundEffect('level_complete.mp3');
-                  // NAVIGATE TO LEVEL 9 WHEN PERFECT SCORE
                   Navigator.pushReplacementNamed(context, '/cpp_level9');
                 } else {
                   Navigator.pushReplacementNamed(context, '/levels', arguments: 'C++');
@@ -485,8 +443,18 @@ class _CppLevel8State extends State<CppLevel8> {
         setState(() {
           score--;
         });
+
+        String errorMessage = "❌ Incorrect arrangement. -1 point. Current score: $score";
+
+        // Provide specific feedback
+        if (!allCorrectBlocksPresent) {
+          errorMessage = "❌ Missing some required code blocks. -1 point. Current score: $score";
+        } else if (!correctBlockCount) {
+          errorMessage = "❌ Used wrong number of blocks. -1 point. Current score: $score";
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Incorrect arrangement. -1 point. Current score: $score")),
+          SnackBar(content: Text(errorMessage)),
         );
       } else {
         setState(() {
@@ -551,7 +519,7 @@ class _CppLevel8State extends State<CppLevel8> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'bmi_calculator.cpp',
+                  'string_utils.cpp',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -584,6 +552,11 @@ class _CppLevel8State extends State<CppLevel8> {
                           _buildCodeLine(8),
                           _buildCodeLine(9),
                           _buildCodeLine(10),
+                          _buildCodeLine(11),
+                          _buildCodeLine(12),
+                          _buildCodeLine(13),
+                          _buildCodeLine(14),
+                          _buildCodeLine(15),
                         ],
                       ),
                     ),
@@ -593,11 +566,15 @@ class _CppLevel8State extends State<CppLevel8> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildSyntaxHighlightedLine('#include <iostream>', isPreprocessor: true),
-                          _buildSyntaxHighlightedLine('#include <iomanip>', isPreprocessor: true),
+                          _buildSyntaxHighlightedLine('#include <string>', isPreprocessor: true),
                           _buildSyntaxHighlightedLine('using namespace std;', isKeyword: true),
-                          SizedBox(height: 8 * _scaleFactor),
-                          _buildSyntaxHighlightedLine('int main() {', isKeyword: true),
+                          _buildSyntaxHighlightedLine('', isNormal: true),
                           _buildUserCodePreview(),
+                          _buildSyntaxHighlightedLine('', isNormal: true),
+                          _buildSyntaxHighlightedLine('int main() {', isKeyword: true),
+                          _buildSyntaxHighlightedLine('    string original = "hello";', isNormal: true),
+                          _buildSyntaxHighlightedLine('    string reversed = reverseString(original);', isNormal: true),
+                          _buildSyntaxHighlightedLine('    cout << "Reversed: " << reversed << endl;', isNormal: true),
                           _buildSyntaxHighlightedLine('    return 0;', isKeyword: true),
                           _buildSyntaxHighlightedLine('}', isNormal: true),
                         ],
@@ -629,62 +606,47 @@ class _CppLevel8State extends State<CppLevel8> {
     }
 
     List<Widget> codeLines = [];
-    bool hasTemperature = droppedBlocks.any((block) => block == 'float temperature = 98.6;');
-    bool hasWeight = droppedBlocks.any((block) => block == 'float weight = 65.5;');
-    bool hasHeight = droppedBlocks.any((block) => block == 'float height = 1.75;');
-    bool hasBmi = droppedBlocks.any((block) => block == 'float bmi = weight / (height * height);');
-    bool hasSetPrecision = droppedBlocks.any((block) => block == 'cout << fixed << setprecision(2);');
-    bool hasCoutBmi = droppedBlocks.any((block) => block == 'cout << "BMI: " << bmi << endl;');
+    bool hasFunctionSignature = droppedBlocks.contains('string reverseString(string str) {');
+    bool hasStringDeclaration = droppedBlocks.contains('string reversed = "";');
+    bool hasForLoop = droppedBlocks.contains('for (int i = str.length() - 1; i >= 0; i--) {');
+    bool hasAppend = droppedBlocks.contains('reversed += str[i];');
+    bool hasClosingBrace = droppedBlocks.contains('}');
+    bool hasReturn = droppedBlocks.contains('return reversed;');
 
-    if (hasTemperature) {
-      String block = droppedBlocks.firstWhere((block) => block == 'float temperature = 98.6;', orElse: () => '');
-      if (block.isNotEmpty) {
-        codeLines.add(_buildUserCodeLine(block));
-      }
+    if (hasFunctionSignature) {
+      codeLines.add(_buildUserCodeLine('string reverseString(string str) {'));
     }
 
-    if (hasWeight) {
-      String block = droppedBlocks.firstWhere((block) => block == 'float weight = 65.5;', orElse: () => '');
-      if (block.isNotEmpty) {
-        codeLines.add(_buildUserCodeLine(block));
-      }
+    if (hasStringDeclaration) {
+      codeLines.add(_buildUserCodeLine('    string reversed = "";'));
     }
 
-    if (hasHeight) {
-      String block = droppedBlocks.firstWhere((block) => block == 'float height = 1.75;', orElse: () => '');
-      if (block.isNotEmpty) {
-        codeLines.add(_buildUserCodeLine(block));
-      }
+    if (hasForLoop) {
+      codeLines.add(_buildUserCodeLine('    for (int i = str.length() - 1; i >= 0; i--) {'));
     }
 
-    if (hasBmi) {
-      String block = droppedBlocks.firstWhere((block) => block == 'float bmi = weight / (height * height);', orElse: () => '');
-      if (block.isNotEmpty) {
-        codeLines.add(_buildUserCodeLine(block));
-      }
+    if (hasAppend) {
+      codeLines.add(_buildUserCodeLine('        reversed += str[i];'));
     }
 
-    if (hasSetPrecision) {
-      String block = droppedBlocks.firstWhere((block) => block == 'cout << fixed << setprecision(2);', orElse: () => '');
-      if (block.isNotEmpty) {
-        codeLines.add(_buildUserCodeLine(block));
-      }
+    if (hasClosingBrace) {
+      codeLines.add(_buildUserCodeLine('    }'));
     }
 
-    if (hasCoutBmi) {
-      String block = droppedBlocks.firstWhere((block) => block == 'cout << "BMI: " << bmi << endl;', orElse: () => '');
-      if (block.isNotEmpty) {
-        codeLines.add(_buildUserCodeLine(block));
-      }
+    if (hasReturn) {
+      codeLines.add(_buildUserCodeLine('    return reversed;'));
     }
 
+    // Add any incorrect blocks that were used
     for (String block in droppedBlocks) {
-      if (block != 'float temperature = 98.6;' &&
-          block != 'float weight = 65.5;' &&
-          block != 'float height = 1.75;' &&
-          block != 'float bmi = weight / (height * height);' &&
-          block != 'cout << fixed << setprecision(2);' &&
-          block != 'cout << "BMI: " << bmi << endl;') {
+      if (![
+        'string reverseString(string str) {',
+        'string reversed = "";',
+        'for (int i = str.length() - 1; i >= 0; i--) {',
+        'reversed += str[i];',
+        '}',
+        'return reversed;',
+      ].contains(block)) {
         codeLines.add(_buildUserCodeLine(block));
       }
     }
@@ -699,7 +661,7 @@ class _CppLevel8State extends State<CppLevel8> {
     return Container(
       height: 20 * _scaleFactor,
       child: Text(
-        '    $code',
+        code,
         style: TextStyle(
           color: Colors.greenAccent[400],
           fontFamily: 'monospace',
@@ -771,8 +733,8 @@ class _CppLevel8State extends State<CppLevel8> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("️⚡ C++ - Level 8", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.teal,
+        title: Text("⚡ C++ - Level 8", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.blue,
         actions: gameStarted
             ? [
           Padding(
@@ -798,9 +760,9 @@ class _CppLevel8State extends State<CppLevel8> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1A1A2E),
-              Color(0xFF16213E),
-              Color(0xFF0F3460),
+              Color(0xFF0D1B2A),
+              Color(0xFF1B263B),
+              Color(0xFF415A77),
             ],
           ),
         ),
@@ -823,10 +785,10 @@ class _CppLevel8State extends State<CppLevel8> {
                 startGame();
               },
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.teal,
+                backgroundColor: Colors.blue,
               ),
             ),
 
@@ -845,7 +807,7 @@ class _CppLevel8State extends State<CppLevel8> {
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
                       "You've unlocked Level 9!",
-                      style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -858,13 +820,13 @@ class _CppLevel8State extends State<CppLevel8> {
                   children: [
                     Text(
                       "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.teal, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
                       "Try again to get a perfect score and unlock Level 9!",
-                      style: TextStyle(color: Colors.teal[300], fontSize: 14 * _scaleFactor),
+                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -883,7 +845,7 @@ class _CppLevel8State extends State<CppLevel8> {
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
                         "Don't give up! You can do better this time!",
-                        style: TextStyle(color: Colors.teal[300], fontSize: 14 * _scaleFactor),
+                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -895,30 +857,30 @@ class _CppLevel8State extends State<CppLevel8> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.teal[50]!.withOpacity(0.9),
+                color: Colors.blue[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.teal[200]!),
+                border: Border.all(color: Colors.blue[200]!),
               ),
               child: Column(
                 children: [
                   Text(
                     "🎯 Level 8 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.teal[800]),
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.blue[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create a BMI calculator using float variables for health measurements",
+                    "Create a function that reverses a string using a for loop",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.teal[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.blue[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎁 Get a perfect score (3/3) to unlock Level 9!",
+                    "🎁  Get a perfect score (3/3) to unlock Level 9!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
-                        color: Colors.deepOrange,
+                        color: Colors.purple,
                         fontWeight: FontWeight.bold,
                         fontStyle: FontStyle.italic
                     ),
@@ -962,14 +924,14 @@ class _CppLevel8State extends State<CppLevel8> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Ngayon, gusto ni Alex na kalkulahin ang kanyang BMI (Body Mass Index)! Gamitin ang float data type para sa mga measurement gaya ng temperatura, timbang, at taas. Ang float ay perpekto para sa mga health measurement na hindi nangangailangan ng sobrang precision.'
-                : 'Now, Alex wants to calculate his BMI (Body Mass Index)! Use the float data type for measurements like temperature, weight, and height. Float is perfect for health measurements that don\'t require extreme precision.',
+                ? 'Ngayon, gusto ni Alex na gumawa ng function para baligtarin ang string! Gamit ang for loop, tulungan siyang bumuo ng reverseString function na efficient at madaling maintindihan.'
+                : 'Now, Alex wants to create a function to reverse a string! Using a for loop, help him build a reverseString function that is efficient and easy to understand.',
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the 6 correct blocks to create the BMI calculator',
+          Text('🧩 Arrange the 6 correct blocks to create the reverseString function',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
@@ -978,13 +940,13 @@ class _CppLevel8State extends State<CppLevel8> {
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 180 * _scaleFactor,
-              maxHeight: 250 * _scaleFactor,
+              minHeight: 250 * _scaleFactor,
+              maxHeight: 350 * _scaleFactor,
             ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.teal, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.blue, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -1011,9 +973,12 @@ class _CppLevel8State extends State<CppLevel8> {
                     children: droppedBlocks.map((block) {
                       return Draggable<String>(
                         data: block,
-                        feedback: puzzleBlock(block, Colors.tealAccent),
-                        childWhenDragging: puzzleBlock(block, Colors.tealAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.tealAccent),
+                        feedback: Material(
+                          color: Colors.transparent,
+                          child: puzzleBlock(block, Colors.greenAccent),
+                        ),
+                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.greenAccent),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
@@ -1056,7 +1021,7 @@ class _CppLevel8State extends State<CppLevel8> {
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 140 * _scaleFactor,
+              minHeight: 180 * _scaleFactor,
             ),
             padding: EdgeInsets.all(12 * _scaleFactor),
             decoration: BoxDecoration(
@@ -1073,12 +1038,15 @@ class _CppLevel8State extends State<CppLevel8> {
                     ? puzzleBlock(block, Colors.grey)
                     : Draggable<String>(
                   data: block,
-                  feedback: puzzleBlock(block, Colors.teal),
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: puzzleBlock(block, Colors.blueAccent),
+                  ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.teal),
+                    child: puzzleBlock(block, Colors.blueAccent),
                   ),
-                  child: puzzleBlock(block, Colors.teal),
+                  child: puzzleBlock(block, Colors.blueAccent),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
@@ -1117,7 +1085,7 @@ class _CppLevel8State extends State<CppLevel8> {
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.teal,
+              backgroundColor: Colors.blue,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -1138,7 +1106,29 @@ class _CppLevel8State extends State<CppLevel8> {
   }
 
   Widget puzzleBlock(String text, Color color) {
+    // Calculate text width to adjust block size
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontFamily: 'monospace',
+          fontSize: 12 * _scaleFactor,
+          color: Colors.black, // FORCE BLACK TEXT FOR VISIBILITY
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final textWidth = textPainter.width;
+    final minWidth = 80 * _scaleFactor;
+    final maxWidth = 240 * _scaleFactor;
+
     return Container(
+      constraints: BoxConstraints(
+        minWidth: minWidth,
+        maxWidth: maxWidth,
+      ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
         horizontal: 12 * _scaleFactor,
@@ -1150,12 +1140,12 @@ class _CppLevel8State extends State<CppLevel8> {
           topLeft: Radius.circular(20 * _scaleFactor),
           bottomRight: Radius.circular(20 * _scaleFactor),
         ),
-        border: Border.all(color: Colors.black45, width: 1.5 * _scaleFactor),
+        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor), // Darker border for contrast
         boxShadow: [
           BoxShadow(
-            color: Colors.black26,
-            blurRadius: 4 * _scaleFactor,
-            offset: Offset(2 * _scaleFactor, 2 * _scaleFactor),
+            color: Colors.black45,
+            blurRadius: 6 * _scaleFactor,
+            offset: Offset(3 * _scaleFactor, 3 * _scaleFactor),
           )
         ],
       ),
@@ -1164,12 +1154,19 @@ class _CppLevel8State extends State<CppLevel8> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
-          color: Colors.white,
+          fontSize: 12 * _scaleFactor,
+          color: Colors.black, // FORCE BLACK TEXT FOR MAXIMUM VISIBILITY
+          shadows: [
+            Shadow(
+              offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
+              blurRadius: 2 * _scaleFactor,
+              color: Colors.white.withOpacity(0.8), // White shadow for better contrast
+            ),
+          ],
         ),
         textAlign: TextAlign.center,
-        softWrap: true,
         overflow: TextOverflow.visible,
+        softWrap: true,
       ),
     );
   }
