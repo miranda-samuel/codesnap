@@ -5,6 +5,7 @@ import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
 import '../../services/music_service.dart';
+import '../../services/daily_challenge_service.dart';
 
 class CppLevel1 extends StatefulWidget {
   const CppLevel1({super.key});
@@ -34,7 +35,13 @@ class _CppLevel1State extends State<CppLevel1> {
 
   // Scaling factors
   double _scaleFactor = 1.0;
-  final double _baseScreenWidth = 360.0; // Base width for scaling
+  final double _baseScreenWidth = 360.0;
+
+  // NEW: Hint card system using UserPreferences
+  int _availableHintCards = 0;
+  bool _showHint = false;
+  String _currentHint = '';
+  bool _isUsingHint = false;
 
   @override
   void initState() {
@@ -43,6 +50,7 @@ class _CppLevel1State extends State<CppLevel1> {
     _loadUserData();
     _calculateScaleFactor();
     _startGameMusic();
+    _loadHintCards(); // Load hint cards for current user
   }
 
   void _startGameMusic() {
@@ -70,12 +78,118 @@ class _CppLevel1State extends State<CppLevel1> {
     });
   }
 
+  // NEW: Load hint cards using UserPreferences
+  Future<void> _loadHintCards() async {
+    final user = await UserPreferences.getUser();
+    if (user['id'] != null) {
+      final hintCards = await DailyChallengeService.getUserHintCards(
+          user['id']);
+      setState(() {
+        _availableHintCards = hintCards;
+      });
+    }
+  }
+
+  // NEW: Save hint cards using UserPreferences
+  Future<void> _saveHintCards(int count) async {
+    final user = await UserPreferences.getUser();
+    if (user['id'] != null) {
+      // We'll update the hint cards count in shared preferences
+      final prefs = await SharedPreferences.getInstance();
+      final userKey = 'hint_cards_${user['id']}';
+      await prefs.setInt(userKey, count);
+
+      setState(() {
+        _availableHintCards = count;
+      });
+    }
+  }
+
+  // NEW: Use hint card - shows hint and auto-drags correct answer
+  void _useHintCard() async {
+    if (_availableHintCards > 0 && !_isUsingHint) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('hint_use.mp3');
+
+      setState(() {
+        _isUsingHint = true;
+        _showHint = true;
+        _currentHint = _getLevelHint();
+        _availableHintCards--;
+      });
+
+      // Save the updated hint card count
+      final user = await UserPreferences.getUser();
+      if (user['id'] != null) {
+        await DailyChallengeService.useHintCard(user['id']);
+      }
+
+      // Auto-drag the correct blocks after a short delay
+      _autoDragCorrectBlocks();
+    } else if (_availableHintCards <= 0) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('error.mp3');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'No hint cards available! Complete daily challenges to earn more.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
+  // NEW: Auto-drag correct blocks to answer area
+  void _autoDragCorrectBlocks() {
+    // Correct blocks for C++ cout << "Hello World";
+    List<String> correctBlocks = ['cout', '<<', '"Hello World"', ';'];
+
+    // Remove any existing correct blocks from dropped area first
+    setState(() {
+      droppedBlocks.clear();
+    });
+
+    // Add correct blocks one by one with delay
+    int delay = 0;
+    for (String block in correctBlocks) {
+      Future.delayed(Duration(milliseconds: delay), () {
+        if (mounted) {
+          setState(() {
+            if (!droppedBlocks.contains(block)) {
+              droppedBlocks.add(block);
+            }
+            if (allBlocks.contains(block)) {
+              allBlocks.remove(block);
+            }
+          });
+        }
+      });
+      delay += 500; // 0.5 second delay between each block
+    }
+
+    // Hide hint after all blocks are placed
+    Future.delayed(Duration(milliseconds: delay + 1000), () {
+      if (mounted) {
+        setState(() {
+          _showHint = false;
+          _isUsingHint = false;
+        });
+      }
+    });
+  }
+
+  String _getLevelHint() {
+    return "The correct code is: cout << \"Hello World\";\n\n💡 Hint: Use 'cout' to display text, '<<' to output, and don't forget the semicolon!";
+  }
+
   void _loadUserData() async {
     final user = await UserPreferences.getUser();
     setState(() {
       currentUser = user;
     });
     loadScoreFromDatabase();
+    _loadHintCards(); // Load hint cards for this user
   }
 
   void resetBlocks() {
@@ -111,7 +225,8 @@ class _CppLevel1State extends State<CppLevel1> {
     allBlocks = [
       ...correctBlocks,
       ...selectedIncorrectBlocks,
-    ]..shuffle();
+    ]
+      ..shuffle();
   }
 
   void startGame() {
@@ -124,6 +239,8 @@ class _CppLevel1State extends State<CppLevel1> {
       remainingSeconds = 90;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
+      _showHint = false;
+      _isUsingHint = false;
       resetBlocks();
     });
     startTimers();
@@ -144,26 +261,29 @@ class _CppLevel1State extends State<CppLevel1> {
           scoreReductionTimer?.cancel();
           saveScoreToDatabase(score);
 
-          final musicService = Provider.of<MusicService>(context, listen: false);
+          final musicService = Provider.of<MusicService>(
+              context, listen: false);
           musicService.playSoundEffect('time_up.mp3');
 
           showDialog(
             context: context,
-            builder: (_) => AlertDialog(
-              title: Text("⏰ Time's Up!"),
-              content: Text("Score: $score"),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    final musicService = Provider.of<MusicService>(context, listen: false);
-                    musicService.playSoundEffect('click.mp3');
-                    resetGame();
-                    Navigator.pop(context);
-                  },
-                  child: Text("Retry"),
-                )
-              ],
-            ),
+            builder: (_) =>
+                AlertDialog(
+                  title: Text("⏰ Time's Up!"),
+                  content: Text("Score: $score"),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        final musicService = Provider.of<MusicService>(
+                            context, listen: false);
+                        musicService.playSoundEffect('click.mp3');
+                        resetGame();
+                        Navigator.pop(context);
+                      },
+                      child: Text("Retry"),
+                    )
+                  ],
+                ),
           );
         }
       });
@@ -181,7 +301,8 @@ class _CppLevel1State extends State<CppLevel1> {
         musicService.playSoundEffect('penalty.mp3');
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
+          SnackBar(
+              content: Text("⏰ Time penalty! -1 point. Current score: $score")),
         );
       });
     });
@@ -196,6 +317,8 @@ class _CppLevel1State extends State<CppLevel1> {
       remainingSeconds = 90;
       gameStarted = false;
       isAnsweredCorrectly = false;
+      _showHint = false;
+      _isUsingHint = false;
       droppedBlocks.clear();
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
@@ -212,7 +335,7 @@ class _CppLevel1State extends State<CppLevel1> {
         'C++',
         1,
         score,
-        score == 3, // Only completed if perfect score
+        score == 3,
       );
 
       if (response['success'] == true) {
@@ -253,34 +376,6 @@ class _CppLevel1State extends State<CppLevel1> {
     }
   }
 
-  Future<void> refreshScore() async {
-    if (currentUser?['id'] != null) {
-      try {
-        final response = await ApiService.getScores(currentUser!['id'], 'C++');
-        if (response['success'] == true && response['scores'] != null) {
-          final scoresData = response['scores'];
-          final level1Data = scoresData['1'];
-
-          setState(() {
-            if (level1Data != null) {
-              previousScore = level1Data['score'] ?? 0;
-              level1Completed = level1Data['completed'] ?? false;
-              hasPreviousScore = true;
-              score = previousScore;
-            } else {
-              hasPreviousScore = false;
-              previousScore = 0;
-              level1Completed = false;
-              score = 3;
-            }
-          });
-        }
-      } catch (e) {
-        print('Error refreshing score: $e');
-      }
-    }
-  }
-
   // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
@@ -306,7 +401,8 @@ class _CppLevel1State extends State<CppLevel1> {
     final musicService = Provider.of<MusicService>(context, listen: false);
 
     // Check if any incorrect blocks are used
-    bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
+    bool hasIncorrectBlock = droppedBlocks.any((block) =>
+        isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
       musicService.playSoundEffect('error.mp3');
@@ -317,7 +413,8 @@ class _CppLevel1State extends State<CppLevel1> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ You used incorrect code! -1 point. Current score: $score"),
+            content: Text(
+                "❌ You used incorrect code! -1 point. Current score: $score"),
             backgroundColor: Colors.red,
           ),
         );
@@ -333,20 +430,21 @@ class _CppLevel1State extends State<CppLevel1> {
 
         showDialog(
           context: context,
-          builder: (_) => AlertDialog(
-            title: Text("💀 Game Over"),
-            content: Text("You used incorrect code and lost all points!"),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  musicService.playSoundEffect('click.mp3');
-                  Navigator.pop(context);
-                  resetGame();
-                },
-                child: Text("Retry"),
-              )
-            ],
-          ),
+          builder: (_) =>
+              AlertDialog(
+                title: Text("💀 Game Over"),
+                content: Text("You used incorrect code and lost all points!"),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      musicService.playSoundEffect('click.mp3');
+                      Navigator.pop(context);
+                      resetGame();
+                    },
+                    child: Text("Retry"),
+                  )
+                ],
+              ),
         );
       }
       return;
@@ -381,59 +479,64 @@ class _CppLevel1State extends State<CppLevel1> {
 
       showDialog(
         context: context,
-        builder: (_) => AlertDialog(
-          title: Text("✅ Correct!"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("Well done C++ Programmer!"),
-              SizedBox(height: 10),
-              Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-              SizedBox(height: 10),
-              if (score == 3)
-                Text(
-                  "🎉 Perfect! You've unlocked Level 2!",
-                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-                )
-              else
-                Text(
-                  "⚠️ Get a perfect score (3/3) to unlock the next level!",
-                  style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
-                ),
-              SizedBox(height: 10),
-              Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
-              Container(
-                padding: EdgeInsets.all(10),
-                color: Colors.black,
-                child: Text(
-                  "Hello World",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'monospace',
-                    fontSize: 16,
+        builder: (_) =>
+            AlertDialog(
+              title: Text("✅ Correct!"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Well done C++ Programmer!"),
+                  SizedBox(height: 10),
+                  Text("Your Score: $score/3", style: TextStyle(
+                      fontWeight: FontWeight.bold, color: Colors.green)),
+                  SizedBox(height: 10),
+                  if (score == 3)
+                    Text(
+                      "🎉 Perfect! You've unlocked Level 2!",
+                      style: TextStyle(
+                          color: Colors.blue, fontWeight: FontWeight.bold),
+                    )
+                  else
+                    Text(
+                      "⚠️ Get a perfect score (3/3) to unlock the next level!",
+                      style: TextStyle(
+                          color: Colors.orange, fontWeight: FontWeight.bold),
+                    ),
+                  SizedBox(height: 10),
+                  Text("Code Output:",
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Container(
+                    padding: EdgeInsets.all(10),
+                    color: Colors.black,
+                    child: Text(
+                      "Hello World",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'monospace',
+                        fontSize: 16,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                musicService.playSoundEffect('click.mp3');
-                Navigator.pop(context);
-                if (score == 3) {
-                  musicService.playSoundEffect('level_complete.mp3');
-                  Navigator.pushReplacementNamed(context, '/cpp_level2');
-                } else {
-                  Navigator.pushReplacementNamed(context, '/levels',
-                      arguments: 'C++');
-                }
-              },
-              child: Text(score == 3 ? "Next Level" : "Go Back"),
-            )
-          ],
-        ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    musicService.playSoundEffect('click.mp3');
+                    Navigator.pop(context);
+                    if (score == 3) {
+                      musicService.playSoundEffect('level_complete.mp3');
+                      Navigator.pushReplacementNamed(context, '/cpp_level2');
+                    } else {
+                      Navigator.pushReplacementNamed(context, '/levels',
+                          arguments: 'C++');
+                    }
+                  },
+                  child: Text(score == 3 ? "Next Level" : "Go Back"),
+                )
+              ],
+            ),
       );
     } else {
       musicService.playSoundEffect('wrong.mp3');
@@ -443,7 +546,8 @@ class _CppLevel1State extends State<CppLevel1> {
           score--;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Incorrect arrangement. -1 point. Current score: $score")),
+          SnackBar(content: Text(
+              "❌ Incorrect arrangement. -1 point. Current score: $score")),
         );
       } else {
         setState(() {
@@ -457,20 +561,21 @@ class _CppLevel1State extends State<CppLevel1> {
 
         showDialog(
           context: context,
-          builder: (_) => AlertDialog(
-            title: Text("💀 Game Over"),
-            content: Text("You lost all your points."),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  musicService.playSoundEffect('click.mp3');
-                  Navigator.pop(context);
-                  resetGame();
-                },
-                child: Text("Retry"),
-              )
-            ],
-          ),
+          builder: (_) =>
+              AlertDialog(
+                title: Text("💀 Game Over"),
+                content: Text("You lost all your points."),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      musicService.playSoundEffect('click.mp3');
+                      Navigator.pop(context);
+                      resetGame();
+                    },
+                    child: Text("Retry"),
+                  )
+                ],
+              ),
         );
       }
     }
@@ -482,7 +587,114 @@ class _CppLevel1State extends State<CppLevel1> {
     return "$m:$s";
   }
 
-  // IMPROVED CODE PREVIEW WITH BETTER SCALING
+  // NEW: Hint Card Button Widget
+  Widget _buildHintButton() {
+    return Positioned(
+      top: 10 * _scaleFactor,
+      right: 10 * _scaleFactor,
+      child: GestureDetector(
+        onTap: _useHintCard,
+        child: Container(
+          padding: EdgeInsets.all(12 * _scaleFactor),
+          decoration: BoxDecoration(
+            color: Colors.orange,
+            borderRadius: BorderRadius.circular(20 * _scaleFactor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 4 * _scaleFactor,
+                offset: Offset(0, 2 * _scaleFactor),
+              )
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lightbulb_outline, color: Colors.white,
+                  size: 18 * _scaleFactor),
+              SizedBox(width: 6 * _scaleFactor),
+              Text(
+                '$_availableHintCards',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16 * _scaleFactor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // NEW: Hint Display Widget
+  Widget _buildHintDisplay() {
+    if (!_showHint) return SizedBox();
+
+    return Positioned(
+      top: 60 * _scaleFactor,
+      left: 20 * _scaleFactor,
+      right: 20 * _scaleFactor,
+      child: Container(
+        padding: EdgeInsets.all(16 * _scaleFactor),
+        decoration: BoxDecoration(
+          color: Colors.orange.withOpacity(0.95),
+          borderRadius: BorderRadius.circular(12 * _scaleFactor),
+          border: Border.all(
+              color: Colors.orangeAccent, width: 2 * _scaleFactor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 8 * _scaleFactor,
+              offset: Offset(0, 4 * _scaleFactor),
+            )
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(Icons.lightbulb, color: Colors.white,
+                    size: 20 * _scaleFactor),
+                SizedBox(width: 8 * _scaleFactor),
+                Text(
+                  '💡 Hint Activated!',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16 * _scaleFactor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 10 * _scaleFactor),
+            Text(
+              _currentHint,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14 * _scaleFactor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 10 * _scaleFactor),
+            Text(
+              'Correct blocks are being placed automatically...',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12 * _scaleFactor,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ... (KEEP ALL YOUR EXISTING METHODS: getCodePreview, _buildUserCodeLine, etc.)
+  // I-CONTINUE MO LANG YUNG MGA EXISTING METHODS MO DITO...
+
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -494,9 +706,9 @@ class _CppLevel1State extends State<CppLevel1> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Code editor header
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
+            padding: EdgeInsets.symmetric(
+                horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
             decoration: BoxDecoration(
               color: Color(0xFF2D2D2D),
               borderRadius: BorderRadius.only(
@@ -506,7 +718,8 @@ class _CppLevel1State extends State<CppLevel1> {
             ),
             child: Row(
               children: [
-                Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
+                Icon(Icons.code, color: Colors.grey[400],
+                    size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
                   'main.cpp',
@@ -519,17 +732,14 @@ class _CppLevel1State extends State<CppLevel1> {
               ],
             ),
           ),
-          // Code content
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Line numbers and code
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Line numbers
                     Container(
                       width: 30 * _scaleFactor,
                       child: Column(
@@ -546,17 +756,20 @@ class _CppLevel1State extends State<CppLevel1> {
                       ),
                     ),
                     SizedBox(width: 16 * _scaleFactor),
-                    // Actual code with syntax highlighting
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildSyntaxHighlightedLine('#include <iostream>', isPreprocessor: true),
-                          _buildSyntaxHighlightedLine('using namespace std;', isKeyword: true),
+                          _buildSyntaxHighlightedLine(
+                              '#include <iostream>', isPreprocessor: true),
+                          _buildSyntaxHighlightedLine(
+                              'using namespace std;', isKeyword: true),
                           SizedBox(height: 8 * _scaleFactor),
-                          _buildSyntaxHighlightedLine('int main() {', isKeyword: true),
+                          _buildSyntaxHighlightedLine(
+                              'int main() {', isKeyword: true),
                           _buildUserCodeLine(getPreviewCode()),
-                          _buildSyntaxHighlightedLine('    return 0;', isKeyword: true),
+                          _buildSyntaxHighlightedLine(
+                              '    return 0;', isKeyword: true),
                           _buildSyntaxHighlightedLine('}', isNormal: true),
                         ],
                       ),
@@ -593,7 +806,9 @@ class _CppLevel1State extends State<CppLevel1> {
           children: [
             TextSpan(
               text: '        ',
-              style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12 * _scaleFactor),
+              style: TextStyle(color: Colors.white,
+                  fontFamily: 'monospace',
+                  fontSize: 12 * _scaleFactor),
             ),
             TextSpan(
               text: code,
@@ -624,7 +839,8 @@ class _CppLevel1State extends State<CppLevel1> {
     );
   }
 
-  Widget _buildSyntaxHighlightedLine(String code, {bool isPreprocessor = false, bool isKeyword = false, bool isNormal = false}) {
+  Widget _buildSyntaxHighlightedLine(String code,
+      {bool isPreprocessor = false, bool isKeyword = false, bool isNormal = false}) {
     Color textColor = Colors.white;
 
     if (isPreprocessor) {
@@ -664,13 +880,13 @@ class _CppLevel1State extends State<CppLevel1> {
 
     super.dispose();
   }
-
   @override
   Widget build(BuildContext context) {
-    // Recalculate scale factor when screen size changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
-      final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
+      final newScaleFactor = newScreenWidth < _baseScreenWidth
+          ? newScreenWidth / _baseScreenWidth
+          : 1.0;
 
       if (newScaleFactor != _scaleFactor) {
         setState(() {
@@ -681,7 +897,8 @@ class _CppLevel1State extends State<CppLevel1> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("⚡ C++ - Level 1", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        title: Text(
+            "⚡ C++ - Level 1", style: TextStyle(fontSize: 18 * _scaleFactor)),
         backgroundColor: Colors.blue,
         actions: gameStarted
             ? [
@@ -691,11 +908,14 @@ class _CppLevel1State extends State<CppLevel1> {
               children: [
                 Icon(Icons.timer, size: 18 * _scaleFactor),
                 SizedBox(width: 4 * _scaleFactor),
-                Text(formatTime(remainingSeconds), style: TextStyle(fontSize: 14 * _scaleFactor)),
+                Text(formatTime(remainingSeconds),
+                    style: TextStyle(fontSize: 14 * _scaleFactor)),
                 SizedBox(width: 16 * _scaleFactor),
-                Icon(Icons.star, color: Colors.yellowAccent, size: 18 * _scaleFactor),
+                Icon(Icons.star, color: Colors.yellowAccent,
+                    size: 18 * _scaleFactor),
                 Text(" $score",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor)),
+                    style: TextStyle(fontWeight: FontWeight.bold,
+                        fontSize: 14 * _scaleFactor)),
               ],
             ),
           ),
@@ -714,10 +934,63 @@ class _CppLevel1State extends State<CppLevel1> {
             ],
           ),
         ),
-        child: gameStarted ? buildGameUI() : buildStartScreen(),
+        child: Stack(
+          children: [
+            gameStarted ? buildGameUI() : buildStartScreen(),
+            // ADD HINT BUTTON AND DISPLAY TO STACK
+            if (gameStarted && !isAnsweredCorrectly) ...[
+              _buildHintDisplay(),
+              // ✅ HINT CARD BUTTON - BOTTOM RIGHT (ISA NA LANG)
+              Positioned(
+                bottom: 20 * _scaleFactor, // Sa baba ng screen
+                right: 20 * _scaleFactor,
+                child: GestureDetector(
+                  onTap: _useHintCard,
+                  child: Container(
+                    padding: EdgeInsets.all(12 * _scaleFactor),
+                    decoration: BoxDecoration(
+                      color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
+                      borderRadius: BorderRadius.circular(20 * _scaleFactor),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 4 * _scaleFactor,
+                          offset: Offset(0, 2 * _scaleFactor),
+                        )
+                      ],
+                      border: Border.all(
+                        color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
+                        width: 2 * _scaleFactor,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.lightbulb_outline,
+                            color: Colors.white,
+                            size: 20 * _scaleFactor),
+                        SizedBox(width: 6 * _scaleFactor),
+                        Text(
+                          '$_availableHintCards',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18 * _scaleFactor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
+
+
 
   Widget buildStartScreen() {
     return Center(
@@ -728,18 +1001,55 @@ class _CppLevel1State extends State<CppLevel1> {
           children: [
             ElevatedButton.icon(
               onPressed: () {
-                final musicService = Provider.of<MusicService>(context, listen: false);
+                final musicService = Provider.of<MusicService>(
+                    context, listen: false);
                 musicService.playSoundEffect('button_click.mp3');
                 startGame();
               },
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text(
+                  "Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
+                padding: EdgeInsets.symmetric(
+                    horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
                 backgroundColor: Colors.blue,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
+
+            // Display available hint cards in start screen
+            Container(
+              padding: EdgeInsets.all(12 * _scaleFactor),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12 * _scaleFactor),
+                border: Border.all(color: Colors.orange),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lightbulb_outline, color: Colors.orange,
+                      size: 20 * _scaleFactor),
+                  SizedBox(width: 8 * _scaleFactor),
+                  Text(
+                    'Hint Cards: $_availableHintCards',
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontSize: 16 * _scaleFactor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 10 * _scaleFactor),
+            Text(
+              'Use hint cards during the game for help!',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12 * _scaleFactor,
+              ),
+            ),
 
             if (level1Completed)
               Padding(
@@ -748,13 +1058,16 @@ class _CppLevel1State extends State<CppLevel1> {
                   children: [
                     Text(
                       "✅ Level 1 completed with perfect score!",
-                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(
+                          color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
                       "You've unlocked Level 2!",
-                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      style: TextStyle(color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -767,13 +1080,15 @@ class _CppLevel1State extends State<CppLevel1> {
                   children: [
                     Text(
                       "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(
+                          color: Colors.blue, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
                       "Try again to get a perfect score and unlock Level 2!",
-                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                      style: TextStyle(
+                          color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -786,13 +1101,15 @@ class _CppLevel1State extends State<CppLevel1> {
                     children: [
                       Text(
                         "😅 Your previous score: $previousScore/3",
-                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                        style: TextStyle(
+                            color: Colors.red, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
                         "Don't give up! You can do better this time!",
-                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                        style: TextStyle(color: Colors.orange,
+                            fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -812,14 +1129,17 @@ class _CppLevel1State extends State<CppLevel1> {
                 children: [
                   Text(
                     "🎯 Level 1 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.blue[800]),
+                    style: TextStyle(fontSize: 18 * _scaleFactor,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
                     "Create a C++ program that displays 'Hello World' on the screen",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.blue[700]),
+                    style: TextStyle(
+                        fontSize: 14 * _scaleFactor, color: Colors.blue[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
@@ -852,19 +1172,24 @@ class _CppLevel1State extends State<CppLevel1> {
             children: [
               Flexible(
                 child: Text('📖 Short Story',
-                    style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+                    style: TextStyle(fontSize: 16 * _scaleFactor,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
               ),
               TextButton.icon(
                 onPressed: () {
-                  final musicService = Provider.of<MusicService>(context, listen: false);
+                  final musicService = Provider.of<MusicService>(
+                      context, listen: false);
                   musicService.playSoundEffect('toggle.mp3');
                   setState(() {
                     isTagalog = !isTagalog;
                   });
                 },
-                icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
+                icon: Icon(Icons.translate, size: 16 * _scaleFactor,
+                    color: Colors.white),
                 label: Text(isTagalog ? 'English' : 'Tagalog',
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+                    style: TextStyle(
+                        fontSize: 14 * _scaleFactor, color: Colors.white)),
               ),
             ],
           ),
@@ -874,16 +1199,17 @@ class _CppLevel1State extends State<CppLevel1> {
                 ? 'Si Alex ay baguhan sa C++ programming! Kailangan niyang gumamit ng cout para mag-display ng "Hello World". Tulungan mo siyang buuin ang tamang code!'
                 : 'Alex is new to C++ programming! He needs to use cout to display "Hello World". Help him build the correct code!',
             textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
+            style: TextStyle(
+                fontSize: 14 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
           Text('🧩 Arrange the blocks to form the correct C++ code',
-              style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
+              style: TextStyle(
+                  fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          // IMPROVED TARGET AREA WITH BETTER OVERFLOW HANDLING
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
@@ -902,7 +1228,8 @@ class _CppLevel1State extends State<CppLevel1> {
               },
               onAccept: (data) {
                 if (!isAnsweredCorrectly) {
-                  final musicService = Provider.of<MusicService>(context, listen: false);
+                  final musicService = Provider.of<MusicService>(
+                      context, listen: false);
                   musicService.playSoundEffect('block_drop.mp3');
 
                   setState(() {
@@ -925,10 +1252,12 @@ class _CppLevel1State extends State<CppLevel1> {
                           color: Colors.transparent,
                           child: puzzleBlock(block, Colors.greenAccent),
                         ),
-                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
+                        childWhenDragging: puzzleBlock(
+                            block, Colors.greenAccent.withOpacity(0.5)),
                         child: puzzleBlock(block, Colors.greenAccent),
                         onDragStarted: () {
-                          final musicService = Provider.of<MusicService>(context, listen: false);
+                          final musicService = Provider.of<MusicService>(
+                              context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
 
                           setState(() {
@@ -962,12 +1291,13 @@ class _CppLevel1State extends State<CppLevel1> {
           ),
 
           SizedBox(height: 20 * _scaleFactor),
-          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold,
+              fontSize: 16 * _scaleFactor,
+              color: Colors.white)),
           SizedBox(height: 10 * _scaleFactor),
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
 
-          // SOURCE AREA WITH IMPROVED LAYOUT
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
@@ -998,7 +1328,8 @@ class _CppLevel1State extends State<CppLevel1> {
                   ),
                   child: puzzleBlock(block, Colors.blueAccent),
                   onDragStarted: () {
-                    final musicService = Provider.of<MusicService>(context, listen: false);
+                    final musicService = Provider.of<MusicService>(
+                        context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
 
                     setState(() {
@@ -1030,7 +1361,8 @@ class _CppLevel1State extends State<CppLevel1> {
           SizedBox(height: 30 * _scaleFactor),
           ElevatedButton.icon(
             onPressed: isAnsweredCorrectly ? null : () {
-              final musicService = Provider.of<MusicService>(context, listen: false);
+              final musicService = Provider.of<MusicService>(
+                  context, listen: false);
               musicService.playSoundEffect('compile.mp3');
               checkAnswer();
             },
@@ -1044,21 +1376,26 @@ class _CppLevel1State extends State<CppLevel1> {
               ),
             ),
           ),
+
+          SizedBox(height: 10 * _scaleFactor),
+
           TextButton(
             onPressed: () {
-              final musicService = Provider.of<MusicService>(context, listen: false);
+              final musicService = Provider.of<MusicService>(
+                  context, listen: false);
               musicService.playSoundEffect('button_click.mp3');
               resetGame();
             },
-            child: Text("🔁 Retry", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+            child: Text("🔁 Retry", style: TextStyle(
+                fontSize: 14 * _scaleFactor, color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
+// ✅ DAGDAGIN MO ITO - PUZZLE BLOCK METHOD
   Widget puzzleBlock(String text, Color color) {
-    // Calculate text width to adjust block size
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
@@ -1066,15 +1403,16 @@ class _CppLevel1State extends State<CppLevel1> {
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
           fontSize: 14 * _scaleFactor,
-          color: Colors.black, // FORCE BLACK TEXT FOR VISIBILITY
+          color: Colors.black,
         ),
       ),
       textDirection: TextDirection.ltr,
-    )..layout();
+    )
+      ..layout();
 
     final textWidth = textPainter.width;
     final minWidth = 60 * _scaleFactor;
-    final maxWidth = 200 * _scaleFactor; // Increased max width for longer text
+    final maxWidth = 200 * _scaleFactor;
 
     return Container(
       constraints: BoxConstraints(
@@ -1083,7 +1421,7 @@ class _CppLevel1State extends State<CppLevel1> {
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 16 * _scaleFactor, // Increased horizontal padding
+        horizontal: 16 * _scaleFactor,
         vertical: 12 * _scaleFactor,
       ),
       decoration: BoxDecoration(
@@ -1092,7 +1430,7 @@ class _CppLevel1State extends State<CppLevel1> {
           topLeft: Radius.circular(20 * _scaleFactor),
           bottomRight: Radius.circular(20 * _scaleFactor),
         ),
-        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor), // Darker border for contrast
+        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor),
         boxShadow: [
           BoxShadow(
             color: Colors.black45,
@@ -1107,18 +1445,18 @@ class _CppLevel1State extends State<CppLevel1> {
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
           fontSize: 14 * _scaleFactor,
-          color: Colors.black, // FORCE BLACK TEXT FOR MAXIMUM VISIBILITY
+          color: Colors.black,
           shadows: [
             Shadow(
               offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
               blurRadius: 2 * _scaleFactor,
-              color: Colors.white.withOpacity(0.8), // White shadow for better contrast
+              color: Colors.white.withOpacity(0.8),
             ),
           ],
         ),
         textAlign: TextAlign.center,
-        overflow: TextOverflow.visible, // Changed from ellipsis to visible
-        maxLines: 2, // Allow 2 lines for longer text
+        overflow: TextOverflow.visible,
+        maxLines: 2,
       ),
     );
   }

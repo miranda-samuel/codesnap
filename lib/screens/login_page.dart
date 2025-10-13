@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'signup_page.dart';
-import 'forgot_password_page.dart'; // Add this import
+import 'forgot_password_page.dart';
 import '../services/api_service.dart';
 import '../services/user_preferences.dart';
 
@@ -19,11 +19,44 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   bool _obscurePassword = true;
 
+  // Sound effects method
+  void _playSound(String soundType) {
+    try {
+      switch (soundType) {
+        case 'success':
+          SystemSound.play(SystemSoundType.click);
+          break;
+        case 'error':
+        // Play two quick clicks for error
+          SystemSound.play(SystemSoundType.click);
+          Future.delayed(const Duration(milliseconds: 100), () {
+            SystemSound.play(SystemSoundType.click);
+          });
+          break;
+        case 'warning':
+        // Play three clicks for warning
+          for (int i = 0; i < 3; i++) {
+            Future.delayed(Duration(milliseconds: i * 150), () {
+              SystemSound.play(SystemSoundType.click);
+            });
+          }
+          break;
+        case 'click':
+        default:
+          SystemSound.play(SystemSoundType.click);
+          break;
+      }
+    } catch (e) {
+      print('Error playing sound: $e');
+    }
+  }
+
   void _login() async {
     String username = usernameController.text.trim();
     String password = passwordController.text;
 
     if (username.isEmpty || password.isEmpty) {
+      _playSound('error');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter username and password')),
@@ -37,24 +70,45 @@ class _LoginPageState extends State<LoginPage> {
       final response = await ApiService.login(username, password);
 
       if (response['success'] == true) {
+        _playSound('success');
+
         await UserPreferences.saveUser(response['user']);
         if (!mounted) return;
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Welcome, ${response['user']['full_name']}')),
+          SnackBar(
+            content: Text('Welcome, ${response['user']['full_name']}'),
+            backgroundColor: Colors.green,
+          ),
         );
 
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/home');
       } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response['message'])),
-        );
+        _playSound('error');
+
+        // Check if it's a session conflict (user already logged in elsewhere)
+        if (response['message']?.toLowerCase().contains('already logged in') == true ||
+            response['message']?.toLowerCase().contains('another device') == true) {
+          _showSessionConflictDialog(response['user_id'] ?? 0);
+        } else {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response['message'] ?? 'Login failed'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
+      _playSound('error');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Connection error: $e')),
+        SnackBar(
+          content: Text('Connection error: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (mounted) {
@@ -63,10 +117,51 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  void _showSessionConflictDialog(int userId) {
+    _playSound('warning');
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber, color: Colors.orange),
+              SizedBox(width: 10),
+              Text('Already Logged In'),
+            ],
+          ),
+          content: const Text(
+            'This account is already active on another device. You can only be logged in on one device at a time.',
+            style: TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                _playSound('click');
+                Navigator.pop(context);
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _navigateToForgotPassword() {
+    _playSound('click');
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
+    );
+  }
+
+  void _navigateToSignUp() {
+    _playSound('click');
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SignupPage()),
     );
   }
 
@@ -116,45 +211,48 @@ class _LoginPageState extends State<LoginPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo
-                  RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'Code',
-                          style: TextStyle(
-                            fontSize: 40,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.teal[800],
-                            fontFamily: 'monospace',
+                  // Logo with sound on tap
+                  GestureDetector(
+                    onTap: () => _playSound('click'),
+                    child: RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: 'Code',
+                            style: TextStyle(
+                              fontSize: 40,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.teal[800],
+                              fontFamily: 'monospace',
+                            ),
                           ),
-                        ),
-                        TextSpan(
-                          text: 'S',
-                          style: TextStyle(
-                            fontSize: 42,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green[800],
-                            fontFamily: 'monospace',
-                            shadows: [
-                              Shadow(
-                                offset: const Offset(1, 2),
-                                blurRadius: 3,
-                                color: Colors.black26,
-                              )
-                            ],
+                          TextSpan(
+                            text: 'S',
+                            style: TextStyle(
+                              fontSize: 42,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green[800],
+                              fontFamily: 'monospace',
+                              shadows: [
+                                Shadow(
+                                  offset: const Offset(1, 2),
+                                  blurRadius: 3,
+                                  color: Colors.black26,
+                                )
+                              ],
+                            ),
                           ),
-                        ),
-                        TextSpan(
-                          text: 'nap',
-                          style: TextStyle(
-                            fontSize: 40,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.teal[800],
-                            fontFamily: 'monospace',
+                          TextSpan(
+                            text: 'nap',
+                            style: TextStyle(
+                              fontSize: 40,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.teal[800],
+                              fontFamily: 'monospace',
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 30),
@@ -184,6 +282,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     textInputAction: TextInputAction.next,
                     onSubmitted: (_) {
+                      _playSound('click');
                       FocusScope.of(context).requestFocus(_passwordFocusNode);
                     },
                   ),
@@ -203,6 +302,7 @@ class _LoginPageState extends State<LoginPage> {
                           color: Colors.grey,
                         ),
                         onPressed: () {
+                          _playSound('click');
                           setState(() {
                             _obscurePassword = !_obscurePassword;
                           });
@@ -256,12 +356,7 @@ class _LoginPageState extends State<LoginPage> {
 
                   // Sign Up Link
                   TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const SignupPage()),
-                      );
-                    },
+                    onPressed: _navigateToSignUp,
                     child: const Text(
                       "Don't have an account? Sign Up",
                       style: TextStyle(color: Colors.teal),

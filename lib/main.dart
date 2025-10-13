@@ -89,6 +89,7 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    super.dispose();
     WidgetsBinding.instance.removeObserver(this);
     print('💀 APP DISPOSING - KILLING ALL MUSIC');
     _musicService.stopAllMusic();
@@ -139,7 +140,7 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           primarySwatch: Colors.teal,
           useMaterial3: true,
         ),
-        initialRoute: '/splash',
+        initialRoute: '/select_language',
         routes: {
           '/splash': (context) => const SplashScreen(),
           '/': (context) => const LoginPage(),

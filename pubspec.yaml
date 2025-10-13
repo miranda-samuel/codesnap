@@ -15,15 +15,24 @@ dependencies:
   image_picker: ^1.0.4
   cupertino_icons: ^1.0.8
   audioplayers: ^6.5.0
-  provider: ^6.1.1  # ADD THIS LINE
+  provider: ^6.1.1
+  device_info_plus: ^9.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.10.0  # ✅ Added for app icon
 
 flutter:
   uses-material-design: true
 
   assets:
-    - assets/audio/  # ADD THIS LINE
+    - assets/audio/
+    - assets/icon.png  # ✅ Your app icon file
+
+# ✅ Flutter Launcher Icons Configuration (single image only)
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon.png"   # ✅ One image only (black background)
