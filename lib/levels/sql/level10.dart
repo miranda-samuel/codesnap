@@ -7,25 +7,25 @@ import '../../services/user_preferences.dart';
 import '../../services/music_service.dart';
 import '../../services/daily_challenge_service.dart';
 
-class JavaLevel6 extends StatefulWidget {
-  const JavaLevel6({super.key});
+class SqlLevel10 extends StatefulWidget {
+  const SqlLevel10({super.key});
 
   @override
-  State<JavaLevel6> createState() => _JavaLevel6State();
+  State<SqlLevel10> createState() => _SqlLevel10State();
 }
 
-class _JavaLevel6State extends State<JavaLevel6> {
+class _SqlLevel10State extends State<SqlLevel10> {
   List<String> allBlocks = [];
   List<String> droppedBlocks = [];
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level6Completed = false;
+  bool level10Completed = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 180;
+  int remainingSeconds = 240;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -37,7 +37,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // NEW: Hint card system using UserPreferences
+  // Hint card system
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
@@ -50,7 +50,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
     _loadUserData();
     _calculateScaleFactor();
     _startGameMusic();
-    _loadHintCards(); // Load hint cards for current user
+    _loadHintCards();
   }
 
   void _startGameMusic() {
@@ -78,7 +78,6 @@ class _JavaLevel6State extends State<JavaLevel6> {
     });
   }
 
-  // NEW: Load hint cards using UserPreferences
   Future<void> _loadHintCards() async {
     final user = await UserPreferences.getUser();
     if (user['id'] != null) {
@@ -89,22 +88,6 @@ class _JavaLevel6State extends State<JavaLevel6> {
     }
   }
 
-  // NEW: Save hint cards using UserPreferences
-  Future<void> _saveHintCards(int count) async {
-    final user = await UserPreferences.getUser();
-    if (user['id'] != null) {
-      // We'll update the hint cards count in shared preferences
-      final prefs = await SharedPreferences.getInstance();
-      final userKey = 'hint_cards_${user['id']}';
-      await prefs.setInt(userKey, count);
-
-      setState(() {
-        _availableHintCards = count;
-      });
-    }
-  }
-
-  // NEW: Use hint card - shows hint and auto-drags correct answer
   void _useHintCard() async {
     if (_availableHintCards > 0 && !_isUsingHint) {
       final musicService = Provider.of<MusicService>(context, listen: false);
@@ -117,13 +100,11 @@ class _JavaLevel6State extends State<JavaLevel6> {
         _availableHintCards--;
       });
 
-      // Save the updated hint card count
       final user = await UserPreferences.getUser();
       if (user['id'] != null) {
         await DailyChallengeService.useHintCard(user['id']);
       }
 
-      // Auto-drag the correct blocks after a short delay
       _autoDragCorrectBlocks();
     } else if (_availableHintCards <= 0) {
       final musicService = Provider.of<MusicService>(context, listen: false);
@@ -138,24 +119,30 @@ class _JavaLevel6State extends State<JavaLevel6> {
     }
   }
 
-  // NEW: Auto-drag correct blocks to answer area
   void _autoDragCorrectBlocks() {
-    // Correct blocks for Java Level 6: Array sum calculation
+    // Correct blocks for SQL:
+    // SELECT d.department_name, AVG(e.salary) as avg_salary, COUNT(e.id) as employee_count
+    // FROM employees e
+    // JOIN departments d ON e.department_id = d.id
+    // WHERE e.hire_date > '2020-01-01'
+    // GROUP BY d.department_name
+    // HAVING AVG(e.salary) > 50000 AND COUNT(e.id) >= 3
+    // ORDER BY avg_salary DESC;
     List<String> correctBlocks = [
-      'int[] numbers = {1, 2, 3, 4, 5};',
-      'int sum = 0;',
-      'for (int i = 0; i < numbers.length; i++) {',
-      '    sum += numbers[i];',
-      '}',
-      'System.out.println("Sum: " + sum);'
+      'SELECT d.department_name, AVG(e.salary) as avg_salary, COUNT(e.id) as employee_count FROM',
+      'employees e',
+      'JOIN departments d ON e.department_id = d.id',
+      'WHERE e.hire_date >',
+      "'2020-01-01'",
+      'GROUP BY d.department_name',
+      'HAVING AVG(e.salary) > 50000 AND COUNT(e.id) >= 3',
+      'ORDER BY avg_salary DESC;'
     ];
 
-    // Remove any existing correct blocks from dropped area first
     setState(() {
       droppedBlocks.clear();
     });
 
-    // Add correct blocks one by one with delay
     int delay = 0;
     for (String block in correctBlocks) {
       Future.delayed(Duration(milliseconds: delay), () {
@@ -170,10 +157,9 @@ class _JavaLevel6State extends State<JavaLevel6> {
           });
         }
       });
-      delay += 500; // 0.5 second delay between each block
+      delay += 500;
     }
 
-    // Hide hint after all blocks are placed
     Future.delayed(Duration(milliseconds: delay + 1000), () {
       if (mounted) {
         setState(() {
@@ -185,7 +171,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
   }
 
   String _getLevelHint() {
-    return "The correct code for array sum calculation:\n\nint[] numbers = {1, 2, 3, 4, 5};\nint sum = 0;\nfor (int i = 0; i < numbers.length; i++) {\n    sum += numbers[i];\n}\nSystem.out.println(\"Sum: \" + sum);\n\n💡 Hint: Use a for loop to iterate through each array element and add it to the sum variable!";
+    return "The correct SQL query is a complex JOIN with aggregation:\n\nSELECT d.department_name, AVG(e.salary) as avg_salary, COUNT(e.id) as employee_count \nFROM employees e \nJOIN departments d ON e.department_id = d.id \nWHERE e.hire_date > '2020-01-01' \nGROUP BY d.department_name \nHAVING AVG(e.salary) > 50000 AND COUNT(e.id) >= 3 \nORDER BY avg_salary DESC;\n\n💡 Hint: Start with SELECT and aliases, then FROM with table alias, add JOIN condition, WHERE for date filter, GROUP BY department, HAVING with multiple conditions, and ORDER BY the alias!";
   }
 
   void _loadUserData() async {
@@ -194,49 +180,50 @@ class _JavaLevel6State extends State<JavaLevel6> {
       currentUser = user;
     });
     loadScoreFromDatabase();
-    _loadHintCards(); // Load hint cards for this user
+    _loadHintCards();
   }
 
   void resetBlocks() {
-    // Correct blocks for Java: Array iteration and sum calculation
+    // 8 correct blocks for advanced SQL with JOIN and complex aggregation
     List<String> correctBlocks = [
-      'int[] numbers = {1, 2, 3, 4, 5};',
-      'int sum = 0;',
-      'for (int i = 0; i < numbers.length; i++) {',
-      '    sum += numbers[i];',
-      '}',
-      'System.out.println("Sum: " + sum);'
+      'SELECT d.department_name, AVG(e.salary) as avg_salary, COUNT(e.id) as employee_count FROM',
+      'employees e',
+      'JOIN departments d ON e.department_id = d.id',
+      'WHERE e.hire_date >',
+      "'2020-01-01'",
+      'GROUP BY d.department_name',
+      'HAVING AVG(e.salary) > 50000 AND COUNT(e.id) >= 3',
+      'ORDER BY avg_salary DESC;'
     ];
 
     // Incorrect/distractor blocks
     List<String> incorrectBlocks = [
-      'int numbers = {1, 2, 3, 4, 5};',
-      'float[] numbers = {1, 2, 3, 4, 5};',
-      'String[] numbers = {"1", "2", "3"};',
-      'int sum = numbers;',
-      'for (int i = 0; i <= numbers.length; i++) {',
-      'for (int i = 1; i < numbers.length; i++) {',
-      'sum = numbers[i];',
-      'sum + numbers[i];',
-      'System.out.print("Sum: " + sum);',
-      'printf("Sum: %d", sum);',
-      'cout << "Sum: " << sum;',
-      'return sum;',
-      'while (i < numbers.length) {',
-      'numbers.sum()',
-      'Arrays.sum(numbers)',
-      'int total = 0;',
-      'sum = sum + numbers[i]',
-      'i++',
-      '} else {',
-      'if (i < numbers.length)'
+      'SELECT * FROM',
+      'SELECT department_name, AVG(salary) FROM',
+      'SELECT e.name, d.department_name FROM',
+      'LEFT JOIN departments d ON e.department_id = d.id',
+      'INNER JOIN departments d ON e.department_id = d.id',
+      'WHERE e.salary > 50000',
+      'WHERE d.department_name =',
+      "'IT'",
+      "'HR'",
+      'AND e.status = "active"',
+      'OR e.hire_date <',
+      "'2019-01-01'",
+      'GROUP BY e.department_id',
+      'GROUP BY d.id',
+      'HAVING COUNT(e.id) > 5',
+      'HAVING AVG(e.salary) < 40000',
+      'HAVING employee_count >= 2',
+      'ORDER BY employee_count DESC',
+      'ORDER BY d.department_name ASC',
+      'LIMIT 5',
+      'WHERE e.department_id IS NOT NULL',
     ];
 
-    // Shuffle incorrect blocks and take 4 random ones
     incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(4).toList();
+    List<String> selectedIncorrectBlocks = incorrectBlocks.take(6).toList();
 
-    // Combine correct and incorrect blocks, then shuffle
     allBlocks = [
       ...correctBlocks,
       ...selectedIncorrectBlocks,
@@ -250,7 +237,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 180;
+      remainingSeconds = 240;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       _showHint = false;
@@ -300,7 +287,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 90), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 30), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -324,7 +311,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
 
     setState(() {
       score = 3;
-      remainingSeconds = 180;
+      remainingSeconds = 240;
       gameStarted = false;
       isAnsweredCorrectly = false;
       _showHint = false;
@@ -342,15 +329,15 @@ class _JavaLevel6State extends State<JavaLevel6> {
     try {
       final response = await ApiService.saveScore(
         currentUser!['id'],
-        'Java',
-        6, // LEVEL 6
+        'SQL',
+        10,
         score,
-        score == 3, // perfect score
+        score == 3,
       );
 
       if (response['success'] == true) {
         setState(() {
-          level6Completed = score == 3;
+          level10Completed = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
@@ -366,16 +353,16 @@ class _JavaLevel6State extends State<JavaLevel6> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScores(currentUser!['id'], 'Java');
+      final response = await ApiService.getScores(currentUser!['id'], 'SQL');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level6Data = scoresData['6'];
+        final level10Data = scoresData['10'];
 
-        if (level6Data != null) {
+        if (level10Data != null) {
           setState(() {
-            previousScore = level6Data['score'] ?? 0;
-            level6Completed = level6Data['completed'] ?? false;
+            previousScore = level10Data['score'] ?? 0;
+            level10Completed = level10Data['completed'] ?? false;
             hasPreviousScore = true;
             score = previousScore;
           });
@@ -386,29 +373,29 @@ class _JavaLevel6State extends State<JavaLevel6> {
     }
   }
 
-  // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
-      'int numbers = {1, 2, 3, 4, 5};',
-      'float[] numbers = {1, 2, 3, 4, 5};',
-      'String[] numbers = {"1", "2", "3"};',
-      'int sum = numbers;',
-      'for (int i = 0; i <= numbers.length; i++) {',
-      'for (int i = 1; i < numbers.length; i++) {',
-      'sum = numbers[i];',
-      'sum + numbers[i];',
-      'System.out.print("Sum: " + sum);',
-      'printf("Sum: %d", sum);',
-      'cout << "Sum: " << sum;',
-      'return sum;',
-      'while (i < numbers.length) {',
-      'numbers.sum()',
-      'Arrays.sum(numbers)',
-      'int total = 0;',
-      'sum = sum + numbers[i]',
-      'i++',
-      '} else {',
-      'if (i < numbers.length)'
+      'SELECT * FROM',
+      'SELECT department_name, AVG(salary) FROM',
+      'SELECT e.name, d.department_name FROM',
+      'LEFT JOIN departments d ON e.department_id = d.id',
+      'INNER JOIN departments d ON e.department_id = d.id',
+      'WHERE e.salary > 50000',
+      'WHERE d.department_name =',
+      "'IT'",
+      "'HR'",
+      'AND e.status = "active"',
+      'OR e.hire_date <',
+      "'2019-01-01'",
+      'GROUP BY e.department_id',
+      'GROUP BY d.id',
+      'HAVING COUNT(e.id) > 5',
+      'HAVING AVG(e.salary) < 40000',
+      'HAVING employee_count >= 2',
+      'ORDER BY employee_count DESC',
+      'ORDER BY d.department_name ASC',
+      'LIMIT 5',
+      'WHERE e.department_id IS NOT NULL',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -418,7 +405,6 @@ class _JavaLevel6State extends State<JavaLevel6> {
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
-    // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
@@ -430,7 +416,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ You used incorrect code! -1 point. Current score: $score"),
+            content: Text("❌ You used incorrect SQL! -1 point. Current score: $score"),
             backgroundColor: Colors.red,
           ),
         );
@@ -448,7 +434,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("You used incorrect code and lost all points!"),
+            content: Text("You used incorrect SQL and lost all points!"),
             actions: [
               TextButton(
                 onPressed: () {
@@ -465,26 +451,15 @@ class _JavaLevel6State extends State<JavaLevel6> {
       return;
     }
 
-    // Check for the correct sequence for array sum calculation
-    bool hasArray = droppedBlocks.contains('int[] numbers = {1, 2, 3, 4, 5};');
-    bool hasSum = droppedBlocks.contains('int sum = 0;');
-    bool hasForLoop = droppedBlocks.contains('for (int i = 0; i < numbers.length; i++) {');
-    bool hasSumCalculation = droppedBlocks.contains('    sum += numbers[i];');
-    bool hasClosingBrace = droppedBlocks.contains('}');
-    bool hasPrint = droppedBlocks.contains('System.out.println("Sum: " + sum);');
+    String answer = droppedBlocks.join(' ');
+    String normalizedAnswer = answer
+        .replaceAll(' ', '')
+        .replaceAll('\n', '')
+        .toLowerCase();
 
-    // Check if all correct blocks are present
-    bool allCorrectBlocksPresent = hasArray &&
-        hasSum &&
-        hasForLoop &&
-        hasSumCalculation &&
-        hasClosingBrace &&
-        hasPrint;
+    String expected = "selectd.department_name,avg(e.salary)asavg_salary,count(e.id)asemployee_countfromemployeesejoindepartmentsdone.department_id=d.idwheree.hire_date>'2020-01-01'groupbyd.department_namehavingavg(e.salary)>50000andcount(e.id)>=3orderbyavg_salarydesc;";
 
-    // Check if no extra correct blocks are used (should be exactly 6 blocks)
-    bool correctBlockCount = droppedBlocks.length == 6;
-
-    if (allCorrectBlocksPresent && correctBlockCount) {
+    if (normalizedAnswer == expected) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -494,7 +469,6 @@ class _JavaLevel6State extends State<JavaLevel6> {
 
       saveScoreToDatabase(score);
 
-      // PLAY SUCCESS SOUND BASED ON SCORE
       if (score == 3) {
         musicService.playSoundEffect('perfect.mp3');
       } else {
@@ -504,46 +478,101 @@ class _JavaLevel6State extends State<JavaLevel6> {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text("✅ Correct!"),
+          title: Text("🏆 SQL MASTER CHAMPION!"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent! You've created a perfect array sum calculator!"),
+              Text("LEGENDARY! You've conquered the ultimate SQL challenge!", style: TextStyle(fontWeight: FontWeight.bold)),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
-                Column(
-                  children: [
-                    Text(
-                      "🎉 Perfect! You've completed Java Level 6!",
-                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      "Congratulations on mastering Java arrays!",
-                      style: TextStyle(color: Colors.purple, fontSize: 12),
-                    ),
-                  ],
+                Text(
+                  "🎉 PERFECT! You are now a SQL GRAND MASTER!",
+                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) to complete Level 6!",
+                  "⚠️ Get a perfect score (3/3) to become SQL GRAND MASTER!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
-              Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("Query Result:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  "Sum: 15", // THE OUTPUT FOR ARRAY {1, 2, 3, 4, 5}
+                  "Will display departments with average salary > 50,000 and at least 3 employees hired after 2020, sorted by highest average salary",
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
-                    fontSize: 16,
+                    fontSize: 14,
                   ),
+                ),
+              ),
+              SizedBox(height: 10),
+              Text("EXPERT SQL Concepts:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Container(
+                padding: EdgeInsets.all(10),
+                color: Colors.orange[50],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("• Multi-table JOIN with aliases", style: TextStyle(color: Colors.orange[900])),
+                    Text("• Multiple aggregate functions (AVG, COUNT)", style: TextStyle(color: Colors.orange[900])),
+                    Text("• Column aliases in SELECT", style: TextStyle(color: Colors.orange[900])),
+                    Text("• Complex HAVING with multiple conditions", style: TextStyle(color: Colors.orange[900])),
+                    Text("• Date filtering in WHERE clause", style: TextStyle(color: Colors.orange[900])),
+                    Text("• ORDER BY using column alias", style: TextStyle(color: Colors.orange[900])),
+                  ],
+                ),
+              ),
+              SizedBox(height: 10),
+              Container(
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.yellow[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.emoji_events, color: Colors.orange, size: 30),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "CONGRATULATIONS! You've mastered the most complex SQL queries! You are now among the top SQL experts!",
+                        style: TextStyle(color: Colors.orange[800], fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 10),
+              Container(
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.purple, Colors.blue],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      "🎊 ULTIMATE ACHIEVEMENT UNLOCKED!",
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      "SQL GRAND MASTER",
+                      style: TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold, fontSize: 18),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -553,14 +582,10 @@ class _JavaLevel6State extends State<JavaLevel6> {
               onPressed: () {
                 musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
-                if (score == 3) {
-                  musicService.playSoundEffect('level_complete.mp3');
-                  Navigator.pushReplacementNamed(context, '/java_level7');
-                } else {
-                  Navigator.pushReplacementNamed(context, '/levels', arguments: 'Java');
-                }
+                musicService.playSoundEffect('victory_fanfare.mp3');
+                Navigator.pushReplacementNamed(context, '/levels', arguments: 'SQL');
               },
-              child: Text(score == 3 ? "Next Level" : "Go Back"),
+              child: Text("Complete Ultimate Challenge", style: TextStyle(fontWeight: FontWeight.bold)),
             )
           ],
         ),
@@ -572,18 +597,8 @@ class _JavaLevel6State extends State<JavaLevel6> {
         setState(() {
           score--;
         });
-
-        String errorMessage = "❌ Incorrect arrangement. -1 point. Current score: $score";
-
-        // Provide specific feedback
-        if (!allCorrectBlocksPresent) {
-          errorMessage = "❌ Missing some required code blocks. -1 point. Current score: $score";
-        } else if (!correctBlockCount) {
-          errorMessage = "❌ Used wrong number of blocks. -1 point. Current score: $score";
-        }
-
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
+          SnackBar(content: Text("❌ Incorrect SQL arrangement. -1 point. Current score: $score")),
         );
       } else {
         setState(() {
@@ -622,7 +637,6 @@ class _JavaLevel6State extends State<JavaLevel6> {
     return "$m:$s";
   }
 
-  // NEW: Hint Display Widget
   Widget _buildHintDisplay() {
     if (!_showHint) return SizedBox();
 
@@ -651,7 +665,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
                 Icon(Icons.lightbulb, color: Colors.white, size: 20 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  '💡 Hint Activated!',
+                  '💡 ULTIMATE HINT ACTIVATED!',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16 * _scaleFactor,
@@ -671,7 +685,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Correct blocks are being placed automatically...',
+              'Master-level blocks are being placed automatically...',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 12 * _scaleFactor,
@@ -684,7 +698,6 @@ class _JavaLevel6State extends State<JavaLevel6> {
     );
   }
 
-  // CODE PREVIEW
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -707,10 +720,10 @@ class _JavaLevel6State extends State<JavaLevel6> {
             ),
             child: Row(
               children: [
-                Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
+                Icon(Icons.storage, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'ArraySum.java',
+                  'ultimate_master_query.sql',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -735,16 +748,6 @@ class _JavaLevel6State extends State<JavaLevel6> {
                         children: [
                           _buildCodeLine(1),
                           _buildCodeLine(2),
-                          _buildCodeLine(3),
-                          _buildCodeLine(4),
-                          _buildCodeLine(5),
-                          _buildCodeLine(6),
-                          _buildCodeLine(7),
-                          _buildCodeLine(8),
-                          _buildCodeLine(9),
-                          _buildCodeLine(10),
-                          _buildCodeLine(11),
-                          _buildCodeLine(12),
                         ],
                       ),
                     ),
@@ -753,11 +756,8 @@ class _JavaLevel6State extends State<JavaLevel6> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildSyntaxHighlightedLine('public class ArraySum {', isKeyword: true),
-                          _buildSyntaxHighlightedLine('    public static void main(String[] args) {', isKeyword: true),
-                          _buildUserCodePreview(),
-                          _buildSyntaxHighlightedLine('    }', isNormal: true),
-                          _buildSyntaxHighlightedLine('}', isNormal: true),
+                          _buildUserCodeLine(getPreviewCode()),
+                          _buildSyntaxHighlightedLine('-- ULTIMATE SQL: Multi-table JOIN with complex aggregation', isComment: true),
                         ],
                       ),
                     ),
@@ -771,14 +771,14 @@ class _JavaLevel6State extends State<JavaLevel6> {
     );
   }
 
-  Widget _buildUserCodePreview() {
-    if (droppedBlocks.isEmpty) {
+  Widget _buildUserCodeLine(String code) {
+    if (code.isEmpty) {
       return Container(
         height: 20 * _scaleFactor,
         child: Text(
-          '    ',
+          ' ',
           style: TextStyle(
-            color: Colors.grey[600],
+            color: Colors.white,
             fontSize: 12 * _scaleFactor,
             fontFamily: 'monospace',
           ),
@@ -786,66 +786,21 @@ class _JavaLevel6State extends State<JavaLevel6> {
       );
     }
 
-    List<Widget> codeLines = [];
-    bool hasArray = droppedBlocks.contains('int[] numbers = {1, 2, 3, 4, 5};');
-    bool hasSum = droppedBlocks.contains('int sum = 0;');
-    bool hasForLoop = droppedBlocks.contains('for (int i = 0; i < numbers.length; i++) {');
-    bool hasSumCalculation = droppedBlocks.contains('    sum += numbers[i];');
-    bool hasClosingBrace = droppedBlocks.contains('}');
-    bool hasPrint = droppedBlocks.contains('System.out.println("Sum: " + sum);');
-
-    if (hasArray) {
-      codeLines.add(_buildUserCodeLine('int[] numbers = {1, 2, 3, 4, 5};'));
-    }
-
-    if (hasSum) {
-      codeLines.add(_buildUserCodeLine('int sum = 0;'));
-    }
-
-    if (hasForLoop) {
-      codeLines.add(_buildUserCodeLine('for (int i = 0; i < numbers.length; i++) {'));
-    }
-
-    if (hasSumCalculation) {
-      codeLines.add(_buildUserCodeLine('    sum += numbers[i];'));
-    }
-
-    if (hasClosingBrace) {
-      codeLines.add(_buildUserCodeLine('}'));
-    }
-
-    if (hasPrint) {
-      codeLines.add(_buildUserCodeLine('System.out.println("Sum: " + sum);'));
-    }
-
-    // Add any incorrect blocks that were used
-    for (String block in droppedBlocks) {
-      if (!['int[] numbers = {1, 2, 3, 4, 5};',
-        'int sum = 0;',
-        'for (int i = 0; i < numbers.length; i++) {',
-        '    sum += numbers[i];',
-        '}',
-        'System.out.println("Sum: " + sum);'].contains(block)) {
-        codeLines.add(_buildUserCodeLine(block));
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: codeLines,
-    );
-  }
-
-  Widget _buildUserCodeLine(String code) {
     return Container(
       height: 20 * _scaleFactor,
-      child: Text(
-        '    $code',
-        style: TextStyle(
-          color: Colors.greenAccent[400],
-          fontFamily: 'monospace',
-          fontSize: 12 * _scaleFactor,
-          fontWeight: FontWeight.bold,
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: code,
+              style: TextStyle(
+                color: Colors.orangeAccent[400],
+                fontFamily: 'monospace',
+                fontSize: 12 * _scaleFactor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -865,15 +820,15 @@ class _JavaLevel6State extends State<JavaLevel6> {
     );
   }
 
-  Widget _buildSyntaxHighlightedLine(String code, {bool isPreprocessor = false, bool isKeyword = false, bool isNormal = false}) {
+  Widget _buildSyntaxHighlightedLine(String code, {bool isComment = false, bool isKeyword = false}) {
     Color textColor = Colors.white;
-    if (isPreprocessor) {
-      textColor = Color(0xFFCE9178);
+
+    if (isComment) {
+      textColor = Color(0xFF6A9955);
     } else if (isKeyword) {
       textColor = Color(0xFF569CD6);
-    } else if (isNormal) {
-      textColor = Colors.white;
     }
+
     return Container(
       height: 20 * _scaleFactor,
       child: Text(
@@ -882,19 +837,26 @@ class _JavaLevel6State extends State<JavaLevel6> {
           color: textColor,
           fontSize: 12 * _scaleFactor,
           fontFamily: 'monospace',
+          fontStyle: isComment ? FontStyle.italic : FontStyle.normal,
         ),
       ),
     );
+  }
+
+  String getPreviewCode() {
+    return droppedBlocks.join(' ');
   }
 
   @override
   void dispose() {
     countdownTimer?.cancel();
     scoreReductionTimer?.cancel();
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final musicService = Provider.of<MusicService>(context, listen: false);
       await musicService.playBackgroundMusic();
     });
+
     super.dispose();
   }
 
@@ -903,6 +865,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
       final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
+
       if (newScaleFactor != _scaleFactor) {
         setState(() {
           _scaleFactor = newScaleFactor;
@@ -912,8 +875,8 @@ class _JavaLevel6State extends State<JavaLevel6> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("☕ Java - Level 6", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.red,
+        title: Text("⚡ SQL - Level 10 (FINAL BOSS)", style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.deepOrange,
         actions: gameStarted
             ? [
           Padding(
@@ -939,19 +902,17 @@ class _JavaLevel6State extends State<JavaLevel6> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1B0D0D),
-              Color(0xFF2D1B1B),
-              Color(0xFF553333),
+              Color(0xFF1A0D2A),
+              Color(0xFF2B1B3B),
+              Color(0xFF515177),
             ],
           ),
         ),
         child: Stack(
           children: [
             gameStarted ? buildGameUI() : buildStartScreen(),
-            // ADD HINT BUTTON AND DISPLAY TO STACK
             if (gameStarted && !isAnsweredCorrectly) ...[
               _buildHintDisplay(),
-              // ✅ HINT CARD BUTTON - BOTTOM RIGHT
               Positioned(
                 bottom: 20 * _scaleFactor,
                 right: 20 * _scaleFactor,
@@ -960,7 +921,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
                   child: Container(
                     padding: EdgeInsets.all(12 * _scaleFactor),
                     decoration: BoxDecoration(
-                      color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
+                      color: _availableHintCards > 0 ? Colors.deepOrange : Colors.grey,
                       borderRadius: BorderRadius.circular(20 * _scaleFactor),
                       boxShadow: [
                         BoxShadow(
@@ -1008,39 +969,82 @@ class _JavaLevel6State extends State<JavaLevel6> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Container(
+              padding: EdgeInsets.all(16 * _scaleFactor),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.deepOrange, Colors.orange],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20 * _scaleFactor),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    blurRadius: 10 * _scaleFactor,
+                    offset: Offset(0, 5 * _scaleFactor),
+                  )
+                ],
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    "🎯 FINAL BOSS LEVEL",
+                    style: TextStyle(
+                      fontSize: 24 * _scaleFactor,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Text(
+                    "SQL GRAND MASTER CHALLENGE",
+                    style: TextStyle(
+                      fontSize: 18 * _scaleFactor,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.yellow,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 30 * _scaleFactor),
+
             ElevatedButton.icon(
               onPressed: () {
                 final musicService = Provider.of<MusicService>(context, listen: false);
-                musicService.playSoundEffect('button_click.mp3');
+                musicService.playSoundEffect('boss_battle_start.mp3');
                 startGame();
               },
-              icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              icon: Icon(Icons.play_arrow, size: 24 * _scaleFactor),
+              label: Text("START FINAL BATTLE", style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.red,
+                padding: EdgeInsets.symmetric(horizontal: 32 * _scaleFactor, vertical: 16 * _scaleFactor),
+                backgroundColor: Colors.deepOrange,
+                foregroundColor: Colors.white,
               ),
             ),
-
-            // Display available hint cards in start screen
             SizedBox(height: 20 * _scaleFactor),
+
             Container(
               padding: EdgeInsets.all(12 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.2),
+                color: Colors.deepOrange.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.orange),
+                border: Border.all(color: Colors.deepOrange),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.lightbulb_outline, color: Colors.orange, size: 20 * _scaleFactor),
+                  Icon(Icons.lightbulb_outline, color: Colors.orange, size: 24 * _scaleFactor),
                   SizedBox(width: 8 * _scaleFactor),
                   Text(
                     'Hint Cards: $_availableHintCards',
                     style: TextStyle(
                       color: Colors.orange,
-                      fontSize: 16 * _scaleFactor,
+                      fontSize: 18 * _scaleFactor,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -1049,48 +1053,54 @@ class _JavaLevel6State extends State<JavaLevel6> {
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Use hint cards during the game for help!',
+              'You will need all the help you can get!',
               style: TextStyle(
                 color: Colors.white70,
                 fontSize: 12 * _scaleFactor,
               ),
             ),
 
-            SizedBox(height: 20 * _scaleFactor),
-
-            if (level6Completed)
+            if (level10Completed)
               Padding(
-                padding: EdgeInsets.only(top: 10 * _scaleFactor),
-                child: Column(
-                  children: [
-                    Text(
-                      "✅ Level 6 completed with perfect score!",
-                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 5 * _scaleFactor),
-                    Text(
-                      "You've unlocked Level 7!",
-                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+                padding: EdgeInsets.only(top: 20 * _scaleFactor),
+                child: Container(
+                  padding: EdgeInsets.all(16 * _scaleFactor),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12 * _scaleFactor),
+                    border: Border.all(color: Colors.green),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        "🏆 ULTIMATE VICTORY!",
+                        style: TextStyle(color: Colors.green, fontSize: 20 * _scaleFactor, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 10 * _scaleFactor),
+                      Text(
+                        "You have conquered the SQL Grand Master Challenge!",
+                        style: TextStyle(color: Colors.white, fontSize: 16 * _scaleFactor),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
               )
             else if (hasPreviousScore && previousScore > 0)
               Padding(
-                padding: EdgeInsets.only(top: 10 * _scaleFactor),
+                padding: EdgeInsets.only(top: 20 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
                       "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.blue, fontSize: 18 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: 5 * _scaleFactor),
+                    SizedBox(height: 10 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score and unlock Level 7!",
-                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                      "One more perfect score to become SQL GRAND MASTER!",
+                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1098,17 +1108,17 @@ class _JavaLevel6State extends State<JavaLevel6> {
               )
             else if (hasPreviousScore && previousScore == 0)
                 Padding(
-                  padding: EdgeInsets.only(top: 10 * _scaleFactor),
+                  padding: EdgeInsets.only(top: 20 * _scaleFactor),
                   child: Column(
                     children: [
                       Text(
-                        "😅 Your previous score: $previousScore/3",
-                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                        "💪 Final Boss Challenge!",
+                        style: TextStyle(color: Colors.red, fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center,
                       ),
-                      SizedBox(height: 5 * _scaleFactor),
+                      SizedBox(height: 10 * _scaleFactor),
                       Text(
-                        "Don't give up! You can do better this time!",
+                        "This is the ultimate test of your SQL skills! Give it your best!",
                         style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
@@ -1121,32 +1131,39 @@ class _JavaLevel6State extends State<JavaLevel6> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.red[50]!.withOpacity(0.9),
+                color: Colors.deepOrange[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.red[200]!),
+                border: Border.all(color: Colors.deepOrange[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎯 Level 6 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.red[800]),
+                    "🎯 ULTIMATE OBJECTIVE",
+                    style: TextStyle(fontSize: 20 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.deepOrange[800]),
                     textAlign: TextAlign.center,
                   ),
-                  SizedBox(height: 10 * _scaleFactor),
+                  SizedBox(height: 15 * _scaleFactor),
                   Text(
-                    "Create a program that calculates the sum of array elements {1, 2, 3, 4, 5}",
+                    "Create a complex SQL query with JOIN, multiple aggregates, and advanced filtering to find departments with high average salaries and sufficient staff",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.red[700]),
+                    style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.deepOrange[700], fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
-                  Text(
-                    "🎁  Get a perfect score (3/3) to unlock Level 7!",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 12 * _scaleFactor,
-                        color: Colors.purple,
-                        fontWeight: FontWeight.bold,
-                        fontStyle: FontStyle.italic
+                  Container(
+                    padding: EdgeInsets.all(12 * _scaleFactor),
+                    decoration: BoxDecoration(
+                      color: Colors.purple[50],
+                      borderRadius: BorderRadius.circular(8 * _scaleFactor),
+                    ),
+                    child: Text(
+                      "🏆 Get a perfect score (3/3) to become SQL GRAND MASTER!",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 14 * _scaleFactor,
+                          color: Colors.purple[800],
+                          fontWeight: FontWeight.bold,
+                          fontStyle: FontStyle.italic
+                      ),
                     ),
                   ),
                 ],
@@ -1164,54 +1181,68 @@ class _JavaLevel6State extends State<JavaLevel6> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: Text('📖 Short Story',
-                    style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
-              ),
-              TextButton.icon(
-                onPressed: () {
-                  final musicService = Provider.of<MusicService>(context, listen: false);
-                  musicService.playSoundEffect('toggle.mp3');
-                  setState(() {
-                    isTagalog = !isTagalog;
-                  });
-                },
-                icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
-                label: Text(isTagalog ? 'English' : 'Tagalog',
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
-              ),
-            ],
+          Container(
+            padding: EdgeInsets.all(12 * _scaleFactor),
+            decoration: BoxDecoration(
+              color: Colors.deepOrange.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12 * _scaleFactor),
+              border: Border.all(color: Colors.deepOrange),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text('⚔️ FINAL BOSS STORY',
+                      style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    final musicService = Provider.of<MusicService>(context, listen: false);
+                    musicService.playSoundEffect('toggle.mp3');
+                    setState(() {
+                      isTagalog = !isTagalog;
+                    });
+                  },
+                  icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
+                  label: Text(isTagalog ? 'English' : 'Tagalog',
+                      style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+                ),
+              ],
+            ),
           ),
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Ngayon, gusto ni Juan na matuto ng arrays sa Java! Kailangan niyang kalkulahin ang kabuuang sum ng mga numero sa array {1, 2, 3, 4, 5}. Tulungan siyang bumuo ng program na magsu-sum ng lahat ng elements sa array gamit ang for loop.'
-                : 'Now, Juan wants to learn about arrays in Java! He needs to calculate the total sum of numbers in the array {1, 2, 3, 4, 5}. Help him build a program that sums all the elements in the array using a for loop.',
+                ? 'FINAL BOSS CHALLENGE! Kailangan ng CEO ng komprehensibong analysis ng mga department. Hanapin ang mga department na may average na suweldo na higit sa 50,000 at may hindi bababa sa 3 empleyado na hinire simula 2020. Gamitin ang JOIN, multiple aggregate functions, at complex filtering!'
+                : 'FINAL BOSS CHALLENGE! The CEO needs comprehensive department analysis. Find departments with average salary over 50,000 and at least 3 employees hired since 2020. Use JOIN, multiple aggregate functions, and complex filtering!',
             textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
+            style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the 6 correct blocks to create the array sum calculator',
-              style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
+          Text('🧩 Arrange 8 blocks to form the ULTIMATE SQL query',
+              style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          // TARGET AREA
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
               minHeight: 220 * _scaleFactor,
-              maxHeight: 300 * _scaleFactor,
+              maxHeight: 280 * _scaleFactor,
             ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.red, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.deepOrange, width: 3.0 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.deepOrange.withOpacity(0.5),
+                  blurRadius: 10 * _scaleFactor,
+                  offset: Offset(0, 5 * _scaleFactor),
+                )
+              ],
             ),
             child: DragTarget<String>(
               onWillAccept: (data) {
@@ -1221,6 +1252,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
                 if (!isAnsweredCorrectly) {
                   final musicService = Provider.of<MusicService>(context, listen: false);
                   musicService.playSoundEffect('block_drop.mp3');
+
                   setState(() {
                     droppedBlocks.add(data);
                     allBlocks.remove(data);
@@ -1239,13 +1271,14 @@ class _JavaLevel6State extends State<JavaLevel6> {
                         data: block,
                         feedback: Material(
                           color: Colors.transparent,
-                          child: puzzleBlock(block, Colors.orangeAccent),
+                          child: puzzleBlock(block, Colors.deepOrange),
                         ),
-                        childWhenDragging: puzzleBlock(block, Colors.orangeAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.orangeAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.deepOrange.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.deepOrange),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
+
                           setState(() {
                             currentlyDraggedBlock = block;
                           });
@@ -1254,6 +1287,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
                           setState(() {
                             currentlyDraggedBlock = null;
                           });
+
                           if (!isAnsweredCorrectly && !details.wasAccepted) {
                             Future.delayed(Duration(milliseconds: 50), () {
                               if (mounted) {
@@ -1276,12 +1310,11 @@ class _JavaLevel6State extends State<JavaLevel6> {
           ),
 
           SizedBox(height: 20 * _scaleFactor),
-          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          Text('💻 ULTIMATE Query Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
           SizedBox(height: 10 * _scaleFactor),
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
 
-          // SOURCE AREA
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
@@ -1291,6 +1324,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
             decoration: BoxDecoration(
               color: Colors.grey[800]!.withOpacity(0.3),
               borderRadius: BorderRadius.circular(12 * _scaleFactor),
+              border: Border.all(color: Colors.deepOrange.withOpacity(0.5)),
             ),
             child: Wrap(
               spacing: 8 * _scaleFactor,
@@ -1304,16 +1338,17 @@ class _JavaLevel6State extends State<JavaLevel6> {
                   data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(block, Colors.redAccent),
+                    child: puzzleBlock(block, Colors.deepOrange[400]!),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.redAccent),
+                    child: puzzleBlock(block, Colors.deepOrange[400]!),
                   ),
-                  child: puzzleBlock(block, Colors.redAccent),
+                  child: puzzleBlock(block, Colors.deepOrange[400]!),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
+
                     setState(() {
                       currentlyDraggedBlock = block;
                     });
@@ -1322,6 +1357,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
                     setState(() {
                       currentlyDraggedBlock = null;
                     });
+
                     if (!isAnsweredCorrectly && !details.wasAccepted) {
                       Future.delayed(Duration(milliseconds: 50), () {
                         if (mounted) {
@@ -1346,10 +1382,11 @@ class _JavaLevel6State extends State<JavaLevel6> {
               musicService.playSoundEffect('compile.mp3');
               checkAnswer();
             },
-            icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
-            label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
+            icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
+            label: Text("EXECUTE ULTIMATE QUERY", style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: Colors.deepOrange,
+              foregroundColor: Colors.white,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -1362,7 +1399,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
               musicService.playSoundEffect('button_click.mp3');
               resetGame();
             },
-            child: Text("🔁 Retry", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+            child: Text("🔁 Retry Final Boss", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
           ),
         ],
       ),
@@ -1370,14 +1407,13 @@ class _JavaLevel6State extends State<JavaLevel6> {
   }
 
   Widget puzzleBlock(String text, Color color) {
-    // Calculate text width to adjust block size - SAME AS LEVEL 8
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 12 * _scaleFactor, // Using 12 instead of 14 for consistency
+          fontSize: 13 * _scaleFactor,
           color: Colors.black,
         ),
       ),
@@ -1385,8 +1421,8 @@ class _JavaLevel6State extends State<JavaLevel6> {
     )..layout();
 
     final textWidth = textPainter.width;
-    final minWidth = 80 * _scaleFactor;  // Same as Level 8
-    final maxWidth = 240 * _scaleFactor; // Same as Level 8
+    final minWidth = 70 * _scaleFactor;
+    final maxWidth = 220 * _scaleFactor;
 
     return Container(
       constraints: BoxConstraints(
@@ -1395,8 +1431,8 @@ class _JavaLevel6State extends State<JavaLevel6> {
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 12 * _scaleFactor,  // Same as Level 8
-        vertical: 10 * _scaleFactor,    // Same as Level 8
+        horizontal: 14 * _scaleFactor,
+        vertical: 10 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
@@ -1418,7 +1454,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 12 * _scaleFactor, // Changed from 14 to 12 to match Level 8
+          fontSize: 13 * _scaleFactor,
           color: Colors.black,
           shadows: [
             Shadow(
@@ -1430,7 +1466,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.visible,
-        softWrap: true, // Added for better text wrapping
+        maxLines: 2,
       ),
     );
   }

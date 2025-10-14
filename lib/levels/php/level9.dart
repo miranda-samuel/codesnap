@@ -7,20 +7,20 @@ import '../../services/user_preferences.dart';
 import '../../services/music_service.dart';
 import '../../services/daily_challenge_service.dart';
 
-class JavaLevel6 extends StatefulWidget {
-  const JavaLevel6({super.key});
+class PhpLevel9 extends StatefulWidget {
+  const PhpLevel9({super.key});
 
   @override
-  State<JavaLevel6> createState() => _JavaLevel6State();
+  State<PhpLevel9> createState() => _PhpLevel9State();
 }
 
-class _JavaLevel6State extends State<JavaLevel6> {
+class _PhpLevel9State extends State<PhpLevel9> {
   List<String> allBlocks = [];
   List<String> droppedBlocks = [];
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level6Completed = false;
+  bool level9Completed = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
@@ -30,10 +30,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
-  // Track currently dragged block
   String? currentlyDraggedBlock;
-
-  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
@@ -93,7 +90,6 @@ class _JavaLevel6State extends State<JavaLevel6> {
   Future<void> _saveHintCards(int count) async {
     final user = await UserPreferences.getUser();
     if (user['id'] != null) {
-      // We'll update the hint cards count in shared preferences
       final prefs = await SharedPreferences.getInstance();
       final userKey = 'hint_cards_${user['id']}';
       await prefs.setInt(userKey, count);
@@ -140,14 +136,14 @@ class _JavaLevel6State extends State<JavaLevel6> {
 
   // NEW: Auto-drag correct blocks to answer area
   void _autoDragCorrectBlocks() {
-    // Correct blocks for Java Level 6: Array sum calculation
+    // Correct blocks for PHP functions - DIFFERENT FROM LEVEL 8
     List<String> correctBlocks = [
-      'int[] numbers = {1, 2, 3, 4, 5};',
-      'int sum = 0;',
-      'for (int i = 0; i < numbers.length; i++) {',
-      '    sum += numbers[i];',
+      'function calculateArea(\$radius) {',
+      '\$area = 3.1416 * \$radius * \$radius;',
+      'return \$area;',
       '}',
-      'System.out.println("Sum: " + sum);'
+      '\$circleArea = calculateArea(5);',
+      'echo "Area: " . \$circleArea;',
     ];
 
     // Remove any existing correct blocks from dropped area first
@@ -185,7 +181,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
   }
 
   String _getLevelHint() {
-    return "The correct code for array sum calculation:\n\nint[] numbers = {1, 2, 3, 4, 5};\nint sum = 0;\nfor (int i = 0; i < numbers.length; i++) {\n    sum += numbers[i];\n}\nSystem.out.println(\"Sum: \" + sum);\n\n💡 Hint: Use a for loop to iterate through each array element and add it to the sum variable!";
+    return "The correct code is: function calculateArea(\$radius) { \$area = 3.1416 * \$radius * \$radius; return \$area; } \$circleArea = calculateArea(5); echo \"Area: \" . \$circleArea;\n\n💡 Hint: Create a function to calculate circle area using πr² formula!";
   }
 
   void _loadUserData() async {
@@ -198,45 +194,42 @@ class _JavaLevel6State extends State<JavaLevel6> {
   }
 
   void resetBlocks() {
-    // Correct blocks for Java: Array iteration and sum calculation
+    // Correct blocks for PHP functions - DIFFERENT FROM LEVEL 8
     List<String> correctBlocks = [
-      'int[] numbers = {1, 2, 3, 4, 5};',
-      'int sum = 0;',
-      'for (int i = 0; i < numbers.length; i++) {',
-      '    sum += numbers[i];',
+      'function calculateArea(\$radius) {',
+      '\$area = 3.1416 * \$radius * \$radius;',
+      'return \$area;',
       '}',
-      'System.out.println("Sum: " + sum);'
+      '\$circleArea = calculateArea(5);',
+      'echo "Area: " . \$circleArea;',
     ];
 
-    // Incorrect/distractor blocks
+    // Incorrect blocks - DIFFERENT FROM LEVEL 8
     List<String> incorrectBlocks = [
-      'int numbers = {1, 2, 3, 4, 5};',
-      'float[] numbers = {1, 2, 3, 4, 5};',
-      'String[] numbers = {"1", "2", "3"};',
-      'int sum = numbers;',
-      'for (int i = 0; i <= numbers.length; i++) {',
-      'for (int i = 1; i < numbers.length; i++) {',
-      'sum = numbers[i];',
-      'sum + numbers[i];',
-      'System.out.print("Sum: " + sum);',
-      'printf("Sum: %d", sum);',
-      'cout << "Sum: " << sum;',
-      'return sum;',
-      'while (i < numbers.length) {',
-      'numbers.sum()',
-      'Arrays.sum(numbers)',
-      'int total = 0;',
-      'sum = sum + numbers[i]',
-      'i++',
-      '} else {',
-      'if (i < numbers.length)'
+      'def calculateArea(radius):',
+      'area = 3.14 * radius ** 2',
+      'print(area)',
+      'double calculateArea(double radius) {',
+      'return Math.PI * radius * radius;',
+      'function area(\$r) {',
+      '\$result = pi() * \$r * \$r;',
+      'echo \$result;',
+      'function calculateArea() {',
+      '\$area = \$radius * \$radius * 3.14;',
+      'display \$area;',
+      'function circleArea(\$r) {',
+      'return 3.1416 * pow(\$r, 2);',
+      'printf("Area: %f", \$circleArea);',
+      'var area = function(radius) {',
+      'const area = 3.14 * radius * radius;',
+      'System.out.println("Area: " + area);',
+      'cout << "Area: " << area << endl;',
     ];
 
-    // Shuffle incorrect blocks and take 4 random ones
+    // Shuffle incorrect blocks and take 3 random ones (6 correct + 3 incorrect = 9 total)
     incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(4).toList();
+    List<String> selectedIncorrectBlocks = incorrectBlocks.take(3).toList();
 
-    // Combine correct and incorrect blocks, then shuffle
     allBlocks = [
       ...correctBlocks,
       ...selectedIncorrectBlocks,
@@ -342,15 +335,15 @@ class _JavaLevel6State extends State<JavaLevel6> {
     try {
       final response = await ApiService.saveScore(
         currentUser!['id'],
-        'Java',
-        6, // LEVEL 6
+        'PHP',
+        9, // LEVEL 9
         score,
-        score == 3, // perfect score
+        score == 3,
       );
 
       if (response['success'] == true) {
         setState(() {
-          level6Completed = score == 3;
+          level9Completed = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
@@ -366,16 +359,16 @@ class _JavaLevel6State extends State<JavaLevel6> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScores(currentUser!['id'], 'Java');
+      final response = await ApiService.getScores(currentUser!['id'], 'PHP');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level6Data = scoresData['6'];
+        final level9Data = scoresData['9']; // LEVEL 9
 
-        if (level6Data != null) {
+        if (level9Data != null) {
           setState(() {
-            previousScore = level6Data['score'] ?? 0;
-            level6Completed = level6Data['completed'] ?? false;
+            previousScore = level9Data['score'] ?? 0;
+            level9Completed = level9Data['completed'] ?? false;
             hasPreviousScore = true;
             score = previousScore;
           });
@@ -386,29 +379,26 @@ class _JavaLevel6State extends State<JavaLevel6> {
     }
   }
 
-  // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
-      'int numbers = {1, 2, 3, 4, 5};',
-      'float[] numbers = {1, 2, 3, 4, 5};',
-      'String[] numbers = {"1", "2", "3"};',
-      'int sum = numbers;',
-      'for (int i = 0; i <= numbers.length; i++) {',
-      'for (int i = 1; i < numbers.length; i++) {',
-      'sum = numbers[i];',
-      'sum + numbers[i];',
-      'System.out.print("Sum: " + sum);',
-      'printf("Sum: %d", sum);',
-      'cout << "Sum: " << sum;',
-      'return sum;',
-      'while (i < numbers.length) {',
-      'numbers.sum()',
-      'Arrays.sum(numbers)',
-      'int total = 0;',
-      'sum = sum + numbers[i]',
-      'i++',
-      '} else {',
-      'if (i < numbers.length)'
+      'def calculateArea(radius):',
+      'area = 3.14 * radius ** 2',
+      'print(area)',
+      'double calculateArea(double radius) {',
+      'return Math.PI * radius * radius;',
+      'function area(\$r) {',
+      '\$result = pi() * \$r * \$r;',
+      'echo \$result;',
+      'function calculateArea() {',
+      '\$area = \$radius * \$radius * 3.14;',
+      'display \$area;',
+      'function circleArea(\$r) {',
+      'return 3.1416 * pow(\$r, 2);',
+      'printf("Area: %f", \$circleArea);',
+      'var area = function(radius) {',
+      'const area = 3.14 * radius * radius;',
+      'System.out.println("Area: " + area);',
+      'cout << "Area: " << area << endl;',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -418,7 +408,6 @@ class _JavaLevel6State extends State<JavaLevel6> {
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
-    // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
@@ -465,26 +454,17 @@ class _JavaLevel6State extends State<JavaLevel6> {
       return;
     }
 
-    // Check for the correct sequence for array sum calculation
-    bool hasArray = droppedBlocks.contains('int[] numbers = {1, 2, 3, 4, 5};');
-    bool hasSum = droppedBlocks.contains('int sum = 0;');
-    bool hasForLoop = droppedBlocks.contains('for (int i = 0; i < numbers.length; i++) {');
-    bool hasSumCalculation = droppedBlocks.contains('    sum += numbers[i];');
-    bool hasClosingBrace = droppedBlocks.contains('}');
-    bool hasPrint = droppedBlocks.contains('System.out.println("Sum: " + sum);');
+    // Check for correct PHP function - DIFFERENT FROM LEVEL 8
+    String answer = droppedBlocks.join(' ');
+    String normalizedAnswer = answer
+        .replaceAll(' ', '')
+        .replaceAll('\n', '')
+        .toLowerCase();
 
-    // Check if all correct blocks are present
-    bool allCorrectBlocksPresent = hasArray &&
-        hasSum &&
-        hasForLoop &&
-        hasSumCalculation &&
-        hasClosingBrace &&
-        hasPrint;
+    // Expected: functioncalculateArea($radius){$area=3.1416*$radius*$radius;return$area;}$circleArea=calculateArea(5);echo"Area:".$circleArea;
+    String expected = 'functioncalculatearea(\$radius){\$area=3.1416*\$radius*\$radius;return\$area;}\$circlearea=calculatearea(5);echo"area:".\$circlearea;';
 
-    // Check if no extra correct blocks are used (should be exactly 6 blocks)
-    bool correctBlockCount = droppedBlocks.length == 6;
-
-    if (allCorrectBlocksPresent && correctBlockCount) {
+    if (normalizedAnswer == expected) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -494,7 +474,6 @@ class _JavaLevel6State extends State<JavaLevel6> {
 
       saveScoreToDatabase(score);
 
-      // PLAY SUCCESS SOUND BASED ON SCORE
       if (score == 3) {
         musicService.playSoundEffect('perfect.mp3');
       } else {
@@ -509,27 +488,18 @@ class _JavaLevel6State extends State<JavaLevel6> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent! You've created a perfect array sum calculator!"),
+              Text("Excellent! You created a PHP function to calculate circle area!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
-                Column(
-                  children: [
-                    Text(
-                      "🎉 Perfect! You've completed Java Level 6!",
-                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      "Congratulations on mastering Java arrays!",
-                      style: TextStyle(color: Colors.purple, fontSize: 12),
-                    ),
-                  ],
+                Text(
+                  "🎉 Perfect! You've completed PHP Level 9!",
+                  style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) to complete Level 6!",
+                  "⚠️ Get a perfect score (3/3) to complete the level!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
@@ -538,7 +508,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  "Sum: 15", // THE OUTPUT FOR ARRAY {1, 2, 3, 4, 5}
+                  "Area: 78.54",
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
@@ -555,12 +525,13 @@ class _JavaLevel6State extends State<JavaLevel6> {
                 Navigator.pop(context);
                 if (score == 3) {
                   musicService.playSoundEffect('level_complete.mp3');
-                  Navigator.pushReplacementNamed(context, '/java_level7');
+                  // Navigate to levels list or next subject
+                  Navigator.pushReplacementNamed(context, '/levels', arguments: 'PHP');
                 } else {
-                  Navigator.pushReplacementNamed(context, '/levels', arguments: 'Java');
+                  Navigator.pushReplacementNamed(context, '/levels', arguments: 'PHP');
                 }
               },
-              child: Text(score == 3 ? "Next Level" : "Go Back"),
+              child: Text(score == 3 ? "Complete" : "Go Back"),
             )
           ],
         ),
@@ -572,18 +543,8 @@ class _JavaLevel6State extends State<JavaLevel6> {
         setState(() {
           score--;
         });
-
-        String errorMessage = "❌ Incorrect arrangement. -1 point. Current score: $score";
-
-        // Provide specific feedback
-        if (!allCorrectBlocksPresent) {
-          errorMessage = "❌ Missing some required code blocks. -1 point. Current score: $score";
-        } else if (!correctBlockCount) {
-          errorMessage = "❌ Used wrong number of blocks. -1 point. Current score: $score";
-        }
-
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
+          SnackBar(content: Text("❌ Incorrect arrangement. -1 point. Current score: $score")),
         );
       } else {
         setState(() {
@@ -684,7 +645,6 @@ class _JavaLevel6State extends State<JavaLevel6> {
     );
   }
 
-  // CODE PREVIEW
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -710,7 +670,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'ArraySum.java',
+                  'circle_area.php', // DIFFERENT FILENAME
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -743,8 +703,6 @@ class _JavaLevel6State extends State<JavaLevel6> {
                           _buildCodeLine(8),
                           _buildCodeLine(9),
                           _buildCodeLine(10),
-                          _buildCodeLine(11),
-                          _buildCodeLine(12),
                         ],
                       ),
                     ),
@@ -753,11 +711,15 @@ class _JavaLevel6State extends State<JavaLevel6> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildSyntaxHighlightedLine('public class ArraySum {', isKeyword: true),
-                          _buildSyntaxHighlightedLine('    public static void main(String[] args) {', isKeyword: true),
-                          _buildUserCodePreview(),
-                          _buildSyntaxHighlightedLine('    }', isNormal: true),
-                          _buildSyntaxHighlightedLine('}', isNormal: true),
+                          _buildSyntaxHighlightedLine('<?php', isKeyword: true),
+                          _buildUserCodeLine(1, droppedBlocks.length > 0 ? droppedBlocks[0] : ''),
+                          _buildUserCodeLine(2, droppedBlocks.length > 1 ? droppedBlocks[1] : ''),
+                          _buildUserCodeLine(3, droppedBlocks.length > 2 ? droppedBlocks[2] : ''),
+                          _buildUserCodeLine(4, droppedBlocks.length > 3 ? droppedBlocks[3] : ''),
+                          _buildUserCodeLine(5, droppedBlocks.length > 4 ? droppedBlocks[4] : ''),
+                          _buildUserCodeLine(6, droppedBlocks.length > 5 ? droppedBlocks[5] : ''),
+                          _buildSyntaxHighlightedLine('', isNormal: true),
+                          _buildSyntaxHighlightedLine('?>', isKeyword: true),
                         ],
                       ),
                     ),
@@ -771,14 +733,14 @@ class _JavaLevel6State extends State<JavaLevel6> {
     );
   }
 
-  Widget _buildUserCodePreview() {
-    if (droppedBlocks.isEmpty) {
+  Widget _buildUserCodeLine(int lineNumber, String code) {
+    if (code.isEmpty) {
       return Container(
         height: 20 * _scaleFactor,
         child: Text(
-          '    ',
+          '        ',
           style: TextStyle(
-            color: Colors.grey[600],
+            color: Colors.white,
             fontSize: 12 * _scaleFactor,
             fontFamily: 'monospace',
           ),
@@ -786,66 +748,25 @@ class _JavaLevel6State extends State<JavaLevel6> {
       );
     }
 
-    List<Widget> codeLines = [];
-    bool hasArray = droppedBlocks.contains('int[] numbers = {1, 2, 3, 4, 5};');
-    bool hasSum = droppedBlocks.contains('int sum = 0;');
-    bool hasForLoop = droppedBlocks.contains('for (int i = 0; i < numbers.length; i++) {');
-    bool hasSumCalculation = droppedBlocks.contains('    sum += numbers[i];');
-    bool hasClosingBrace = droppedBlocks.contains('}');
-    bool hasPrint = droppedBlocks.contains('System.out.println("Sum: " + sum);');
-
-    if (hasArray) {
-      codeLines.add(_buildUserCodeLine('int[] numbers = {1, 2, 3, 4, 5};'));
-    }
-
-    if (hasSum) {
-      codeLines.add(_buildUserCodeLine('int sum = 0;'));
-    }
-
-    if (hasForLoop) {
-      codeLines.add(_buildUserCodeLine('for (int i = 0; i < numbers.length; i++) {'));
-    }
-
-    if (hasSumCalculation) {
-      codeLines.add(_buildUserCodeLine('    sum += numbers[i];'));
-    }
-
-    if (hasClosingBrace) {
-      codeLines.add(_buildUserCodeLine('}'));
-    }
-
-    if (hasPrint) {
-      codeLines.add(_buildUserCodeLine('System.out.println("Sum: " + sum);'));
-    }
-
-    // Add any incorrect blocks that were used
-    for (String block in droppedBlocks) {
-      if (!['int[] numbers = {1, 2, 3, 4, 5};',
-        'int sum = 0;',
-        'for (int i = 0; i < numbers.length; i++) {',
-        '    sum += numbers[i];',
-        '}',
-        'System.out.println("Sum: " + sum);'].contains(block)) {
-        codeLines.add(_buildUserCodeLine(block));
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: codeLines,
-    );
-  }
-
-  Widget _buildUserCodeLine(String code) {
     return Container(
       height: 20 * _scaleFactor,
-      child: Text(
-        '    $code',
-        style: TextStyle(
-          color: Colors.greenAccent[400],
-          fontFamily: 'monospace',
-          fontSize: 12 * _scaleFactor,
-          fontWeight: FontWeight.bold,
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '        ',
+              style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12 * _scaleFactor),
+            ),
+            TextSpan(
+              text: code,
+              style: TextStyle(
+                color: Colors.greenAccent[400],
+                fontFamily: 'monospace',
+                fontSize: 12 * _scaleFactor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -865,15 +786,21 @@ class _JavaLevel6State extends State<JavaLevel6> {
     );
   }
 
-  Widget _buildSyntaxHighlightedLine(String code, {bool isPreprocessor = false, bool isKeyword = false, bool isNormal = false}) {
+  Widget _buildSyntaxHighlightedLine(String code, {bool isPreprocessor = false, bool isKeyword = false, bool isNormal = false, bool isComment = false}) {
     Color textColor = Colors.white;
-    if (isPreprocessor) {
-      textColor = Color(0xFFCE9178);
-    } else if (isKeyword) {
+
+    if (isKeyword) {
       textColor = Color(0xFF569CD6);
+    } else if (isComment) {
+      textColor = Color(0xFF6A9955);
+    } else if (isNormal && code.contains('function')) {
+      textColor = Color(0xFFC586C0); // Purple for functions
+    } else if (isNormal && code.contains('\$')) {
+      textColor = Color(0xFF9CDCFE); // Light blue for variables
     } else if (isNormal) {
       textColor = Colors.white;
     }
+
     return Container(
       height: 20 * _scaleFactor,
       child: Text(
@@ -891,10 +818,12 @@ class _JavaLevel6State extends State<JavaLevel6> {
   void dispose() {
     countdownTimer?.cancel();
     scoreReductionTimer?.cancel();
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final musicService = Provider.of<MusicService>(context, listen: false);
       await musicService.playBackgroundMusic();
     });
+
     super.dispose();
   }
 
@@ -903,6 +832,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
       final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
+
       if (newScaleFactor != _scaleFactor) {
         setState(() {
           _scaleFactor = newScaleFactor;
@@ -912,8 +842,8 @@ class _JavaLevel6State extends State<JavaLevel6> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("☕ Java - Level 6", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.red,
+        title: Text("🐘 PHP - Level 9", style: TextStyle(fontSize: 18 * _scaleFactor)), // LEVEL 9
+        backgroundColor: Colors.deepPurple,
         actions: gameStarted
             ? [
           Padding(
@@ -939,9 +869,9 @@ class _JavaLevel6State extends State<JavaLevel6> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1B0D0D),
-              Color(0xFF2D1B1B),
-              Color(0xFF553333),
+              Color(0xFF1B0D1B),
+              Color(0xFF2D1B2D),
+              Color(0xFF553355),
             ],
           ),
         ),
@@ -1018,7 +948,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
               label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.red,
+                backgroundColor: Colors.deepPurple,
               ),
             ),
 
@@ -1056,22 +986,20 @@ class _JavaLevel6State extends State<JavaLevel6> {
               ),
             ),
 
-            SizedBox(height: 20 * _scaleFactor),
-
-            if (level6Completed)
+            if (level9Completed) // LEVEL 9
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Level 6 completed with perfect score!",
+                      "✅ Level 9 completed with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "You've unlocked Level 7!",
-                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "🎊 Congratulations! You've completed all PHP levels!",
+                      style: TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1084,12 +1012,12 @@ class _JavaLevel6State extends State<JavaLevel6> {
                   children: [
                     Text(
                       "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.deepPurple, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score and unlock Level 7!",
+                      "Try again to get a perfect score and complete PHP!",
                       style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -1103,7 +1031,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
                     children: [
                       Text(
                         "😅 Your previous score: $previousScore/3",
-                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                        style: TextStyle(color: Colors.deepPurple, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
@@ -1121,26 +1049,26 @@ class _JavaLevel6State extends State<JavaLevel6> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.red[50]!.withOpacity(0.9),
+                color: Colors.deepPurple[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.red[200]!),
+                border: Border.all(color: Colors.deepPurple[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎯 Level 6 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.red[800]),
+                    "🎯 Level 9 Objective", // LEVEL 9
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.deepPurple[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create a program that calculates the sum of array elements {1, 2, 3, 4, 5}",
+                    "Create a PHP function that calculates the area of a circle and displays the result", // DIFFERENT OBJECTIVE
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.red[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.deepPurple[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎁  Get a perfect score (3/3) to unlock Level 7!",
+                    "🎁  Get a perfect score (3/3) to complete PHP!", // DIFFERENT MESSAGE
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
@@ -1188,14 +1116,14 @@ class _JavaLevel6State extends State<JavaLevel6> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Ngayon, gusto ni Juan na matuto ng arrays sa Java! Kailangan niyang kalkulahin ang kabuuang sum ng mga numero sa array {1, 2, 3, 4, 5}. Tulungan siyang bumuo ng program na magsu-sum ng lahat ng elements sa array gamit ang for loop.'
-                : 'Now, Juan wants to learn about arrays in Java! He needs to calculate the total sum of numbers in the array {1, 2, 3, 4, 5}. Help him build a program that sums all the elements in the array using a for loop.',
+                ? 'Si Zeke ay gustong kalkulahin ang area ng isang bilog gamit ang PHP functions! Kailangan niyang gumawa ng function na tatanggap ng radius at magre-return ng area gamit ang formula na πr². Tulungan siyang buuin ang tamang code!' // DIFFERENT STORY
+                : 'Zeke wants to calculate the area of a circle using PHP functions! He needs to create a function that accepts radius and returns the area using the πr² formula. Help him build the correct code!', // DIFFERENT STORY
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the 6 correct blocks to create the array sum calculator',
+          Text('🧩 Arrange the 6 correct blocks to create the circle area function', // DIFFERENT INSTRUCTION
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
@@ -1204,13 +1132,13 @@ class _JavaLevel6State extends State<JavaLevel6> {
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 220 * _scaleFactor,
-              maxHeight: 300 * _scaleFactor,
+              minHeight: 140 * _scaleFactor,
+              maxHeight: 200 * _scaleFactor,
             ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.red, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.deepPurple, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -1221,6 +1149,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
                 if (!isAnsweredCorrectly) {
                   final musicService = Provider.of<MusicService>(context, listen: false);
                   musicService.playSoundEffect('block_drop.mp3');
+
                   setState(() {
                     droppedBlocks.add(data);
                     allBlocks.remove(data);
@@ -1239,13 +1168,14 @@ class _JavaLevel6State extends State<JavaLevel6> {
                         data: block,
                         feedback: Material(
                           color: Colors.transparent,
-                          child: puzzleBlock(block, Colors.orangeAccent),
+                          child: puzzleBlock(block, Colors.greenAccent),
                         ),
-                        childWhenDragging: puzzleBlock(block, Colors.orangeAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.orangeAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.greenAccent),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
+
                           setState(() {
                             currentlyDraggedBlock = block;
                           });
@@ -1254,6 +1184,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
                           setState(() {
                             currentlyDraggedBlock = null;
                           });
+
                           if (!isAnsweredCorrectly && !details.wasAccepted) {
                             Future.delayed(Duration(milliseconds: 50), () {
                               if (mounted) {
@@ -1285,7 +1216,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 160 * _scaleFactor,
+              minHeight: 100 * _scaleFactor,
             ),
             padding: EdgeInsets.all(12 * _scaleFactor),
             decoration: BoxDecoration(
@@ -1304,16 +1235,17 @@ class _JavaLevel6State extends State<JavaLevel6> {
                   data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(block, Colors.redAccent),
+                    child: puzzleBlock(block, Colors.deepPurpleAccent),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.redAccent),
+                    child: puzzleBlock(block, Colors.deepPurpleAccent),
                   ),
-                  child: puzzleBlock(block, Colors.redAccent),
+                  child: puzzleBlock(block, Colors.deepPurpleAccent),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
+
                     setState(() {
                       currentlyDraggedBlock = block;
                     });
@@ -1322,6 +1254,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
                     setState(() {
                       currentlyDraggedBlock = null;
                     });
+
                     if (!isAnsweredCorrectly && !details.wasAccepted) {
                       Future.delayed(Duration(milliseconds: 50), () {
                         if (mounted) {
@@ -1349,7 +1282,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: Colors.deepPurple,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -1370,14 +1303,13 @@ class _JavaLevel6State extends State<JavaLevel6> {
   }
 
   Widget puzzleBlock(String text, Color color) {
-    // Calculate text width to adjust block size - SAME AS LEVEL 8
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 12 * _scaleFactor, // Using 12 instead of 14 for consistency
+          fontSize: 12 * _scaleFactor,
           color: Colors.black,
         ),
       ),
@@ -1385,8 +1317,8 @@ class _JavaLevel6State extends State<JavaLevel6> {
     )..layout();
 
     final textWidth = textPainter.width;
-    final minWidth = 80 * _scaleFactor;  // Same as Level 8
-    final maxWidth = 240 * _scaleFactor; // Same as Level 8
+    final minWidth = 80 * _scaleFactor;
+    final maxWidth = 240 * _scaleFactor;
 
     return Container(
       constraints: BoxConstraints(
@@ -1395,8 +1327,8 @@ class _JavaLevel6State extends State<JavaLevel6> {
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 12 * _scaleFactor,  // Same as Level 8
-        vertical: 10 * _scaleFactor,    // Same as Level 8
+        horizontal: 12 * _scaleFactor,
+        vertical: 10 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
@@ -1418,7 +1350,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 12 * _scaleFactor, // Changed from 14 to 12 to match Level 8
+          fontSize: 12 * _scaleFactor,
           color: Colors.black,
           shadows: [
             Shadow(
@@ -1430,7 +1362,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.visible,
-        softWrap: true, // Added for better text wrapping
+        softWrap: true,
       ),
     );
   }

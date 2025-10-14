@@ -55,6 +55,8 @@ import 'levels/php/level5.dart';
 import 'levels/php/level6.dart';
 import 'levels/php/level7.dart';
 import 'levels/php/level8.dart';
+import 'levels/php/level9.dart';
+import 'levels/php/level10.dart';
 
 import 'levels/sql/level1.dart';
 import 'levels/sql/level2.dart';
@@ -62,6 +64,10 @@ import 'levels/sql/level3.dart';
 import 'levels/sql/level4.dart';
 import 'levels/sql/level5.dart';
 import 'levels/sql/level6.dart';
+import 'levels/sql/level7.dart';
+import 'levels/sql/level8.dart';
+import 'levels/sql/level9.dart';
+import 'levels/sql/level10.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -204,6 +210,8 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           '/php_level6': (context) => const PhpLevel6(),
           '/php_level7': (context) => const PhpLevel7(),
           '/php_level8': (context) => const PhpLevel8(),
+          '/php_level9': (context) => const PhpLevel9(),
+          '/php_level10': (context) => const PhpLevel10(),
 
           // SQL levels
           '/sql_level1': (context) => const SqlLevel1(),
@@ -212,6 +220,10 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           '/sql_level4': (context) => const SqlLevel4(),
           '/sql_level5': (context) => const SqlLevel5(),
           '/sql_level6': (context) => const SqlLevel6(),
+          '/sql_level7': (context) => const SqlLevel7(),
+          '/sql_level8': (context) => const SqlLevel8(),
+          '/sql_level9': (context) => const SqlLevel9(),
+          '/sql_level10': (context) => const SqlLevel10(),
         },
       ),
     );

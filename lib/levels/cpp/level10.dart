@@ -5,6 +5,7 @@ import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
 import '../../services/music_service.dart';
+import '../../services/daily_challenge_service.dart';
 import 'cpp_bonus_game1.dart';
 
 class CppLevel10 extends StatefulWidget {
@@ -37,6 +38,12 @@ class _CppLevel10State extends State<CppLevel10> {
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
+  // NEW: Hint card system using UserPreferences
+  int _availableHintCards = 0;
+  bool _showHint = false;
+  String _currentHint = '';
+  bool _isUsingHint = false;
+
   @override
   void initState() {
     super.initState();
@@ -44,6 +51,7 @@ class _CppLevel10State extends State<CppLevel10> {
     _loadUserData();
     _calculateScaleFactor();
     _startGameMusic();
+    _loadHintCards(); // Load hint cards for current user
   }
 
   void _startGameMusic() {
@@ -71,12 +79,171 @@ class _CppLevel10State extends State<CppLevel10> {
     });
   }
 
+  // NEW: Load hint cards using UserPreferences
+  Future<void> _loadHintCards() async {
+    final user = await UserPreferences.getUser();
+    if (user['id'] != null) {
+      final hintCards = await DailyChallengeService.getUserHintCards(user['id']);
+      setState(() {
+        _availableHintCards = hintCards;
+      });
+    }
+  }
+
+  // NEW: Use hint card - shows hint and auto-drags correct answer
+  void _useHintCard() async {
+    if (_availableHintCards > 0 && !_isUsingHint) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('hint_use.mp3');
+
+      setState(() {
+        _isUsingHint = true;
+        _showHint = true;
+        _currentHint = _getLevelHint();
+        _availableHintCards--;
+      });
+
+      // Save the updated hint card count
+      final user = await UserPreferences.getUser();
+      if (user['id'] != null) {
+        await DailyChallengeService.useHintCard(user['id']);
+      }
+
+      // Auto-drag the correct blocks after a short delay
+      _autoDragCorrectBlocks();
+    } else if (_availableHintCards <= 0) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('error.mp3');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No hint cards available! Complete daily challenges to earn more.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
+  // NEW: Auto-drag correct blocks to answer area
+  void _autoDragCorrectBlocks() {
+    // Correct blocks for shopping cart total calculation
+    List<String> correctBlocks = [
+      'double prices[3] = {15.99, 8.75, 12.25};',
+      'int quantities[3] = {2, 3, 1};',
+      'double total = 0.0;',
+      'for (int i = 0; i < 3; i++) {',
+      '    total += prices[i] * quantities[i];',
+      '}',
+      'cout << "Total: P" << total << endl;'
+    ];
+
+    // Remove any existing correct blocks from dropped area first
+    setState(() {
+      droppedBlocks.clear();
+    });
+
+    // Add correct blocks one by one with delay
+    int delay = 0;
+    for (String block in correctBlocks) {
+      Future.delayed(Duration(milliseconds: delay), () {
+        if (mounted) {
+          setState(() {
+            if (!droppedBlocks.contains(block)) {
+              droppedBlocks.add(block);
+            }
+            if (allBlocks.contains(block)) {
+              allBlocks.remove(block);
+            }
+          });
+        }
+      });
+      delay += 500; // 0.5 second delay between each block
+    }
+
+    // Hide hint after all blocks are placed
+    Future.delayed(Duration(milliseconds: delay + 1000), () {
+      if (mounted) {
+        setState(() {
+          _showHint = false;
+          _isUsingHint = false;
+        });
+      }
+    });
+  }
+
+  String _getLevelHint() {
+    return "The correct code is:\ndouble prices[3] = {15.99, 8.75, 12.25};\nint quantities[3] = {2, 3, 1};\ndouble total = 0.0;\nfor (int i = 0; i < 3; i++) {\n    total += prices[i] * quantities[i];\n}\ncout << \"Total: P\" << total << endl;\n\n💡 Hint: Use parallel arrays for prices and quantities, multiply each price by its quantity, and sum them up!";
+  }
+
+  // NEW: Hint Display Widget
+  Widget _buildHintDisplay() {
+    if (!_showHint) return SizedBox();
+
+    return Positioned(
+      top: 60 * _scaleFactor,
+      left: 20 * _scaleFactor,
+      right: 20 * _scaleFactor,
+      child: Container(
+        padding: EdgeInsets.all(16 * _scaleFactor),
+        decoration: BoxDecoration(
+          color: Colors.orange.withOpacity(0.95),
+          borderRadius: BorderRadius.circular(12 * _scaleFactor),
+          border: Border.all(color: Colors.orangeAccent, width: 2 * _scaleFactor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 8 * _scaleFactor,
+              offset: Offset(0, 4 * _scaleFactor),
+            )
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(Icons.lightbulb, color: Colors.white, size: 20 * _scaleFactor),
+                SizedBox(width: 8 * _scaleFactor),
+                Text(
+                  '💡 Hint Activated!',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16 * _scaleFactor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 10 * _scaleFactor),
+            Text(
+              _currentHint,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14 * _scaleFactor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 10 * _scaleFactor),
+            Text(
+              'Correct blocks are being placed automatically...',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12 * _scaleFactor,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _loadUserData() async {
     final user = await UserPreferences.getUser();
     setState(() {
       currentUser = user;
     });
     loadScoreFromDatabase();
+    _loadHintCards(); // Load hint cards for this user
   }
 
   void resetBlocks() {
@@ -154,6 +321,8 @@ class _CppLevel10State extends State<CppLevel10> {
       remainingSeconds = 240;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
+      _showHint = false;
+      _isUsingHint = false;
       resetBlocks();
     });
     startTimers();
@@ -226,6 +395,8 @@ class _CppLevel10State extends State<CppLevel10> {
       remainingSeconds = 240;
       gameStarted = false;
       isAnsweredCorrectly = false;
+      _showHint = false;
+      _isUsingHint = false;
       droppedBlocks.clear();
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
@@ -833,7 +1004,58 @@ class _CppLevel10State extends State<CppLevel10> {
             ],
           ),
         ),
-        child: gameStarted ? buildGameUI() : buildStartScreen(),
+        child: Stack(
+          children: [
+            gameStarted ? buildGameUI() : buildStartScreen(),
+            // ADD HINT BUTTON AND DISPLAY TO STACK
+            if (gameStarted && !isAnsweredCorrectly) ...[
+              _buildHintDisplay(),
+              // ✅ HINT CARD BUTTON - BOTTOM RIGHT
+              Positioned(
+                bottom: 20 * _scaleFactor,
+                right: 20 * _scaleFactor,
+                child: GestureDetector(
+                  onTap: _useHintCard,
+                  child: Container(
+                    padding: EdgeInsets.all(12 * _scaleFactor),
+                    decoration: BoxDecoration(
+                      color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
+                      borderRadius: BorderRadius.circular(20 * _scaleFactor),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 4 * _scaleFactor,
+                          offset: Offset(0, 2 * _scaleFactor),
+                        )
+                      ],
+                      border: Border.all(
+                        color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
+                        width: 2 * _scaleFactor,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.lightbulb_outline,
+                            color: Colors.white,
+                            size: 20 * _scaleFactor),
+                        SizedBox(width: 6 * _scaleFactor),
+                        Text(
+                          '$_availableHintCards',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18 * _scaleFactor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -856,6 +1078,40 @@ class _CppLevel10State extends State<CppLevel10> {
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
                 backgroundColor: Colors.blue, // Changed to blue to match Level 1
+              ),
+            ),
+
+            // Display available hint cards in start screen
+            SizedBox(height: 20 * _scaleFactor),
+            Container(
+              padding: EdgeInsets.all(12 * _scaleFactor),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12 * _scaleFactor),
+                border: Border.all(color: Colors.orange),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lightbulb_outline, color: Colors.orange, size: 20 * _scaleFactor),
+                  SizedBox(width: 8 * _scaleFactor),
+                  Text(
+                    'Hint Cards: $_availableHintCards',
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontSize: 16 * _scaleFactor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 10 * _scaleFactor),
+            Text(
+              'Use hint cards during the game for help!',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12 * _scaleFactor,
               ),
             ),
 

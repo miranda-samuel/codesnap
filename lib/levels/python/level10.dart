@@ -5,6 +5,7 @@ import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
 import '../../services/music_service.dart';
+import '../../services/daily_challenge_service.dart';
 import 'python_bonus_game1.dart';
 
 class PythonLevel10 extends StatefulWidget {
@@ -37,6 +38,12 @@ class _PythonLevel10State extends State<PythonLevel10> {
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
+  // NEW: Hint card system using UserPreferences
+  int _availableHintCards = 0;
+  bool _showHint = false;
+  String _currentHint = '';
+  bool _isUsingHint = false;
+
   @override
   void initState() {
     super.initState();
@@ -44,6 +51,7 @@ class _PythonLevel10State extends State<PythonLevel10> {
     _loadUserData();
     _calculateScaleFactor();
     _startGameMusic();
+    _loadHintCards(); // Load hint cards for current user
   }
 
   void _startGameMusic() {
@@ -71,12 +79,110 @@ class _PythonLevel10State extends State<PythonLevel10> {
     });
   }
 
+  // NEW: Load hint cards using UserPreferences
+  Future<void> _loadHintCards() async {
+    final user = await UserPreferences.getUser();
+    if (user['id'] != null) {
+      final hintCards = await DailyChallengeService.getUserHintCards(user['id']);
+      setState(() {
+        _availableHintCards = hintCards;
+      });
+    }
+  }
+
+  // NEW: Use hint card - shows hint and auto-drags correct answer
+  void _useHintCard() async {
+    if (_availableHintCards > 0 && !_isUsingHint) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('hint_use.mp3');
+
+      setState(() {
+        _isUsingHint = true;
+        _showHint = true;
+        _currentHint = _getLevelHint();
+        _availableHintCards--;
+      });
+
+      // Save the updated hint card count
+      final user = await UserPreferences.getUser();
+      if (user['id'] != null) {
+        await DailyChallengeService.useHintCard(user['id']);
+      }
+
+      // Auto-drag the correct blocks after a short delay
+      _autoDragCorrectBlocks();
+    } else if (_availableHintCards <= 0) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('error.mp3');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No hint cards available! Complete daily challenges to earn more.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
+  // NEW: Auto-drag correct blocks to answer area
+  void _autoDragCorrectBlocks() {
+    // Correct blocks for Python Level 10: File handling with context manager
+    List<String> correctBlocks = [
+      'with open("data.txt", "r") as file:',
+      '    data = file.read()',
+      '    lines = data.split("\\n")',
+      '    for i, line in enumerate(lines):',
+      '        if line.strip():',
+      '            print(f"Line {i+1}: {line}")',
+      '    print(f"Total lines: {len(lines)}")',
+      'print("File reading completed!")'
+    ];
+
+    // Remove any existing correct blocks from dropped area first
+    setState(() {
+      droppedBlocks.clear();
+    });
+
+    // Add correct blocks one by one with delay
+    int delay = 0;
+    for (String block in correctBlocks) {
+      Future.delayed(Duration(milliseconds: delay), () {
+        if (mounted) {
+          setState(() {
+            if (!droppedBlocks.contains(block)) {
+              droppedBlocks.add(block);
+            }
+            if (allBlocks.contains(block)) {
+              allBlocks.remove(block);
+            }
+          });
+        }
+      });
+      delay += 500; // 0.5 second delay between each block
+    }
+
+    // Hide hint after all blocks are placed
+    Future.delayed(Duration(milliseconds: delay + 1000), () {
+      if (mounted) {
+        setState(() {
+          _showHint = false;
+          _isUsingHint = false;
+        });
+      }
+    });
+  }
+
+  String _getLevelHint() {
+    return "The correct code is:\n\nwith open(\"data.txt\", \"r\") as file:\n    data = file.read()\n    lines = data.split(\"\\\\n\")\n    for i, line in enumerate(lines):\n        if line.strip():\n            print(f\"Line {i+1}: {line}\")\n    print(f\"Total lines: {len(lines)}\")\nprint(\"File reading completed!\")\n\n💡 Hint: Use 'with open' for automatic file closing, read data, split by newline, use enumerate for line numbers, and check for non-empty lines!";
+  }
+
   void _loadUserData() async {
     final user = await UserPreferences.getUser();
     setState(() {
       currentUser = user;
     });
     loadScoreFromDatabase();
+    _loadHintCards(); // Load hint cards for this user
   }
 
   void resetBlocks() {
@@ -135,6 +241,8 @@ class _PythonLevel10State extends State<PythonLevel10> {
       remainingSeconds = 240;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
+      _showHint = false;
+      _isUsingHint = false;
       resetBlocks();
     });
     startTimers();
@@ -207,6 +315,8 @@ class _PythonLevel10State extends State<PythonLevel10> {
       remainingSeconds = 240;
       gameStarted = false;
       isAnsweredCorrectly = false;
+      _showHint = false;
+      _isUsingHint = false;
       droppedBlocks.clear();
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
@@ -509,6 +619,68 @@ class _PythonLevel10State extends State<PythonLevel10> {
     return "$m:$s";
   }
 
+  // NEW: Hint Display Widget
+  Widget _buildHintDisplay() {
+    if (!_showHint) return SizedBox();
+
+    return Positioned(
+      top: 60 * _scaleFactor,
+      left: 20 * _scaleFactor,
+      right: 20 * _scaleFactor,
+      child: Container(
+        padding: EdgeInsets.all(16 * _scaleFactor),
+        decoration: BoxDecoration(
+          color: Colors.orange.withOpacity(0.95),
+          borderRadius: BorderRadius.circular(12 * _scaleFactor),
+          border: Border.all(color: Colors.orangeAccent, width: 2 * _scaleFactor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 8 * _scaleFactor,
+              offset: Offset(0, 4 * _scaleFactor),
+            )
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(Icons.lightbulb, color: Colors.white, size: 20 * _scaleFactor),
+                SizedBox(width: 8 * _scaleFactor),
+                Text(
+                  '💡 Hint Activated!',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16 * _scaleFactor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 10 * _scaleFactor),
+            Text(
+              _currentHint,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14 * _scaleFactor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 10 * _scaleFactor),
+            Text(
+              'Correct blocks are being placed automatically...',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12 * _scaleFactor,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // IMPROVED CODE PREVIEW WITH BETTER SCALING
   Widget getCodePreview() {
     return Container(
@@ -774,7 +946,58 @@ class _PythonLevel10State extends State<PythonLevel10> {
             ],
           ),
         ),
-        child: gameStarted ? buildGameUI() : buildStartScreen(),
+        child: Stack(
+          children: [
+            gameStarted ? buildGameUI() : buildStartScreen(),
+            // ADD HINT BUTTON AND DISPLAY TO STACK
+            if (gameStarted && !isAnsweredCorrectly) ...[
+              _buildHintDisplay(),
+              // ✅ HINT CARD BUTTON - BOTTOM RIGHT
+              Positioned(
+                bottom: 20 * _scaleFactor,
+                right: 20 * _scaleFactor,
+                child: GestureDetector(
+                  onTap: _useHintCard,
+                  child: Container(
+                    padding: EdgeInsets.all(12 * _scaleFactor),
+                    decoration: BoxDecoration(
+                      color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
+                      borderRadius: BorderRadius.circular(20 * _scaleFactor),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 4 * _scaleFactor,
+                          offset: Offset(0, 2 * _scaleFactor),
+                        )
+                      ],
+                      border: Border.all(
+                        color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
+                        width: 2 * _scaleFactor,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.lightbulb_outline,
+                            color: Colors.white,
+                            size: 20 * _scaleFactor),
+                        SizedBox(width: 6 * _scaleFactor),
+                        Text(
+                          '$_availableHintCards',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18 * _scaleFactor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -797,6 +1020,40 @@ class _PythonLevel10State extends State<PythonLevel10> {
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
                 backgroundColor: Colors.green[700],
+              ),
+            ),
+
+            // Display available hint cards in start screen
+            SizedBox(height: 20 * _scaleFactor),
+            Container(
+              padding: EdgeInsets.all(12 * _scaleFactor),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12 * _scaleFactor),
+                border: Border.all(color: Colors.orange),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lightbulb_outline, color: Colors.orange, size: 20 * _scaleFactor),
+                  SizedBox(width: 8 * _scaleFactor),
+                  Text(
+                    'Hint Cards: $_availableHintCards',
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontSize: 16 * _scaleFactor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 10 * _scaleFactor),
+            Text(
+              'Use hint cards during the game for help!',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12 * _scaleFactor,
               ),
             ),
 

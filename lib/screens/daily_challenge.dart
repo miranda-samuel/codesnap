@@ -14,7 +14,7 @@ class DailyChallengeScreen extends StatefulWidget {
 }
 
 class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
-  // Daily challenges - multiple languages
+  // DAILY CHALLENGES - MAS MADALI NA
   final List<Map<String, dynamic>> dailyChallenges = [
     {
       'id': '1',
@@ -22,47 +22,43 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
       'incompleteCode': 'def add_numbers(a, b):\n    ______\n    return result',
       'solution': 'def add_numbers(a, b):\n    result = a + b\n    return result',
       'requiredBlocks': ['result = a + b'],
-      'optionalBlocks': ['if a > b:', 'for i in range:', 'print(result)'],
+      'optionalBlocks': ['print("Hello")', '# comment'],
       'testCases': [
         {'input': [2, 3], 'expected': 5},
-        {'input': [5, 7], 'expected': 12},
-        {'input': [0, 0], 'expected': 0},
+        {'input': [1, 1], 'expected': 2},
       ],
       'language': 'Python',
       'difficulty': 'Easy',
-      'expectedOutput': '5\n12\n0',
+      'expectedOutput': '5\n2',
     },
     {
       'id': '2',
-      'question': 'Complete function to reverse a string',
-      'incompleteCode': 'function reverseString(str) {\n    ______\n    return result;\n}',
-      'solution': 'function reverseString(str) {\n    result = str.split("").reverse().join("")\n    return result;\n}',
-      'requiredBlocks': ['result = str.split("").reverse().join("")'],
-      'optionalBlocks': ['if (!str) return "";', 'let reversed = "";'],
+      'question': 'Complete function to return "Hello World"',
+      'incompleteCode': 'function hello() {\n    ______\n    return result;\n}',
+      'solution': 'function hello() {\n    result = "Hello World"\n    return result;\n}',
+      'requiredBlocks': ['result = "Hello World"'],
+      'optionalBlocks': ['console.log(result)', '// comment'],
       'testCases': [
-        {'input': ['hello'], 'expected': 'olleh'},
-        {'input': ['abc'], 'expected': 'cba'},
-        {'input': [''], 'expected': ''},
+        {'input': [], 'expected': 'Hello World'},
       ],
       'language': 'JavaScript',
       'difficulty': 'Easy',
-      'expectedOutput': 'olleh\ncba\n',
+      'expectedOutput': 'Hello World',
     },
     {
       'id': '3',
-      'question': 'Complete method to calculate factorial',
-      'incompleteCode': 'public int factorial(int n) {\n    ______\n    return result;\n}',
-      'solution': 'public int factorial(int n) {\n    int result = 1;\n    for (int i = 1; i <= n; i++)\n        result *= i;\n    }\n    return result;\n}',
-      'requiredBlocks': ['int result = 1;', 'for (int i = 1; i <= n; i++)', 'result *= i;', '}'],
-      'optionalBlocks': ['if (n == 0) return 1;', 'while (n > 0)'],
+      'question': 'Complete method to return double the number',
+      'incompleteCode': 'public int doubleNumber(int n) {\n    ______\n    return result;\n}',
+      'solution': 'public int doubleNumber(int n) {\n    result = n * 2;\n    return result;\n}',
+      'requiredBlocks': ['result = n * 2;'],
+      'optionalBlocks': ['System.out.println(n);', '// comment'],
       'testCases': [
-        {'input': [5], 'expected': 120},
-        {'input': [3], 'expected': 6},
-        {'input': [0], 'expected': 1},
+        {'input': [2], 'expected': 4},
+        {'input': [5], 'expected': 10},
       ],
       'language': 'Java',
-      'difficulty': 'Medium',
-      'expectedOutput': '120\n6\n1',
+      'difficulty': 'Easy',
+      'expectedOutput': '4\n10',
     },
   ];
 
@@ -82,7 +78,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
   bool _isNewChallenge = false;
   String _todayDate = '';
 
-  // Falling blocks game variables - CODE BLOCKS (not hints)
+  // Falling blocks game variables
   List<FallingBlock> _fallingBlocks = [];
   late Timer _blockSpawnTimer;
   late Timer _fallingAnimationTimer;
@@ -168,7 +164,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
 
     final currentChallenge = dailyChallenges[_currentDayIndex];
 
-    // BALIK SA CODE BLOCKS SYSTEM
     setState(() {
       _requiredBlocks = Set.from(currentChallenge['requiredBlocks'] ?? []);
       _optionalBlocks = Set.from(currentChallenge['optionalBlocks'] ?? []);
@@ -196,9 +191,9 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
 
       setState(() {
         for (var block in _fallingBlocks) {
-          block.top += 2;
+          block.top += 3; // PABILISIN
         }
-        _fallingBlocks.removeWhere((block) => block.top > 200);
+        _fallingBlocks.removeWhere((block) => block.top > 180); // BETTER CLEANUP
       });
     });
   }
@@ -210,14 +205,18 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     final randomIndex = _random.nextInt(allBlocks.length);
     final randomBlock = allBlocks[randomIndex];
 
-    setState(() {
-      _fallingBlocks.add(FallingBlock(
-        id: DateTime.now().millisecondsSinceEpoch,
-        text: randomBlock,
-        left: _random.nextDouble() * 300,
-        color: _getBlockColor(randomBlock),
-      ));
-    });
+    // LIMIT NUMBER OF BLOCKS ON SCREEN
+    if (_fallingBlocks.length < 5) {
+      setState(() {
+        _fallingBlocks.add(FallingBlock(
+          id: DateTime.now().millisecondsSinceEpoch,
+          text: randomBlock,
+          left: _random.nextDouble() * 250, // LIMITED HORIZONTAL RANGE
+          top: 0,
+          color: _getBlockColor(randomBlock),
+        ));
+      });
+    }
   }
 
   Color _getBlockColor(String blockText) {
@@ -251,7 +250,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     }
   }
 
-  // NEW METHOD: Reset collected blocks and code
   void _resetCollectedBlocks() {
     final musicService = Provider.of<MusicService>(context, listen: false);
     musicService.playSoundEffect('reset.mp3');
@@ -659,8 +657,6 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
     );
   }
 
-  // REMOVED: _buildCollectedBlocks() method - tinanggal na yung preview
-
   Widget _buildCodeEditor() {
     if (_currentDayIndex >= dailyChallenges.length) {
       return Container(
@@ -674,6 +670,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
 
     return Container(
       width: double.infinity,
+      height: 200, // FIXED HEIGHT PARA DI MAG-OVERFLOW
       decoration: BoxDecoration(
         color: Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(12),
@@ -713,7 +710,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                   ),
                 ),
                 Spacer(),
-                // ADDED RESET BUTTON IN CODE EDITOR HEADER
+                // RESET BUTTON
                 if (!_hasCompletedToday && !_isCompleted && _collectedBlocks.isNotEmpty)
                   InkWell(
                     onTap: _resetCollectedBlocks,
@@ -757,32 +754,37 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
             ),
           ),
 
-          // Code Area with Line Numbers and Syntax Highlighting
+          // Code Area with Line Numbers and Syntax Highlighting - FIXED HEIGHT
           Expanded(
             child: Container(
               color: Color(0xFF1E1E1E),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Line Numbers
+                  // Line Numbers - FIXED WIDTH
                   Container(
-                    width: 50,
-                    padding: EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                    width: 40, // MAS MALIIT NA WIDTH
+                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 4), // MAS MALIIT NA PADDING
                     decoration: BoxDecoration(
                       color: Color(0xFF2D2D2D),
                       border: Border(right: BorderSide(color: Colors.grey[800]!)),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: List.generate(10, (index) =>
-                          Text(
+                    child: SingleChildScrollView( // ADD SCROLL FOR LINE NUMBERS
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: List.generate(8, (index) => // LESS LINES
+                        Container(
+                          padding: EdgeInsets.symmetric(vertical: 2),
+                          child: Text(
                             '${index + 1}',
                             style: TextStyle(
                               color: Colors.grey[600],
-                              fontSize: 12,
+                              fontSize: 10, // MAS MALIIT NA FONT
                               fontFamily: 'monospace',
                             ),
                           ),
+                        ),
+                        ),
                       ),
                     ),
                   ),
@@ -790,7 +792,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                   // Code Content
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: const EdgeInsets.all(12.0), // MAS MALIIT NA PADDING
                       child: SingleChildScrollView(
                         child: _buildCodeWithSyntaxHighlighting(),
                       ),
@@ -819,7 +821,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         String line = entry.value;
 
         return Container(
-          padding: EdgeInsets.symmetric(vertical: 2),
+          padding: EdgeInsets.symmetric(vertical: 1), // MAS MALIIT NA VERTICAL PADDING
           child: _buildSyntaxHighlightedLine(line, language),
         );
       }).toList(),
@@ -849,7 +851,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         text: '$word ',
         style: TextStyle(
           color: color,
-          fontSize: 14,
+          fontSize: 12, // MAS MALIIT NA FONT SIZE
           fontFamily: 'monospace',
         ),
       ));
@@ -1023,7 +1025,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.all(16.0), // MAS MALIIT NA PADDING
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1031,7 +1033,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: _remainingTime <= 60 ? Colors.red.withOpacity(0.3) : Colors.blue.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(20),
@@ -1039,13 +1041,13 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.timer, color: Colors.white, size: 16),
-                          SizedBox(width: 8),
+                          Icon(Icons.timer, color: Colors.white, size: 14),
+                          SizedBox(width: 6),
                           Text(
                             '${(_remainingTime ~/ 60).toString().padLeft(2, '0')}:${(_remainingTime % 60).toString().padLeft(2, '0')}',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 14,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -1053,7 +1055,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                       ),
                     ),
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.teal.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(20),
@@ -1061,18 +1063,18 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                       ),
                       child: Text(
                         'Reward: Hint Card',
-                        style: TextStyle(color: Colors.tealAccent, fontSize: 14, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: Colors.tealAccent, fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
                 ),
 
-                SizedBox(height: 20),
+                SizedBox(height: 16),
 
                 Row(
                   children: [
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.teal.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
@@ -1080,12 +1082,12 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                       ),
                       child: Text(
                         currentChallenge['language'],
-                        style: TextStyle(color: Colors.tealAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: Colors.tealAccent, fontSize: 10, fontWeight: FontWeight.bold),
                       ),
                     ),
-                    SizedBox(width: 10),
+                    SizedBox(width: 8),
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: _getDifficultyColor(currentChallenge['difficulty']).withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
@@ -1095,7 +1097,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                         currentChallenge['difficulty'],
                         style: TextStyle(
                           color: _getDifficultyColor(currentChallenge['difficulty']),
-                          fontSize: 12,
+                          fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1103,43 +1105,41 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                   ],
                 ),
 
-                SizedBox(height: 20),
+                SizedBox(height: 16),
 
                 Text(
                   currentChallenge['question'],
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    height: 1.4,
+                    height: 1.3,
                   ),
                 ),
 
-                SizedBox(height: 20),
+                SizedBox(height: 16),
 
-                // Falling Blocks Game Area - CODE BLOCKS
+                // Falling Blocks Game Area
                 if (!_hasCompletedToday && !_isCompleted) ...[
                   Text(
                     'Tap the falling code blocks to complete your solution:',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
                   ),
-                  SizedBox(height: 10),
+                  SizedBox(height: 8),
                   _buildFallingBlocksArea(),
-                  SizedBox(height: 20),
+                  SizedBox(height: 16),
                 ],
-
-                // REMOVED: Collected Blocks Preview - tinanggal na
 
                 Expanded(
                   child: _hasCompletedToday ? _buildAlreadyCompletedView() : _buildCodeEditor(),
                 ),
 
-                SizedBox(height: 20),
+                SizedBox(height: 16),
 
                 if (!_isCompleted && !_hasCompletedToday) ...[
                   SizedBox(
                     width: double.infinity,
-                    height: 50,
+                    height: 45,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _submitCode,
                       style: ElevatedButton.styleFrom(
@@ -1151,8 +1151,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                       ),
                       child: _isLoading
                           ? SizedBox(
-                        height: 20,
-                        width: 20,
+                        height: 18,
+                        width: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -1161,7 +1161,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                           : Text(
                         'SUBMIT CODE',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1170,10 +1170,10 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                 ],
 
                 if (_showResult && !_hasCompletedToday) ...[
-                  SizedBox(height: 20),
+                  SizedBox(height: 16),
                   Container(
                     width: double.infinity,
-                    padding: EdgeInsets.all(16),
+                    padding: EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Color(0xFF1E1E1E),
                       borderRadius: BorderRadius.circular(12),
@@ -1191,26 +1191,26 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                               'Results:',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 16,
+                                fontSize: 14,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             IconButton(
-                              icon: Icon(Icons.visibility, color: Colors.tealAccent),
+                              icon: Icon(Icons.visibility, color: Colors.tealAccent, size: 18),
                               onPressed: _testResults.every((result) => result == 'PASSED')
                                   ? _showSuccessDialog
                                   : _showFailureDialog,
                             ),
                           ],
                         ),
-                        SizedBox(height: 10),
+                        SizedBox(height: 8),
                         Text(
                           'Time: $_completionTime',
-                          style: TextStyle(color: Colors.white70),
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
                         ),
-                        SizedBox(height: 10),
+                        SizedBox(height: 8),
                         Wrap(
-                          spacing: 10,
+                          spacing: 6,
                           children: _testResults.asMap().entries.map((entry) {
                             int index = entry.key;
                             String result = entry.value;
@@ -1219,7 +1219,7 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
                                 'Test ${index + 1}',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 12,
+                                  fontSize: 10,
                                 ),
                               ),
                               backgroundColor: result == 'PASSED' ? Colors.green : Colors.red,
