@@ -3,14 +3,14 @@ import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
 
-class CppBonusGame1 extends StatefulWidget {
-  const CppBonusGame1({super.key});
+class PythonBonusGame1 extends StatefulWidget {
+  const PythonBonusGame1({super.key});
 
   @override
-  State<CppBonusGame1> createState() => _CppBonusGame1State();
+  State<PythonBonusGame1> createState() => _PythonBonusGame1State();
 }
 
-class _CppBonusGame1State extends State<CppBonusGame1> {
+class _PythonBonusGame1State extends State<PythonBonusGame1> {
   List<String> answerBlocks = [];
   String selectedAnswer = '';
   bool gameStarted = false;
@@ -31,41 +31,41 @@ class _CppBonusGame1State extends State<CppBonusGame1> {
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // Questions and Answers for C++ - Array Topics
+  // Questions and Answers for Python - Advanced Topics
   List<Map<String, dynamic>> questions = [
     {
-      'question': 'What is the correct way to declare a 2D array in C++?',
-      'tagalogQuestion': 'Ano ang tamang paraan para mag-declare ng 2D array sa C++?',
-      'correctAnswer': 'int arr[3][3];',
-      'options': ['int arr[3,3];', 'int arr[3][3];', 'array arr[3][3];', '2d int arr[3][3];'],
+      'question': 'What is used to handle exceptions in Python?',
+      'tagalogQuestion': 'Ano ang ginagamit para mag-handle ng exceptions sa Python?',
+      'correctAnswer': 'try-except',
+      'options': ['try-except', 'try-catch', 'error-handle', 'exception'],
       'points': 10
     },
     {
-      'question': 'Which loop is best for array traversal?',
-      'tagalogQuestion': 'Aling loop ang pinakamainam para sa array traversal?',
-      'correctAnswer': 'for loop',
-      'options': ['while loop', 'for loop', 'do-while loop', 'foreach loop'],
+      'question': 'What method is used to read file content as string?',
+      'tagalogQuestion': 'Ano ang method na ginagamit para basahin ang file content bilang string?',
+      'correctAnswer': 'read()',
+      'options': ['read()', 'readline()', 'readfile()', 'get()'],
       'points': 10
     },
     {
-      'question': 'What does arr[i] represent in an array?',
-      'tagalogQuestion': 'Ano ang kinakatawan ng arr[i] sa isang array?',
-      'correctAnswer': 'Element at index i',
-      'options': ['Address of element i', 'Element at index i', 'Size of array', 'Index of element'],
+      'question': 'What is the correct way to open a file for reading?',
+      'tagalogQuestion': 'Ano ang tamang paraan para magbukas ng file para sa pagbabasa?',
+      'correctAnswer': 'with open()',
+      'options': ['with open()', 'open_file()', 'file.open()', 'read_file()'],
       'points': 10
     },
     {
-      'question': 'How to initialize all array elements to zero?',
-      'tagalogQuestion': 'Paano i-initialize ang lahat ng array elements sa zero?',
-      'correctAnswer': 'int arr[5] = {0};',
-      'options': ['int arr[5] = 0;', 'int arr[5] = {0};', 'int arr[5] = zero;', 'int arr[5] = {0,0,0,0,0};'],
+      'question': 'What function returns the length of a list?',
+      'tagalogQuestion': 'Ano ang function na nagre-return ng length ng list?',
+      'correctAnswer': 'len()',
+      'options': ['len()', 'length()', 'size()', 'count()'],
       'points': 10
     },
     {
-      'question': 'What is the index of first element in an array?',
-      'tagalogQuestion': 'Ano ang index ng unang elemento sa isang array?',
-      'correctAnswer': '0',
-      'options': ['0', '1', '-1', 'first'],
+      'question': 'What is used to iterate with index in Python?',
+      'tagalogQuestion': 'Ano ang ginagamit para mag-iterate kasama ang index sa Python?',
+      'correctAnswer': 'enumerate()',
+      'options': ['enumerate()', 'index()', 'for-index', 'loop-index'],
       'points': 10
     }
   ];
@@ -187,7 +187,7 @@ class _CppBonusGame1State extends State<CppBonusGame1> {
           children: [
             Icon(Icons.celebration, size: 60, color: Colors.amber[700]),
             SizedBox(height: 10),
-            Text("You've completed the C++ Bonus Game!"),
+            Text("You've completed the Python Bonus Game!"),
             SizedBox(height: 10),
             Text("Questions Correct: $questionsCorrect/${questions.length}",
                 style: TextStyle(fontWeight: FontWeight.bold)),
@@ -234,7 +234,7 @@ class _CppBonusGame1State extends State<CppBonusGame1> {
   }
 
   void _navigateToLevels() {
-    Navigator.pushReplacementNamed(context, '/levels', arguments: 'C++');
+    Navigator.pushReplacementNamed(context, '/levels', arguments: 'Python');
   }
 
   Future<void> saveScoreToDatabase(int score) async {
@@ -246,7 +246,7 @@ class _CppBonusGame1State extends State<CppBonusGame1> {
       // SAVE BONUS POINTS TO LEVEL 98 (Bonus Game 1)
       final response = await ApiService.saveScore(
         currentUser!['id'],
-        'C++',
+        'Python',
         98,  // BONUS GAME 1 LEVEL
         score, // 50 POINTS FOR PERFECT SCORE
         true,  // ALWAYS MARK AS COMPLETED IF PERFECT
@@ -272,7 +272,7 @@ class _CppBonusGame1State extends State<CppBonusGame1> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScores(currentUser!['id'], 'C++');
+      final response = await ApiService.getScores(currentUser!['id'], 'Python');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
@@ -425,7 +425,7 @@ class _CppBonusGame1State extends State<CppBonusGame1> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("🎁 C++ - Bonus Game", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        title: Text("🎁 Python - Bonus Game", style: TextStyle(fontSize: 18 * _scaleFactor)),
         backgroundColor: Colors.amber[700],
         actions: gameStarted
             ? [
@@ -555,7 +555,7 @@ class _CppBonusGame1State extends State<CppBonusGame1> {
               child: Column(
                 children: [
                   Text(
-                    "🎯 C++ BONUS GAME",
+                    "🎯 PYTHON BONUS GAME",
                     style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.amber[900]),
                     textAlign: TextAlign.center,
                   ),
@@ -598,7 +598,7 @@ class _CppBonusGame1State extends State<CppBonusGame1> {
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎁 Topics: 2D arrays, loops, array initialization, indexing",
+                    "🎁 Topics: Exception handling, file operations, built-in functions",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,

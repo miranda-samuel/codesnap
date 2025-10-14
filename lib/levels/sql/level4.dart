@@ -173,7 +173,7 @@ class _SqlLevel4State extends State<SqlLevel4> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 60), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -839,7 +839,7 @@ class _SqlLevel4State extends State<SqlLevel4> {
                 ? 'Kailangan ni Maria ng listahan ng mga category na may mahigit 5 produkto. Gamitin ang GROUP BY at HAVING clause para makuha ang mga category na may sapat na bilang ng mga produkto.'
                 : 'Maria needs a list of categories with more than 5 products. Use GROUP BY and HAVING clause to get categories with sufficient number of products.',
             textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
+            style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
@@ -1023,13 +1023,14 @@ class _SqlLevel4State extends State<SqlLevel4> {
   }
 
   Widget puzzleBlock(String text, Color color) {
+    // Calculate text width to adjust block size - SAME AS LEVEL 8
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
+          fontSize: 12 * _scaleFactor, // Using 12 instead of 14 for consistency
           color: Colors.black,
         ),
       ),
@@ -1037,8 +1038,8 @@ class _SqlLevel4State extends State<SqlLevel4> {
     )..layout();
 
     final textWidth = textPainter.width;
-    final minWidth = 60 * _scaleFactor;
-    final maxWidth = 200 * _scaleFactor;
+    final minWidth = 80 * _scaleFactor;  // Same as Level 8
+    final maxWidth = 240 * _scaleFactor; // Same as Level 8
 
     return Container(
       constraints: BoxConstraints(
@@ -1047,8 +1048,8 @@ class _SqlLevel4State extends State<SqlLevel4> {
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 16 * _scaleFactor,
-        vertical: 12 * _scaleFactor,
+        horizontal: 12 * _scaleFactor,  // Same as Level 8
+        vertical: 10 * _scaleFactor,    // Same as Level 8
       ),
       decoration: BoxDecoration(
         color: color,
@@ -1070,7 +1071,7 @@ class _SqlLevel4State extends State<SqlLevel4> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
+          fontSize: 12 * _scaleFactor, // Changed from 14 to 12 to match Level 8
           color: Colors.black,
           shadows: [
             Shadow(
@@ -1082,7 +1083,7 @@ class _SqlLevel4State extends State<SqlLevel4> {
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.visible,
-        maxLines: 2,
+        softWrap: true, // Added for better text wrapping
       ),
     );
   }

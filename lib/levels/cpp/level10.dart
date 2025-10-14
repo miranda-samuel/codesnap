@@ -25,7 +25,7 @@ class _CppLevel10State extends State<CppLevel10> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 180;
+  int remainingSeconds = 240;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -151,7 +151,7 @@ class _CppLevel10State extends State<CppLevel10> {
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 180;
+      remainingSeconds = 240;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       resetBlocks();
@@ -199,7 +199,7 @@ class _CppLevel10State extends State<CppLevel10> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 50), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 120), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -223,7 +223,7 @@ class _CppLevel10State extends State<CppLevel10> {
 
     setState(() {
       score = 3;
-      remainingSeconds = 180;
+      remainingSeconds = 240;
       gameStarted = false;
       isAnsweredCorrectly = false;
       droppedBlocks.clear();
@@ -1016,7 +1016,7 @@ class _CppLevel10State extends State<CppLevel10> {
                 ? 'Ngayon, si Alex ay namimili at kailangan niyang kalkulahin ang kabuuang halaga ng kanyang mga binili! Gamitin ang parallel arrays para sa presyo at dami, at ang for loop para kalkulahin ang total cost. Ito ang huling hamon sa C++ arrays!'
                 : 'Now, Alex is shopping and needs to calculate the total cost of his purchases! Use parallel arrays for prices and quantities, and a for loop to calculate the total cost. This is the final C++ array challenge!',
             textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
+            style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
@@ -1200,23 +1200,23 @@ class _CppLevel10State extends State<CppLevel10> {
   }
 
   Widget puzzleBlock(String text, Color color) {
-    // Calculate text width to adjust block size
+    // Calculate text width to adjust block size - SAME AS LEVEL 8
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
-          color: Colors.black, // FORCE BLACK TEXT FOR VISIBILITY
+          fontSize: 12 * _scaleFactor, // Using 12 instead of 14 for consistency
+          color: Colors.black,
         ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
 
     final textWidth = textPainter.width;
-    final minWidth = 80 * _scaleFactor;
-    final maxWidth = 250 * _scaleFactor; // Increased max width for longer text
+    final minWidth = 80 * _scaleFactor;  // Same as Level 8
+    final maxWidth = 240 * _scaleFactor; // Same as Level 8
 
     return Container(
       constraints: BoxConstraints(
@@ -1225,8 +1225,8 @@ class _CppLevel10State extends State<CppLevel10> {
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 16 * _scaleFactor, // Increased horizontal padding
-        vertical: 12 * _scaleFactor,
+        horizontal: 12 * _scaleFactor,  // Same as Level 8
+        vertical: 10 * _scaleFactor,    // Same as Level 8
       ),
       decoration: BoxDecoration(
         color: color,
@@ -1234,7 +1234,7 @@ class _CppLevel10State extends State<CppLevel10> {
           topLeft: Radius.circular(20 * _scaleFactor),
           bottomRight: Radius.circular(20 * _scaleFactor),
         ),
-        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor), // Darker border for contrast
+        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor),
         boxShadow: [
           BoxShadow(
             color: Colors.black45,
@@ -1248,19 +1248,19 @@ class _CppLevel10State extends State<CppLevel10> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
-          color: Colors.black, // FORCE BLACK TEXT FOR MAXIMUM VISIBILITY
+          fontSize: 12 * _scaleFactor, // Changed from 14 to 12 to match Level 8
+          color: Colors.black,
           shadows: [
             Shadow(
               offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
               blurRadius: 2 * _scaleFactor,
-              color: Colors.white.withOpacity(0.8), // White shadow for better contrast
+              color: Colors.white.withOpacity(0.8),
             ),
           ],
         ),
         textAlign: TextAlign.center,
-        overflow: TextOverflow.visible, // Changed from ellipsis to visible
-        maxLines: 2, // Allow 2 lines for longer text
+        overflow: TextOverflow.visible,
+        softWrap: true, // Added for better text wrapping
       ),
     );
   }

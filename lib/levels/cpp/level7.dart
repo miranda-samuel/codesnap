@@ -190,7 +190,7 @@ class _CppLevel7State extends State<CppLevel7> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 40), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 90), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -523,92 +523,14 @@ class _CppLevel7State extends State<CppLevel7> {
     return "$m:$s";
   }
 
-  // CODE PREVIEW - SAME THEME AS LEVEL 1
-  Widget getCodePreview() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(8 * _scaleFactor),
-        border: Border.all(color: Colors.grey[700]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // CODE EDITOR HEADER - SAME STYLE AS LEVEL 1
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
-            decoration: BoxDecoration(
-              color: Color(0xFF2D2D2D),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(8 * _scaleFactor),
-                topRight: Radius.circular(8 * _scaleFactor),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
-                SizedBox(width: 8 * _scaleFactor),
-                Text(
-                  'circle_calculator.cpp',
-                  style: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: 12 * _scaleFactor,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // CODE CONTENT - SAME STYLE AS LEVEL 1
-          Container(
-            padding: EdgeInsets.all(12 * _scaleFactor),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // LINE NUMBERS - SAME STYLE
-                    Container(
-                      width: 30 * _scaleFactor,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          _buildCodeLine(1),
-                          _buildCodeLine(2),
-                          _buildCodeLine(3),
-                          _buildCodeLine(4),
-                          _buildCodeLine(5),
-                          _buildCodeLine(6),
-                          _buildCodeLine(7),
-                        ],
-                      ),
-                    ),
-                    SizedBox(width: 16 * _scaleFactor),
-                    // ACTUAL CODE - SAME STYLE
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSyntaxHighlightedLine('#include <iostream>', isPreprocessor: true),
-                          _buildSyntaxHighlightedLine('using namespace std;', isKeyword: true),
-                          SizedBox(height: 8 * _scaleFactor),
-                          _buildSyntaxHighlightedLine('int main() {', isKeyword: true),
-                          _buildUserCodeLine(getPreviewCode()),
-                          _buildSyntaxHighlightedLine('    return 0;', isKeyword: true),
-                          _buildSyntaxHighlightedLine('}', isNormal: true),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  // FIXED CODE PREVIEW - DISPLAYS CODE TOP TO BOTTOM
+  String getPreviewCode() {
+    if (droppedBlocks.isEmpty) {
+      return '';
+    }
+
+    // Join blocks with proper line breaks for vertical display
+    return droppedBlocks.join('\n        ');
   }
 
   Widget _buildUserCodeLine(String code) {
@@ -646,6 +568,119 @@ class _CppLevel7State extends State<CppLevel7> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  List<Widget> _buildLineNumbers() {
+    // Calculate total lines needed: 4 fixed lines + number of dropped blocks
+    int totalLines = 4 + (droppedBlocks.isNotEmpty ? droppedBlocks.length : 1);
+    List<Widget> lineNumbers = [];
+
+    for (int i = 1; i <= totalLines; i++) {
+      lineNumbers.add(_buildCodeLine(i));
+    }
+
+    return lineNumbers;
+  }
+
+  List<Widget> _buildCodeContent() {
+    List<Widget> codeLines = [
+      _buildSyntaxHighlightedLine('#include <iostream>', isPreprocessor: true),
+      _buildSyntaxHighlightedLine('using namespace std;', isKeyword: true),
+      SizedBox(height: 8 * _scaleFactor),
+      _buildSyntaxHighlightedLine('int main() {', isKeyword: true),
+    ];
+
+    // Add user's code blocks vertically
+    if (droppedBlocks.isNotEmpty) {
+      String previewCode = getPreviewCode();
+      List<String> codeLinesList = previewCode.split('\n');
+
+      for (String line in codeLinesList) {
+        if (line.isNotEmpty) {
+          codeLines.add(_buildUserCodeLine(line));
+        }
+      }
+    } else {
+      // Show empty line when no blocks are dropped
+      codeLines.add(_buildUserCodeLine(''));
+    }
+
+    // Add closing lines
+    codeLines.add(_buildSyntaxHighlightedLine('    return 0;', isKeyword: true));
+    codeLines.add(_buildSyntaxHighlightedLine('}', isNormal: true));
+
+    return codeLines;
+  }
+
+  Widget getCodePreview() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(8 * _scaleFactor),
+        border: Border.all(color: Colors.grey[700]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // CODE EDITOR HEADER
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
+            decoration: BoxDecoration(
+              color: Color(0xFF2D2D2D),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(8 * _scaleFactor),
+                topRight: Radius.circular(8 * _scaleFactor),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
+                SizedBox(width: 8 * _scaleFactor),
+                Text(
+                  'circle_calculator.cpp',
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 12 * _scaleFactor,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // CODE CONTENT
+          Container(
+            padding: EdgeInsets.all(12 * _scaleFactor),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // LINE NUMBERS
+                    Container(
+                      width: 30 * _scaleFactor,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: _buildLineNumbers(),
+                      ),
+                    ),
+                    SizedBox(width: 16 * _scaleFactor),
+                    // ACTUAL CODE
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: _buildCodeContent(),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -688,10 +723,6 @@ class _CppLevel7State extends State<CppLevel7> {
     );
   }
 
-  String getPreviewCode() {
-    return droppedBlocks.join(' ');
-  }
-
   @override
   void dispose() {
     countdownTimer?.cancel();
@@ -707,7 +738,7 @@ class _CppLevel7State extends State<CppLevel7> {
 
   @override
   Widget build(BuildContext context) {
-    // Recalculate scale factor when screen size changes - SAME AS LEVEL 1
+    // Recalculate scale factor when screen size changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
       final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
@@ -722,7 +753,7 @@ class _CppLevel7State extends State<CppLevel7> {
     return Scaffold(
       appBar: AppBar(
         title: Text("⚡ C++ - Level 7", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.blue, // SAME BLUE THEME AS LEVEL 1
+        backgroundColor: Colors.blue,
         actions: gameStarted
             ? [
           Padding(
@@ -748,7 +779,7 @@ class _CppLevel7State extends State<CppLevel7> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF0D1B2A), // SAME GRADIENT AS LEVEL 1
+              Color(0xFF0D1B2A),
               Color(0xFF1B263B),
               Color(0xFF415A77),
             ],
@@ -776,7 +807,7 @@ class _CppLevel7State extends State<CppLevel7> {
               label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.blue, // SAME BUTTON COLOR AS LEVEL 1
+                backgroundColor: Colors.blue,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
@@ -844,7 +875,7 @@ class _CppLevel7State extends State<CppLevel7> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.blue[50]!.withOpacity(0.9), // SAME CONTAINER COLOR AS LEVEL 1
+                color: Colors.blue[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
                 border: Border.all(color: Colors.blue[200]!),
               ),
@@ -904,7 +935,7 @@ class _CppLevel7State extends State<CppLevel7> {
                 },
                 icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
                 label: Text(isTagalog ? 'English' : 'Tagalog',
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+                    style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white)),
               ),
             ],
           ),
@@ -914,16 +945,16 @@ class _CppLevel7State extends State<CppLevel7> {
                 ? 'Ngayon, gusto ni Alex na kalkulahin ang area at circumference ng isang bilog! Gamitin ang double data type para sa mga decimal number at gumawa ng program na magko-compute ng area at circumference gamit ang mathematical formulas.'
                 : 'Now, Alex wants to calculate the area and circumference of a circle! Use the double data type for decimal numbers and create a program that computes area and circumference using mathematical formulas.',
             textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
+            style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the blocks to form the correct C++ code', // SAME TEXT STYLE AS LEVEL 1
+          Text('🧩 Arrange the 6 blocks to form the correct C++ code',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          // TARGET AREA - SAME STYLE AS LEVEL 1
+          // TARGET AREA
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
@@ -933,7 +964,7 @@ class _CppLevel7State extends State<CppLevel7> {
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.blue, width: 2.5 * _scaleFactor), // SAME BLUE BORDER AS LEVEL 1
+              border: Border.all(color: Colors.blue, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -963,7 +994,7 @@ class _CppLevel7State extends State<CppLevel7> {
                         data: block,
                         feedback: Material(
                           color: Colors.transparent,
-                          child: puzzleBlock(block, Colors.greenAccent), // SAME GREEN ACCENT AS LEVEL 1
+                          child: puzzleBlock(block, Colors.greenAccent),
                         ),
                         childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
                         child: puzzleBlock(block, Colors.greenAccent),
@@ -1007,7 +1038,7 @@ class _CppLevel7State extends State<CppLevel7> {
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
 
-          // SOURCE AREA - SAME STYLE AS LEVEL 1
+          // SOURCE AREA
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
@@ -1030,7 +1061,7 @@ class _CppLevel7State extends State<CppLevel7> {
                   data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(block, Colors.blueAccent), // SAME BLUE ACCENT AS LEVEL 1
+                    child: puzzleBlock(block, Colors.blueAccent),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
@@ -1077,7 +1108,7 @@ class _CppLevel7State extends State<CppLevel7> {
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue, // SAME BUTTON COLOR AS LEVEL 1
+              backgroundColor: Colors.blue,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -1098,23 +1129,23 @@ class _CppLevel7State extends State<CppLevel7> {
   }
 
   Widget puzzleBlock(String text, Color color) {
-    // Calculate text width to adjust block size - SAME AS LEVEL 1
+    // Calculate text width to adjust block size - SAME AS LEVEL 8
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
-          color: Colors.black, // FORCE BLACK TEXT FOR VISIBILITY
+          fontSize: 12 * _scaleFactor, // Using 12 instead of 14 for consistency
+          color: Colors.black,
         ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
 
     final textWidth = textPainter.width;
-    final minWidth = 80 * _scaleFactor;
-    final maxWidth = 250 * _scaleFactor;
+    final minWidth = 80 * _scaleFactor;  // Same as Level 8
+    final maxWidth = 240 * _scaleFactor; // Same as Level 8
 
     return Container(
       constraints: BoxConstraints(
@@ -1123,8 +1154,8 @@ class _CppLevel7State extends State<CppLevel7> {
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 16 * _scaleFactor,
-        vertical: 12 * _scaleFactor,
+        horizontal: 12 * _scaleFactor,  // Same as Level 8
+        vertical: 10 * _scaleFactor,    // Same as Level 8
       ),
       decoration: BoxDecoration(
         color: color,
@@ -1146,7 +1177,7 @@ class _CppLevel7State extends State<CppLevel7> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
+          fontSize: 12 * _scaleFactor, // Changed from 14 to 12 to match Level 8
           color: Colors.black,
           shadows: [
             Shadow(
@@ -1158,8 +1189,7 @@ class _CppLevel7State extends State<CppLevel7> {
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.visible,
-        softWrap: true,
-        maxLines: 3,
+        softWrap: true, // Added for better text wrapping
       ),
     );
   }

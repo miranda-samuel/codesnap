@@ -24,7 +24,7 @@ class _JavaLevel7State extends State<JavaLevel7> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 120; // Reduced time for 6 blocks
+  int remainingSeconds = 180; // Reduced time for 6 blocks
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -123,7 +123,7 @@ class _JavaLevel7State extends State<JavaLevel7> {
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 120; // 2 minutes for 6 blocks
+      remainingSeconds = 180; // 2 minutes for 6 blocks
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       resetBlocks();
@@ -171,7 +171,7 @@ class _JavaLevel7State extends State<JavaLevel7> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 40), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 90), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -195,7 +195,7 @@ class _JavaLevel7State extends State<JavaLevel7> {
 
     setState(() {
       score = 3;
-      remainingSeconds = 120;
+      remainingSeconds = 180;
       gameStarted = false;
       isAnsweredCorrectly = false;
       droppedBlocks.clear();
@@ -394,7 +394,7 @@ class _JavaLevel7State extends State<JavaLevel7> {
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
-              Text("Method Output for {3, 7, 2, 9, 1}:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
@@ -917,7 +917,7 @@ class _JavaLevel7State extends State<JavaLevel7> {
                 ? 'Ngayon, gusto ni Juan na gumawa ng reusable method para mahanap ang pinakamalaking numero sa array! Tulungan siyang bumuo ng findMax method na tatanggap ng array at magre-return ng maximum value.'
                 : 'Now, Juan wants to create a reusable method to find the largest number in an array! Help him build a findMax method that accepts an array and returns the maximum value.',
             textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
+            style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
@@ -1096,23 +1096,23 @@ class _JavaLevel7State extends State<JavaLevel7> {
   }
 
   Widget puzzleBlock(String text, Color color) {
-    // Calculate text width to adjust block size
+    // Calculate text width to adjust block size - SAME AS LEVEL 8
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 12 * _scaleFactor,
-          color: Colors.black, // FORCE BLACK TEXT FOR VISIBILITY
+          fontSize: 12 * _scaleFactor, // Using 12 instead of 14 for consistency
+          color: Colors.black,
         ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
 
     final textWidth = textPainter.width;
-    final minWidth = 80 * _scaleFactor;
-    final maxWidth = 220 * _scaleFactor;
+    final minWidth = 80 * _scaleFactor;  // Same as Level 8
+    final maxWidth = 240 * _scaleFactor; // Same as Level 8
 
     return Container(
       constraints: BoxConstraints(
@@ -1121,8 +1121,8 @@ class _JavaLevel7State extends State<JavaLevel7> {
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 12 * _scaleFactor,
-        vertical: 10 * _scaleFactor,
+        horizontal: 12 * _scaleFactor,  // Same as Level 8
+        vertical: 10 * _scaleFactor,    // Same as Level 8
       ),
       decoration: BoxDecoration(
         color: color,
@@ -1130,7 +1130,7 @@ class _JavaLevel7State extends State<JavaLevel7> {
           topLeft: Radius.circular(20 * _scaleFactor),
           bottomRight: Radius.circular(20 * _scaleFactor),
         ),
-        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor), // Darker border for contrast
+        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor),
         boxShadow: [
           BoxShadow(
             color: Colors.black45,
@@ -1144,19 +1144,19 @@ class _JavaLevel7State extends State<JavaLevel7> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 12 * _scaleFactor,
-          color: Colors.black, // FORCE BLACK TEXT FOR MAXIMUM VISIBILITY
+          fontSize: 12 * _scaleFactor, // Changed from 14 to 12 to match Level 8
+          color: Colors.black,
           shadows: [
             Shadow(
               offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
               blurRadius: 2 * _scaleFactor,
-              color: Colors.white.withOpacity(0.8), // White shadow for better contrast
+              color: Colors.white.withOpacity(0.8),
             ),
           ],
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.visible,
-        softWrap: true,
+        softWrap: true, // Added for better text wrapping
       ),
     );
   }

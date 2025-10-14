@@ -175,7 +175,7 @@ class _SqlLevel5State extends State<SqlLevel5> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 90), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -887,11 +887,11 @@ class _SqlLevel5State extends State<SqlLevel5> {
                 ? 'Ngayon, gusto ni Maria na makita ang mga customer na may mahigit 2 orders! Gamit ang JOIN operation, tulungan siyang bumuo ng SQL query na magdi-display ng customer names at order counts.'
                 : 'Now, Maria wants to see customers with more than 2 orders! Using JOIN operation, help her build a SQL query that displays customer names and order counts.',
             textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
+            style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the blocks to form the correct SQL query',
+          Text('🧩 Arrange the 5 blocks to form the correct SQL query',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
@@ -1072,13 +1072,14 @@ class _SqlLevel5State extends State<SqlLevel5> {
 
   // PUZZLE BLOCK - EXACTLY MATCHING LEVEL 3 STYLE
   Widget puzzleBlock(String text, Color color) {
+    // Calculate text width to adjust block size - SAME AS LEVEL 8
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
+          fontSize: 12 * _scaleFactor, // Using 12 instead of 14 for consistency
           color: Colors.black,
         ),
       ),
@@ -1086,8 +1087,8 @@ class _SqlLevel5State extends State<SqlLevel5> {
     )..layout();
 
     final textWidth = textPainter.width;
-    final minWidth = 60 * _scaleFactor;
-    final maxWidth = 200 * _scaleFactor;
+    final minWidth = 80 * _scaleFactor;  // Same as Level 8
+    final maxWidth = 240 * _scaleFactor; // Same as Level 8
 
     return Container(
       constraints: BoxConstraints(
@@ -1096,8 +1097,8 @@ class _SqlLevel5State extends State<SqlLevel5> {
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 16 * _scaleFactor,
-        vertical: 12 * _scaleFactor,
+        horizontal: 12 * _scaleFactor,  // Same as Level 8
+        vertical: 10 * _scaleFactor,    // Same as Level 8
       ),
       decoration: BoxDecoration(
         color: color,
@@ -1119,7 +1120,7 @@ class _SqlLevel5State extends State<SqlLevel5> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
+          fontSize: 12 * _scaleFactor, // Changed from 14 to 12 to match Level 8
           color: Colors.black,
           shadows: [
             Shadow(
@@ -1131,7 +1132,7 @@ class _SqlLevel5State extends State<SqlLevel5> {
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.visible,
-        maxLines: 2,
+        softWrap: true, // Added for better text wrapping
       ),
     );
   }

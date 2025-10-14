@@ -25,7 +25,7 @@ class _CppLevel1State extends State<CppLevel1> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 90;
+  int remainingSeconds = 120;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -236,7 +236,7 @@ class _CppLevel1State extends State<CppLevel1> {
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 90;
+      remainingSeconds = 120;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       _showHint = false;
@@ -289,7 +289,7 @@ class _CppLevel1State extends State<CppLevel1> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 60), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -314,7 +314,7 @@ class _CppLevel1State extends State<CppLevel1> {
 
     setState(() {
       score = 3;
-      remainingSeconds = 90;
+      remainingSeconds = 120;
       gameStarted = false;
       isAnsweredCorrectly = false;
       _showHint = false;
@@ -1199,12 +1199,11 @@ class _CppLevel1State extends State<CppLevel1> {
                 ? 'Si Alex ay baguhan sa C++ programming! Kailangan niyang gumamit ng cout para mag-display ng "Hello World". Tulungan mo siyang buuin ang tamang code!'
                 : 'Alex is new to C++ programming! He needs to use cout to display "Hello World". Help him build the correct code!',
             textAlign: TextAlign.justify,
-            style: TextStyle(
-                fontSize: 14 * _scaleFactor, color: Colors.white70),
+            style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the blocks to form the correct C++ code',
+          Text('🧩 Arrange the 4 blocks to form the correct C++ code',
               style: TextStyle(
                   fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
@@ -1396,23 +1395,23 @@ class _CppLevel1State extends State<CppLevel1> {
 
 // ✅ DAGDAGIN MO ITO - PUZZLE BLOCK METHOD
   Widget puzzleBlock(String text, Color color) {
+    // Calculate text width to adjust block size - SAME AS LEVEL 8
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
+          fontSize: 12 * _scaleFactor, // Using 12 instead of 14 for consistency
           color: Colors.black,
         ),
       ),
       textDirection: TextDirection.ltr,
-    )
-      ..layout();
+    )..layout();
 
     final textWidth = textPainter.width;
-    final minWidth = 60 * _scaleFactor;
-    final maxWidth = 200 * _scaleFactor;
+    final minWidth = 80 * _scaleFactor;  // Same as Level 8
+    final maxWidth = 240 * _scaleFactor; // Same as Level 8
 
     return Container(
       constraints: BoxConstraints(
@@ -1421,8 +1420,8 @@ class _CppLevel1State extends State<CppLevel1> {
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 16 * _scaleFactor,
-        vertical: 12 * _scaleFactor,
+        horizontal: 12 * _scaleFactor,  // Same as Level 8
+        vertical: 10 * _scaleFactor,    // Same as Level 8
       ),
       decoration: BoxDecoration(
         color: color,
@@ -1444,7 +1443,7 @@ class _CppLevel1State extends State<CppLevel1> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
+          fontSize: 12 * _scaleFactor, // Changed from 14 to 12 to match Level 8
           color: Colors.black,
           shadows: [
             Shadow(
@@ -1456,7 +1455,7 @@ class _CppLevel1State extends State<CppLevel1> {
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.visible,
-        maxLines: 2,
+        softWrap: true, // Added for better text wrapping
       ),
     );
   }

@@ -179,7 +179,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 40), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 90), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -921,7 +921,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
                 ? 'Ngayon, gusto ni Juan na matuto ng arrays sa Java! Kailangan niyang kalkulahin ang kabuuang sum ng mga numero sa array {1, 2, 3, 4, 5}. Tulungan siyang bumuo ng program na magsu-sum ng lahat ng elements sa array gamit ang for loop.'
                 : 'Now, Juan wants to learn about arrays in Java! He needs to calculate the total sum of numbers in the array {1, 2, 3, 4, 5}. Help him build a program that sums all the elements in the array using a for loop.',
             textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
+            style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
@@ -1099,25 +1099,24 @@ class _JavaLevel6State extends State<JavaLevel6> {
     );
   }
 
-  // UPDATED PUZZLE BLOCK - WALANG YELLOW UNDERLINE (SAME AS JAVA LEVEL 1)
   Widget puzzleBlock(String text, Color color) {
-    // Calculate text width to adjust block size
+    // Calculate text width to adjust block size - SAME AS LEVEL 8
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
-          color: Colors.black, // FORCE BLACK TEXT FOR VISIBILITY
+          fontSize: 12 * _scaleFactor, // Using 12 instead of 14 for consistency
+          color: Colors.black,
         ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
 
     final textWidth = textPainter.width;
-    final minWidth = 80 * _scaleFactor;
-    final maxWidth = 250 * _scaleFactor; // Increased max width for longer array blocks
+    final minWidth = 80 * _scaleFactor;  // Same as Level 8
+    final maxWidth = 240 * _scaleFactor; // Same as Level 8
 
     return Container(
       constraints: BoxConstraints(
@@ -1126,8 +1125,8 @@ class _JavaLevel6State extends State<JavaLevel6> {
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 16 * _scaleFactor, // Increased horizontal padding
-        vertical: 12 * _scaleFactor,
+        horizontal: 12 * _scaleFactor,  // Same as Level 8
+        vertical: 10 * _scaleFactor,    // Same as Level 8
       ),
       decoration: BoxDecoration(
         color: color,
@@ -1135,7 +1134,7 @@ class _JavaLevel6State extends State<JavaLevel6> {
           topLeft: Radius.circular(20 * _scaleFactor),
           bottomRight: Radius.circular(20 * _scaleFactor),
         ),
-        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor), // Darker border for contrast
+        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor),
         boxShadow: [
           BoxShadow(
             color: Colors.black45,
@@ -1149,19 +1148,19 @@ class _JavaLevel6State extends State<JavaLevel6> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
-          color: Colors.black, // FORCE BLACK TEXT FOR MAXIMUM VISIBILITY
+          fontSize: 12 * _scaleFactor, // Changed from 14 to 12 to match Level 8
+          color: Colors.black,
           shadows: [
             Shadow(
               offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
               blurRadius: 2 * _scaleFactor,
-              color: Colors.white.withOpacity(0.8), // White shadow for better contrast
+              color: Colors.white.withOpacity(0.8),
             ),
           ],
         ),
         textAlign: TextAlign.center,
-        overflow: TextOverflow.visible, // Changed from ellipsis to visible
-        maxLines: 2, // Allow 2 lines for longer text
+        overflow: TextOverflow.visible,
+        softWrap: true, // Added for better text wrapping
       ),
     );
   }

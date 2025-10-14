@@ -176,7 +176,7 @@ class _CppLevel8State extends State<CppLevel8> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 40), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 90), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -404,7 +404,7 @@ class _CppLevel8State extends State<CppLevel8> {
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
-              Text("Function Output for \"hello\":", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
@@ -927,7 +927,7 @@ class _CppLevel8State extends State<CppLevel8> {
                 ? 'Ngayon, gusto ni Alex na gumawa ng function para baligtarin ang string! Gamit ang for loop, tulungan siyang bumuo ng reverseString function na efficient at madaling maintindihan.'
                 : 'Now, Alex wants to create a function to reverse a string! Using a for loop, help him build a reverseString function that is efficient and easy to understand.',
             textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
+            style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 

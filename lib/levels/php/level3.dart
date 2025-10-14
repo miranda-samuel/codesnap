@@ -5,6 +5,7 @@ import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
 import '../../services/music_service.dart';
+import '../../services/daily_challenge_service.dart';
 
 class PhpLevel3 extends StatefulWidget {
   const PhpLevel3({super.key});
@@ -24,7 +25,7 @@ class _PhpLevel3State extends State<PhpLevel3> {
   int previousScore = 0;
 
   int score = 3; // Mananatiling 3
-  int remainingSeconds = 90;
+  int remainingSeconds = 120;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -33,6 +34,12 @@ class _PhpLevel3State extends State<PhpLevel3> {
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
+  // NEW: Hint card system using UserPreferences
+  int _availableHintCards = 0;
+  bool _showHint = false;
+  String _currentHint = '';
+  bool _isUsingHint = false;
+
   @override
   void initState() {
     super.initState();
@@ -40,6 +47,7 @@ class _PhpLevel3State extends State<PhpLevel3> {
     _loadUserData();
     _calculateScaleFactor();
     _startGameMusic();
+    _loadHintCards(); // Load hint cards for current user
   }
 
   void _startGameMusic() {
@@ -67,12 +75,121 @@ class _PhpLevel3State extends State<PhpLevel3> {
     });
   }
 
+  // NEW: Load hint cards using UserPreferences
+  Future<void> _loadHintCards() async {
+    final user = await UserPreferences.getUser();
+    if (user['id'] != null) {
+      final hintCards = await DailyChallengeService.getUserHintCards(user['id']);
+      setState(() {
+        _availableHintCards = hintCards;
+      });
+    }
+  }
+
+  // NEW: Save hint cards using UserPreferences
+  Future<void> _saveHintCards(int count) async {
+    final user = await UserPreferences.getUser();
+    if (user['id'] != null) {
+      // We'll update the hint cards count in shared preferences
+      final prefs = await SharedPreferences.getInstance();
+      final userKey = 'hint_cards_${user['id']}';
+      await prefs.setInt(userKey, count);
+
+      setState(() {
+        _availableHintCards = count;
+      });
+    }
+  }
+
+  // NEW: Use hint card - shows hint and auto-drags correct answer
+  void _useHintCard() async {
+    if (_availableHintCards > 0 && !_isUsingHint) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('hint_use.mp3');
+
+      setState(() {
+        _isUsingHint = true;
+        _showHint = true;
+        _currentHint = _getLevelHint();
+        _availableHintCards--;
+      });
+
+      // Save the updated hint card count
+      final user = await UserPreferences.getUser();
+      if (user['id'] != null) {
+        await DailyChallengeService.useHintCard(user['id']);
+      }
+
+      // Auto-drag the correct blocks after a short delay
+      _autoDragCorrectBlocks();
+    } else if (_availableHintCards <= 0) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('error.mp3');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No hint cards available! Complete daily challenges to earn more.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
+  // NEW: Auto-drag correct blocks to answer area
+  void _autoDragCorrectBlocks() {
+    // Correct blocks for PHP function: function greet() { echo "Hello"; } greet();
+    List<String> correctBlocks = [
+      'function greet() {',
+      'echo "Hello";',
+      '}',
+      'greet();'
+    ];
+
+    // Remove any existing correct blocks from dropped area first
+    setState(() {
+      droppedBlocks.clear();
+    });
+
+    // Add correct blocks one by one with delay
+    int delay = 0;
+    for (String block in correctBlocks) {
+      Future.delayed(Duration(milliseconds: delay), () {
+        if (mounted) {
+          setState(() {
+            if (!droppedBlocks.contains(block)) {
+              droppedBlocks.add(block);
+            }
+            if (allBlocks.contains(block)) {
+              allBlocks.remove(block);
+            }
+          });
+        }
+      });
+      delay += 500; // 0.5 second delay between each block
+    }
+
+    // Hide hint after all blocks are placed
+    Future.delayed(Duration(milliseconds: delay + 1000), () {
+      if (mounted) {
+        setState(() {
+          _showHint = false;
+          _isUsingHint = false;
+        });
+      }
+    });
+  }
+
+  String _getLevelHint() {
+    return "The correct code is: function greet() { echo \"Hello\"; } greet();\n\n💡 Hint: In PHP, use 'function' keyword, curly braces {}, echo inside function, and don't forget to call the function with greet();";
+  }
+
   void _loadUserData() async {
     final user = await UserPreferences.getUser();
     setState(() {
       currentUser = user;
     });
     loadScoreFromDatabase();
+    _loadHintCards(); // Load hint cards for this user
   }
 
   void resetBlocks() {
@@ -117,9 +234,11 @@ class _PhpLevel3State extends State<PhpLevel3> {
     setState(() {
       gameStarted = true;
       score = 3; // Mananatiling 3
-      remainingSeconds = 90;
+      remainingSeconds = 120;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
+      _showHint = false;
+      _isUsingHint = false;
       resetBlocks();
     });
     startTimers();
@@ -165,7 +284,7 @@ class _PhpLevel3State extends State<PhpLevel3> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 60), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -189,9 +308,11 @@ class _PhpLevel3State extends State<PhpLevel3> {
 
     setState(() {
       score = 3; // Mananatiling 3
-      remainingSeconds = 90;
+      remainingSeconds = 120;
       gameStarted = false;
       isAnsweredCorrectly = false;
+      _showHint = false;
+      _isUsingHint = false;
       droppedBlocks.clear();
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
@@ -445,6 +566,68 @@ class _PhpLevel3State extends State<PhpLevel3> {
     return "$m:$s";
   }
 
+  // NEW: Hint Display Widget
+  Widget _buildHintDisplay() {
+    if (!_showHint) return SizedBox();
+
+    return Positioned(
+      top: 60 * _scaleFactor,
+      left: 20 * _scaleFactor,
+      right: 20 * _scaleFactor,
+      child: Container(
+        padding: EdgeInsets.all(16 * _scaleFactor),
+        decoration: BoxDecoration(
+          color: Colors.orange.withOpacity(0.95),
+          borderRadius: BorderRadius.circular(12 * _scaleFactor),
+          border: Border.all(color: Colors.orangeAccent, width: 2 * _scaleFactor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 8 * _scaleFactor,
+              offset: Offset(0, 4 * _scaleFactor),
+            )
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(Icons.lightbulb, color: Colors.white, size: 20 * _scaleFactor),
+                SizedBox(width: 8 * _scaleFactor),
+                Text(
+                  '💡 Hint Activated!',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16 * _scaleFactor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 10 * _scaleFactor),
+            Text(
+              _currentHint,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14 * _scaleFactor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 10 * _scaleFactor),
+            Text(
+              'Correct blocks are being placed automatically...',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12 * _scaleFactor,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // CODE PREVIEW WITH EXACT SAME STRUCTURE AS JAVA LEVEL 3
   Widget getCodePreview() {
     return Container(
@@ -676,7 +859,58 @@ class _PhpLevel3State extends State<PhpLevel3> {
             ],
           ),
         ),
-        child: gameStarted ? buildGameUI() : buildStartScreen(),
+        child: Stack(
+          children: [
+            gameStarted ? buildGameUI() : buildStartScreen(),
+            // ADD HINT BUTTON AND DISPLAY TO STACK
+            if (gameStarted && !isAnsweredCorrectly) ...[
+              _buildHintDisplay(),
+              // ✅ HINT CARD BUTTON - BOTTOM RIGHT
+              Positioned(
+                bottom: 20 * _scaleFactor,
+                right: 20 * _scaleFactor,
+                child: GestureDetector(
+                  onTap: _useHintCard,
+                  child: Container(
+                    padding: EdgeInsets.all(12 * _scaleFactor),
+                    decoration: BoxDecoration(
+                      color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
+                      borderRadius: BorderRadius.circular(20 * _scaleFactor),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 4 * _scaleFactor,
+                          offset: Offset(0, 2 * _scaleFactor),
+                        )
+                      ],
+                      border: Border.all(
+                        color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
+                        width: 2 * _scaleFactor,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.lightbulb_outline,
+                            color: Colors.white,
+                            size: 20 * _scaleFactor),
+                        SizedBox(width: 6 * _scaleFactor),
+                        Text(
+                          '$_availableHintCards',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18 * _scaleFactor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -702,6 +936,39 @@ class _PhpLevel3State extends State<PhpLevel3> {
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
+
+            // Display available hint cards in start screen
+            Container(
+              padding: EdgeInsets.all(12 * _scaleFactor),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12 * _scaleFactor),
+                border: Border.all(color: Colors.orange),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lightbulb_outline, color: Colors.orange, size: 20 * _scaleFactor),
+                  SizedBox(width: 8 * _scaleFactor),
+                  Text(
+                    'Hint Cards: $_availableHintCards',
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontSize: 16 * _scaleFactor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 10 * _scaleFactor),
+            Text(
+              'Use hint cards during the game for help!',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12 * _scaleFactor,
+              ),
+            ),
 
             if (level3Completed)
               Padding(
@@ -836,7 +1103,7 @@ class _PhpLevel3State extends State<PhpLevel3> {
                 ? 'Si Zeke ay natututo ng PHP functions! Kailangan niyang gumawa ng function na nagdi-display ng "Hello" at tawagin ito. Tulungan siyang pumili ng tamang function at function call!'
                 : 'Zeke is learning PHP functions! He needs to create a function that displays "Hello" and call it. Help him choose the correct function and function call!',
             textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
+            style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
@@ -926,7 +1193,7 @@ class _PhpLevel3State extends State<PhpLevel3> {
           SizedBox(height: 20 * _scaleFactor),
           Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
           SizedBox(height: 10 * _scaleFactor),
-          getCodePreview(), // EXACT SAME STRUCTURE AS JAVA LEVEL 3
+          getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
 
           // SOURCE AREA
@@ -1020,13 +1287,14 @@ class _PhpLevel3State extends State<PhpLevel3> {
   }
 
   Widget puzzleBlock(String text, Color color) {
+    // Calculate text width to adjust block size - SAME AS LEVEL 8
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
+          fontSize: 12 * _scaleFactor, // Using 12 instead of 14 for consistency
           color: Colors.black,
         ),
       ),
@@ -1034,8 +1302,8 @@ class _PhpLevel3State extends State<PhpLevel3> {
     )..layout();
 
     final textWidth = textPainter.width;
-    final minWidth = 80 * _scaleFactor;
-    final maxWidth = 220 * _scaleFactor;
+    final minWidth = 80 * _scaleFactor;  // Same as Level 8
+    final maxWidth = 240 * _scaleFactor; // Same as Level 8
 
     return Container(
       constraints: BoxConstraints(
@@ -1044,8 +1312,8 @@ class _PhpLevel3State extends State<PhpLevel3> {
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 16 * _scaleFactor,
-        vertical: 12 * _scaleFactor,
+        horizontal: 12 * _scaleFactor,  // Same as Level 8
+        vertical: 10 * _scaleFactor,    // Same as Level 8
       ),
       decoration: BoxDecoration(
         color: color,
@@ -1067,7 +1335,7 @@ class _PhpLevel3State extends State<PhpLevel3> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
+          fontSize: 12 * _scaleFactor, // Changed from 14 to 12 to match Level 8
           color: Colors.black,
           shadows: [
             Shadow(
@@ -1079,7 +1347,7 @@ class _PhpLevel3State extends State<PhpLevel3> {
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.visible,
-        maxLines: 2,
+        softWrap: true, // Added for better text wrapping
       ),
     );
   }

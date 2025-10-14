@@ -20,6 +20,10 @@ import 'levels/python/level3.dart';
 import 'levels/python/level4.dart';
 import 'levels/python/level5.dart';
 import 'levels/python/level6.dart';
+import 'levels/python/level7.dart';
+import 'levels/python/level8.dart';
+import 'levels/python/level9.dart';
+import 'levels/python/level10.dart';
 
 import 'levels/java/level1.dart';
 import 'levels/java/level2.dart';
@@ -49,6 +53,8 @@ import 'levels/php/level3.dart';
 import 'levels/php/level4.dart';
 import 'levels/php/level5.dart';
 import 'levels/php/level6.dart';
+import 'levels/php/level7.dart';
+import 'levels/php/level8.dart';
 
 import 'levels/sql/level1.dart';
 import 'levels/sql/level2.dart';
@@ -140,7 +146,7 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           primarySwatch: Colors.teal,
           useMaterial3: true,
         ),
-        initialRoute: '/select_language',
+        initialRoute: '/splash',
         routes: {
           '/splash': (context) => const SplashScreen(),
           '/': (context) => const LoginPage(),
@@ -160,6 +166,10 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           '/python_level4': (context) => const PythonLevel4(),
           '/python_level5': (context) => const PythonLevel5(),
           '/python_level6': (context) => const PythonLevel6(),
+          '/python_level7': (context) => const PythonLevel7(),
+          '/python_level8': (context) => const PythonLevel8(),
+          '/python_level9': (context) => const PythonLevel9(),
+          '/python_level10': (context) => const PythonLevel10(),
 
           // Java levels
           '/java_level1': (context) => const JavaLevel1(),
@@ -192,6 +202,8 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           '/php_level4': (context) => const PhpLevel4(),
           '/php_level5': (context) => const PhpLevel5(),
           '/php_level6': (context) => const PhpLevel6(),
+          '/php_level7': (context) => const PhpLevel7(),
+          '/php_level8': (context) => const PhpLevel8(),
 
           // SQL levels
           '/sql_level1': (context) => const SqlLevel1(),

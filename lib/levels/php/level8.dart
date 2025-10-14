@@ -6,20 +6,20 @@ import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
 import '../../services/music_service.dart';
 
-class PhpLevel6 extends StatefulWidget {
-  const PhpLevel6({super.key});
+class PhpLevel8 extends StatefulWidget {
+  const PhpLevel8({super.key});
 
   @override
-  State<PhpLevel6> createState() => _PhpLevel6State();
+  State<PhpLevel8> createState() => _PhpLevel8State();
 }
 
-class _PhpLevel6State extends State<PhpLevel6> {
+class _PhpLevel8State extends State<PhpLevel8> {
   List<String> allBlocks = [];
   List<String> droppedBlocks = [];
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level6Completed = false;
+  bool level8Completed = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
@@ -78,37 +78,38 @@ class _PhpLevel6State extends State<PhpLevel6> {
   void resetBlocks() {
     // Correct blocks for PHP arrays and loops - 6 BLOCKS NA
     List<String> correctBlocks = [
-      '\$numbers = [1, 2, 3, 4, 5];',
-      '\$sum = 0;',
-      'foreach (\$numbers as \$num) {',
-      '\$sum += \$num;',
+      '\$fruits = ["apple", "banana", "orange"];',
+      'foreach (\$fruits as \$fruit) {',
+      'echo "I like " . \$fruit . "\\\\n";',
       '}',
-      'echo "Sum: " . \$sum;' // Added output statement as 6th correct block
+      '\$numbers = [1, 2, 3, 4, 5];',
+      'foreach (\$numbers as \$number) {',
     ];
 
     // Incorrect blocks
     List<String> incorrectBlocks = [
-      '\$numbers = array(1,2,3,4,5);',
-      '\$sum = 1;',
-      'for (\$i=0; \$i<5; \$i++) {',
-      'while (\$i < count(\$numbers)) {',
-      '\$sum = \$sum + \$numbers[\$i];',
-      '\$sum = sum(\$numbers);',
-      'print \$sum;',
-      'return \$sum;',
-      '\$total = array_sum(\$numbers);',
-      'for (\$num in \$numbers) {',
-      'foreach (\$numbers) {',
-      '\$sum = \$num;',
-      '\$sum =+ \$num;',
-      'printf("Sum: %d", \$sum);',
-      'cout << "Sum: " << \$sum;',
-      'System.out.println("Sum: " + \$sum);',
+      '\$fruits = array("apple", "banana", "orange")',
+      'for (\$i = 0; \$i < count(\$fruits); \$i++) {',
+      'print "I like " . \$fruits[\$i];',
+      'while (\$fruit in \$fruits) {',
+      '\$fruits = {"apple", "banana", "orange"};',
+      'for \$fruit in \$fruits:',
+      'echo "I like \$fruit\\\\n";',
+      'endforeach;',
+      '\$numbers = (1, 2, 3, 4, 5);',
+      'for (\$i = 1; \$i <= 5; \$i++) {',
+      'echo \$i . "\\\\n";',
+      '}',
+      'while (\$number <= 5) {',
+      'echo \$number++;',
+      '}',
+      '\$fruits = ["apple", "banana", "orange"]',
+      'foreach (\$fruits) {',
     ];
 
     // Shuffle incorrect blocks and take 4 random ones (6 correct + 3 incorrect = 9 total)
     incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(4).toList();
+    List<String> selectedIncorrectBlocks = incorrectBlocks.take(3).toList();
 
     allBlocks = [
       ...correctBlocks,
@@ -212,14 +213,14 @@ class _PhpLevel6State extends State<PhpLevel6> {
       final response = await ApiService.saveScore(
         currentUser!['id'],
         'PHP',
-        6,
+        8,
         score,
         score == 3, // Mananatiling 3
       );
 
       if (response['success'] == true) {
         setState(() {
-          level6Completed = score == 3; // Mananatiling 3
+          level8Completed = score == 3; // Mananatiling 3
           previousScore = score;
           hasPreviousScore = true;
         });
@@ -239,12 +240,12 @@ class _PhpLevel6State extends State<PhpLevel6> {
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level6Data = scoresData['6'];
+        final level8Data = scoresData['8'];
 
-        if (level6Data != null) {
+        if (level8Data != null) {
           setState(() {
-            previousScore = level6Data['score'] ?? 0;
-            level6Completed = level6Data['completed'] ?? false;
+            previousScore = level8Data['score'] ?? 0;
+            level8Completed = level8Data['completed'] ?? false;
             hasPreviousScore = true;
             score = previousScore;
           });
@@ -257,22 +258,23 @@ class _PhpLevel6State extends State<PhpLevel6> {
 
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
-      '\$numbers = array(1,2,3,4,5);',
-      '\$sum = 1;',
-      'for (\$i=0; \$i<5; \$i++) {',
-      'while (\$i < count(\$numbers)) {',
-      '\$sum = \$sum + \$numbers[\$i];',
-      '\$sum = sum(\$numbers);',
-      'print \$sum;',
-      'return \$sum;',
-      '\$total = array_sum(\$numbers);',
-      'for (\$num in \$numbers) {',
-      'foreach (\$numbers) {',
-      '\$sum = \$num;',
-      '\$sum =+ \$num;',
-      'printf("Sum: %d", \$sum);',
-      'cout << "Sum: " << \$sum;',
-      'System.out.println("Sum: " + \$sum);',
+      '\$fruits = array("apple", "banana", "orange")',
+      'for (\$i = 0; \$i < count(\$fruits); \$i++) {',
+      'print "I like " . \$fruits[\$i];',
+      'while (\$fruit in \$fruits) {',
+      '\$fruits = {"apple", "banana", "orange"};',
+      'for \$fruit in \$fruits:',
+      'echo "I like \$fruit\\\\n";',
+      'endforeach;',
+      '\$numbers = (1, 2, 3, 4, 5);',
+      'for (\$i = 1; \$i <= 5; \$i++) {',
+      'echo \$i . "\\\\n";',
+      '}',
+      'while (\$number <= 5) {',
+      'echo \$number++;',
+      '}',
+      '\$fruits = ["apple", "banana", "orange"]',
+      'foreach (\$fruits) {',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -328,15 +330,15 @@ class _PhpLevel6State extends State<PhpLevel6> {
       return;
     }
 
-    // Check for correct PHP array and foreach loop with output
+    // Check for correct PHP array and foreach loop
     String answer = droppedBlocks.join(' ');
     String normalizedAnswer = answer
         .replaceAll(' ', '')
         .replaceAll('\n', '')
         .toLowerCase();
 
-    // Expected: $numbers=[1,2,3,4,5];$sum=0;foreach($numbersas$num){$sum+=$num;}echo"sum:".$sum;
-    String expected = '\$numbers=[1,2,3,4,5];\$sum=0;foreach(\$numbersas\$num){\$sum+=\$num;}echo"sum:".\$sum;';
+    // Expected: $fruits=["apple","banana","orange"];foreach($fruitsas$fruit){echo"Ilike".$fruit."\\n";}$numbers=[1,2,3,4,5];foreach($numbersas$number){
+    String expected = '\$fruits=["apple","banana","orange"];foreach(\$fruitsas\$fruit){echo"ilike".\$fruit."\\\\n";}\$numbers=[1,2,3,4,5];foreach(\$numbersas\$number){';
 
     if (normalizedAnswer == expected) {
       countdownTimer?.cancel();
@@ -362,13 +364,13 @@ class _PhpLevel6State extends State<PhpLevel6> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent! You created a PHP array, used foreach loop, and displayed the result!"),
+              Text("Excellent! You created PHP arrays and used foreach loops to iterate through them!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've completed Java Level 6!",
+                  "🎉 Perfect! You've completed PHP Level 8!",
                   style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold),
                 )
               else
@@ -382,7 +384,7 @@ class _PhpLevel6State extends State<PhpLevel6> {
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  "Sum: 15",
+                  "I like apple\nI like banana\nI like orange\n",
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
@@ -399,7 +401,7 @@ class _PhpLevel6State extends State<PhpLevel6> {
                 Navigator.pop(context);
                 if (score == 3) { // Mananatiling 3
                   musicService.playSoundEffect('level_complete.mp3');
-                  Navigator.pushReplacementNamed(context, '/php_level7');
+                  Navigator.pushReplacementNamed(context, '/php_level9');
                 } else {
                   Navigator.pushReplacementNamed(context, '/levels', arguments: 'PHP');
                 }
@@ -482,7 +484,7 @@ class _PhpLevel6State extends State<PhpLevel6> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'array_sum.php',
+                  'arrays_loops.php',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -610,7 +612,7 @@ class _PhpLevel6State extends State<PhpLevel6> {
     } else if (isComment) {
       textColor = Color(0xFF6A9955); // Green for comments
     } else if (isNormal && code.contains('foreach')) {
-      textColor = Color(0xFFC586C0); // Purple for control structures
+      textColor = Color(0xFFC586C0); // Purple for loops
     } else if (isNormal && code.contains('\$')) {
       textColor = Color(0xFF9CDCFE); // Light blue for variables
     } else if (isNormal) {
@@ -658,7 +660,7 @@ class _PhpLevel6State extends State<PhpLevel6> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("🐘 PHP - Level 6", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        title: Text("🐘 PHP - Level 8", style: TextStyle(fontSize: 18 * _scaleFactor)),
         backgroundColor: Colors.deepPurple,
         actions: gameStarted
             ? [
@@ -718,19 +720,19 @@ class _PhpLevel6State extends State<PhpLevel6> {
             ),
             SizedBox(height: 20 * _scaleFactor),
 
-            if (level6Completed)
+            if (level8Completed)
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Level 6 completed with perfect score!",
+                      "✅ Level 8 completed with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "You've unlocked Level 7!",
+                      "You've unlocked Level 9!",
                       style: TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -749,7 +751,7 @@ class _PhpLevel6State extends State<PhpLevel6> {
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score and unlock Level 7!",
+                      "Try again to get a perfect score and unlock Level 9!",
                       style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -788,19 +790,19 @@ class _PhpLevel6State extends State<PhpLevel6> {
               child: Column(
                 children: [
                   Text(
-                    "🎯 Level 6 Objective",
+                    "🎯 Level 8 Objective",
                     style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.deepPurple[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create an array of numbers, use a foreach loop to calculate their sum, and display the result",
+                    "Create PHP arrays and use foreach loops to iterate through them and display each element",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.deepPurple[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎁  Get a perfect score (3/3) to unlock Level 7!",
+                    "🎁  Get a perfect score (3/3) to unlock Level 9!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
@@ -848,14 +850,14 @@ class _PhpLevel6State extends State<PhpLevel6> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Si Zeke ay may listahan ng mga numero at gustong kalkulahin at ipakita ang kabuuan nito gamit ang PHP! Kailangan niyang gumamit ng array, foreach loop, at ipakita ang resulta. Tulungan siyang pumili ng tamang code!'
-                : 'Zeke has a list of numbers and wants to calculate and display their sum using PHP! He needs to use an array, foreach loop, and show the result. Help him choose the correct code!',
+                ? 'Si Zeke ay may listahan ng mga prutas at numero na gusto niyang ipakita gamit ang loops! Kailangan niyang gumamit ng arrays at foreach loops para ma-iterate at ma-display ang bawat elemento. Tulungan siyang pumili ng tamang code!'
+                : 'Zeke has a list of fruits and numbers that he wants to display using loops! He needs to use arrays and foreach loops to iterate through and display each element. Help him choose the correct code!',
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the 6 correct blocks to create the array, calculate the sum, and display the result',
+          Text('🧩 Arrange the 6 correct blocks to create arrays and foreach loops',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),

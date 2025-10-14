@@ -6,30 +6,33 @@ import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
 import '../../services/music_service.dart';
 
-class PhpLevel6 extends StatefulWidget {
-  const PhpLevel6({super.key});
+class PythonLevel9 extends StatefulWidget {
+  const PythonLevel9({super.key});
 
   @override
-  State<PhpLevel6> createState() => _PhpLevel6State();
+  State<PythonLevel9> createState() => _PythonLevel9State();
 }
 
-class _PhpLevel6State extends State<PhpLevel6> {
+class _PythonLevel9State extends State<PythonLevel9> {
   List<String> allBlocks = [];
   List<String> droppedBlocks = [];
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level6Completed = false;
+  bool level9Completed = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
-  int score = 3; // Mananatiling 3
+  int score = 3;
   int remainingSeconds = 180;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
+  // Track currently dragged block
   String? currentlyDraggedBlock;
+
+  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
@@ -76,40 +79,42 @@ class _PhpLevel6State extends State<PhpLevel6> {
   }
 
   void resetBlocks() {
-    // Correct blocks for PHP arrays and loops - 6 BLOCKS NA
+    // Correct blocks for Python: Error handling with try-except (7 blocks)
     List<String> correctBlocks = [
-      '\$numbers = [1, 2, 3, 4, 5];',
-      '\$sum = 0;',
-      'foreach (\$numbers as \$num) {',
-      '\$sum += \$num;',
-      '}',
-      'echo "Sum: " . \$sum;' // Added output statement as 6th correct block
+      'try:',
+      '    result = 10 / int(input("Enter number: "))',
+      '    print(f"Result: {result}")',
+      'except ZeroDivisionError:',
+      '    print("Cannot divide by zero!")',
+      'except ValueError:',
+      '    print("Invalid input! Enter a number.")'
     ];
 
-    // Incorrect blocks
+    // Incorrect/distractor blocks
     List<String> incorrectBlocks = [
-      '\$numbers = array(1,2,3,4,5);',
-      '\$sum = 1;',
-      'for (\$i=0; \$i<5; \$i++) {',
-      'while (\$i < count(\$numbers)) {',
-      '\$sum = \$sum + \$numbers[\$i];',
-      '\$sum = sum(\$numbers);',
-      'print \$sum;',
-      'return \$sum;',
-      '\$total = array_sum(\$numbers);',
-      'for (\$num in \$numbers) {',
-      'foreach (\$numbers) {',
-      '\$sum = \$num;',
-      '\$sum =+ \$num;',
-      'printf("Sum: %d", \$sum);',
-      'cout << "Sum: " << \$sum;',
-      'System.out.println("Sum: " + \$sum);',
+      'try',
+      'try {',
+      'result = 10 / input("Enter number: ")',
+      'result = 10 / int(input("Enter number: "))',
+      'print("Result: " + result)',
+      'catch ZeroDivisionError:',
+      'catch (ZeroDivisionError e):',
+      'except ZeroDivisionError',
+      'print("Cannot divide by zero")',
+      'print("Invalid input")',
+      'else:',
+      'finally:',
+      'System.out.println("Cannot divide by zero!")',
+      'cout << "Invalid input!" << endl;',
+      'result = 10 / number',
+      'number = input("Enter number: ")',
     ];
 
-    // Shuffle incorrect blocks and take 4 random ones (6 correct + 3 incorrect = 9 total)
+    // Shuffle incorrect blocks and take 4 random ones
     incorrectBlocks.shuffle();
     List<String> selectedIncorrectBlocks = incorrectBlocks.take(4).toList();
 
+    // Combine correct and incorrect blocks, then shuffle
     allBlocks = [
       ...correctBlocks,
       ...selectedIncorrectBlocks,
@@ -122,7 +127,7 @@ class _PhpLevel6State extends State<PhpLevel6> {
 
     setState(() {
       gameStarted = true;
-      score = 3; // Mananatiling 3
+      score = 3;
       remainingSeconds = 180;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
@@ -194,7 +199,7 @@ class _PhpLevel6State extends State<PhpLevel6> {
     musicService.playSoundEffect('reset.mp3');
 
     setState(() {
-      score = 3; // Mananatiling 3
+      score = 3;
       remainingSeconds = 180;
       gameStarted = false;
       isAnsweredCorrectly = false;
@@ -211,15 +216,15 @@ class _PhpLevel6State extends State<PhpLevel6> {
     try {
       final response = await ApiService.saveScore(
         currentUser!['id'],
-        'PHP',
-        6,
+        'Python',
+        9, // Level 9
         score,
-        score == 3, // Mananatiling 3
+        score == 3, // Only completed if perfect score
       );
 
       if (response['success'] == true) {
         setState(() {
-          level6Completed = score == 3; // Mananatiling 3
+          level9Completed = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
@@ -235,16 +240,16 @@ class _PhpLevel6State extends State<PhpLevel6> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScores(currentUser!['id'], 'PHP');
+      final response = await ApiService.getScores(currentUser!['id'], 'Python');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level6Data = scoresData['6'];
+        final level9Data = scoresData['9']; // Level 9
 
-        if (level6Data != null) {
+        if (level9Data != null) {
           setState(() {
-            previousScore = level6Data['score'] ?? 0;
-            level6Completed = level6Data['completed'] ?? false;
+            previousScore = level9Data['score'] ?? 0;
+            level9Completed = level9Data['completed'] ?? false;
             hasPreviousScore = true;
             score = previousScore;
           });
@@ -255,24 +260,53 @@ class _PhpLevel6State extends State<PhpLevel6> {
     }
   }
 
+  Future<void> refreshScore() async {
+    if (currentUser?['id'] != null) {
+      try {
+        final response = await ApiService.getScores(currentUser!['id'], 'Python');
+        if (response['success'] == true && response['scores'] != null) {
+          final scoresData = response['scores'];
+          final level9Data = scoresData['9'];
+
+          setState(() {
+            if (level9Data != null) {
+              previousScore = level9Data['score'] ?? 0;
+              level9Completed = level9Data['completed'] ?? false;
+              hasPreviousScore = true;
+              score = previousScore;
+            } else {
+              hasPreviousScore = false;
+              previousScore = 0;
+              level9Completed = false;
+              score = 3;
+            }
+          });
+        }
+      } catch (e) {
+        print('Error refreshing score: $e');
+      }
+    }
+  }
+
+  // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
-      '\$numbers = array(1,2,3,4,5);',
-      '\$sum = 1;',
-      'for (\$i=0; \$i<5; \$i++) {',
-      'while (\$i < count(\$numbers)) {',
-      '\$sum = \$sum + \$numbers[\$i];',
-      '\$sum = sum(\$numbers);',
-      'print \$sum;',
-      'return \$sum;',
-      '\$total = array_sum(\$numbers);',
-      'for (\$num in \$numbers) {',
-      'foreach (\$numbers) {',
-      '\$sum = \$num;',
-      '\$sum =+ \$num;',
-      'printf("Sum: %d", \$sum);',
-      'cout << "Sum: " << \$sum;',
-      'System.out.println("Sum: " + \$sum);',
+      'try',
+      'try {',
+      'result = 10 / input("Enter number: ")',
+      'result = 10 / int(input("Enter number: "))',
+      'print("Result: " + result)',
+      'catch ZeroDivisionError:',
+      'catch (ZeroDivisionError e):',
+      'except ZeroDivisionError',
+      'print("Cannot divide by zero")',
+      'print("Invalid input")',
+      'else:',
+      'finally:',
+      'System.out.println("Cannot divide by zero!")',
+      'cout << "Invalid input!" << endl;',
+      'result = 10 / number',
+      'number = input("Enter number: ")',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -282,6 +316,7 @@ class _PhpLevel6State extends State<PhpLevel6> {
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
+    // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
@@ -328,15 +363,16 @@ class _PhpLevel6State extends State<PhpLevel6> {
       return;
     }
 
-    // Check for correct PHP array and foreach loop with output
-    String answer = droppedBlocks.join(' ');
+    // Check for correct Python error handling
+    List<String> cleanedBlocks = droppedBlocks.map((block) => block.trim()).toList();
+    String answer = cleanedBlocks.join(' ');
     String normalizedAnswer = answer
         .replaceAll(' ', '')
         .replaceAll('\n', '')
         .toLowerCase();
 
-    // Expected: $numbers=[1,2,3,4,5];$sum=0;foreach($numbersas$num){$sum+=$num;}echo"sum:".$sum;
-    String expected = '\$numbers=[1,2,3,4,5];\$sum=0;foreach(\$numbersas\$num){\$sum+=\$num;}echo"sum:".\$sum;';
+    // Expected: try:result=10/int(input("enternumber:"))print(f"result:{result}")exceptzerodivisionerror:print("cannotdividebyzero!")exceptvalueerror:print("invalidinput!enteranumber.")
+    String expected = 'try:result=10/int(input("enternumber:"))print(f"result:{result}")exceptzerodivisionerror:print("cannotdividebyzero!")exceptvalueerror:print("invalidinput!enteranumber.")';
 
     if (normalizedAnswer == expected) {
       countdownTimer?.cancel();
@@ -348,7 +384,8 @@ class _PhpLevel6State extends State<PhpLevel6> {
 
       saveScoreToDatabase(score);
 
-      if (score == 3) { // Mananatiling 3
+      // PLAY SUCCESS SOUND BASED ON SCORE
+      if (score == 3) {
         musicService.playSoundEffect('perfect.mp3');
       } else {
         musicService.playSoundEffect('success.mp3');
@@ -362,18 +399,18 @@ class _PhpLevel6State extends State<PhpLevel6> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent! You created a PHP array, used foreach loop, and displayed the result!"),
+              Text("Excellent Python Error Handling!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've completed Java Level 6!",
-                  style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold),
+                  "🎉 Perfect! You've unlocked Level 9!",
+                  style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) to complete the level!",
+                  "⚠️ Get a perfect score (3/3) to complete this level!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
@@ -381,13 +418,18 @@ class _PhpLevel6State extends State<PhpLevel6> {
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
-                child: Text(
-                  "Sum: 15",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'monospace',
-                    fontSize: 16,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Enter number: 5", style: TextStyle(color: Colors.grey, fontFamily: 'monospace', fontSize: 12)),
+                    Text("Result: 2.0", style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 14)),
+                    SizedBox(height: 5),
+                    Text("Enter number: 0", style: TextStyle(color: Colors.grey, fontFamily: 'monospace', fontSize: 12)),
+                    Text("Cannot divide by zero!", style: TextStyle(color: Colors.red, fontFamily: 'monospace', fontSize: 14)),
+                    SizedBox(height: 5),
+                    Text("Enter number: abc", style: TextStyle(color: Colors.grey, fontFamily: 'monospace', fontSize: 12)),
+                    Text("Invalid input! Enter a number.", style: TextStyle(color: Colors.orange, fontFamily: 'monospace', fontSize: 14)),
+                  ],
                 ),
               ),
             ],
@@ -397,14 +439,14 @@ class _PhpLevel6State extends State<PhpLevel6> {
               onPressed: () {
                 musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
-                if (score == 3) { // Mananatiling 3
+                if (score == 3) {
                   musicService.playSoundEffect('level_complete.mp3');
-                  Navigator.pushReplacementNamed(context, '/php_level7');
+                  Navigator.pushReplacementNamed(context, '/python_level10');
                 } else {
-                  Navigator.pushReplacementNamed(context, '/levels', arguments: 'PHP');
+                  Navigator.pushReplacementNamed(context, '/levels', arguments: 'Python');
                 }
               },
-              child: Text(score == 3 ? "Next Level" : "Go Back"), // Mananatiling 3
+              child: Text(score == 3 ? "Next Level" : "Go Back"),
             )
           ],
         ),
@@ -456,6 +498,7 @@ class _PhpLevel6State extends State<PhpLevel6> {
     return "$m:$s";
   }
 
+  // ADVANCED CODE PREVIEW WITH INDENTATION
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -482,7 +525,7 @@ class _PhpLevel6State extends State<PhpLevel6> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'array_sum.php',
+                  'error_handling.py',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -516,8 +559,6 @@ class _PhpLevel6State extends State<PhpLevel6> {
                           _buildCodeLine(6),
                           _buildCodeLine(7),
                           _buildCodeLine(8),
-                          _buildCodeLine(9),
-                          _buildCodeLine(10),
                         ],
                       ),
                     ),
@@ -527,15 +568,13 @@ class _PhpLevel6State extends State<PhpLevel6> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildSyntaxHighlightedLine('<?php', isKeyword: true),
-                          _buildUserCodeLine(1, droppedBlocks.length > 0 ? droppedBlocks[0] : ''),
-                          _buildUserCodeLine(2, droppedBlocks.length > 1 ? droppedBlocks[1] : ''),
-                          _buildUserCodeLine(3, droppedBlocks.length > 2 ? droppedBlocks[2] : ''),
-                          _buildUserCodeLine(4, droppedBlocks.length > 3 ? droppedBlocks[3] : ''),
-                          _buildUserCodeLine(5, droppedBlocks.length > 4 ? droppedBlocks[4] : ''),
-                          _buildUserCodeLine(6, droppedBlocks.length > 5 ? droppedBlocks[5] : ''),
-                          _buildSyntaxHighlightedLine('', isNormal: true),
-                          _buildSyntaxHighlightedLine('?>', isKeyword: true),
+                          _buildUserCodeLine(1, droppedBlocks.length > 0 ? droppedBlocks[0] : '', indent: 0),
+                          _buildUserCodeLine(2, droppedBlocks.length > 1 ? droppedBlocks[1] : '', indent: 1),
+                          _buildUserCodeLine(3, droppedBlocks.length > 2 ? droppedBlocks[2] : '', indent: 1),
+                          _buildUserCodeLine(4, droppedBlocks.length > 3 ? droppedBlocks[3] : '', indent: 0),
+                          _buildUserCodeLine(5, droppedBlocks.length > 4 ? droppedBlocks[4] : '', indent: 1),
+                          _buildUserCodeLine(6, droppedBlocks.length > 5 ? droppedBlocks[5] : '', indent: 0),
+                          _buildUserCodeLine(7, droppedBlocks.length > 6 ? droppedBlocks[6] : '', indent: 1),
                         ],
                       ),
                     ),
@@ -549,12 +588,12 @@ class _PhpLevel6State extends State<PhpLevel6> {
     );
   }
 
-  Widget _buildUserCodeLine(int lineNumber, String code) {
+  Widget _buildUserCodeLine(int lineNumber, String code, {int indent = 0}) {
     if (code.isEmpty) {
       return Container(
         height: 20 * _scaleFactor,
         child: Text(
-          '        ',
+          ' '.padLeft(indent * 4),
           style: TextStyle(
             color: Colors.white,
             fontSize: 12 * _scaleFactor,
@@ -564,13 +603,15 @@ class _PhpLevel6State extends State<PhpLevel6> {
       );
     }
 
+    String indentation = ' '.padLeft(indent * 4);
+
     return Container(
       height: 20 * _scaleFactor,
       child: RichText(
         text: TextSpan(
           children: [
             TextSpan(
-              text: '        ',
+              text: indentation,
               style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12 * _scaleFactor),
             ),
             TextSpan(
@@ -595,34 +636,6 @@ class _PhpLevel6State extends State<PhpLevel6> {
         lineNumber.toString().padLeft(2, ' '),
         style: TextStyle(
           color: Colors.grey[600],
-          fontSize: 12 * _scaleFactor,
-          fontFamily: 'monospace',
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSyntaxHighlightedLine(String code, {bool isPreprocessor = false, bool isKeyword = false, bool isNormal = false, bool isComment = false}) {
-    Color textColor = Colors.white;
-
-    if (isKeyword) {
-      textColor = Color(0xFF569CD6); // Blue for PHP tags
-    } else if (isComment) {
-      textColor = Color(0xFF6A9955); // Green for comments
-    } else if (isNormal && code.contains('foreach')) {
-      textColor = Color(0xFFC586C0); // Purple for control structures
-    } else if (isNormal && code.contains('\$')) {
-      textColor = Color(0xFF9CDCFE); // Light blue for variables
-    } else if (isNormal) {
-      textColor = Colors.white;
-    }
-
-    return Container(
-      height: 20 * _scaleFactor,
-      child: Text(
-        code,
-        style: TextStyle(
-          color: textColor,
           fontSize: 12 * _scaleFactor,
           fontFamily: 'monospace',
         ),
@@ -658,8 +671,8 @@ class _PhpLevel6State extends State<PhpLevel6> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("🐘 PHP - Level 6", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.deepPurple,
+        title: Text("🐍 Python - Level 9", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.green[700],
         actions: gameStarted
             ? [
           Padding(
@@ -685,9 +698,9 @@ class _PhpLevel6State extends State<PhpLevel6> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1B0D1B),
-              Color(0xFF2D1B2D),
-              Color(0xFF553355),
+              Color(0xFF0A150A),
+              Color(0xFF152415),
+              Color(0xFF2A4A2A),
             ],
           ),
         ),
@@ -713,25 +726,25 @@ class _PhpLevel6State extends State<PhpLevel6> {
               label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.deepPurple,
+                backgroundColor: Colors.green[700],
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
 
-            if (level6Completed)
+            if (level9Completed)
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Level 6 completed with perfect score!",
+                      "✅ Level 9 completed with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "You've unlocked Level 7!",
-                      style: TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "You've unlocked Level 10",
+                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -744,12 +757,12 @@ class _PhpLevel6State extends State<PhpLevel6> {
                   children: [
                     Text(
                       "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.deepPurple, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score and unlock Level 7!",
+                      "Try again to get a perfect score and unlock Level 10!",
                       style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -763,7 +776,7 @@ class _PhpLevel6State extends State<PhpLevel6> {
                     children: [
                       Text(
                         "😅 Your previous score: $previousScore/3",
-                        style: TextStyle(color: Colors.deepPurple, fontSize: 16 * _scaleFactor),
+                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
@@ -781,26 +794,26 @@ class _PhpLevel6State extends State<PhpLevel6> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.deepPurple[50]!.withOpacity(0.9),
+                color: Colors.green[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.deepPurple[200]!),
+                border: Border.all(color: Colors.green[300]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎯 Level 6 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.deepPurple[800]),
+                    "🎯 Level 9 Objective",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.green[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create an array of numbers, use a foreach loop to calculate their sum, and display the result",
+                    "Create a Python program that:\n• Uses try-except for error handling\n• Takes user input and converts to integer\n• Handles division by zero errors\n• Handles invalid input value errors\n• Provides helpful error messages\n• Uses proper exception types",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.deepPurple[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.green[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎁  Get a perfect score (3/3) to unlock Level 7!",
+                    "🎁  Get a perfect score (3/3) to unlock Level 10!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
@@ -848,14 +861,14 @@ class _PhpLevel6State extends State<PhpLevel6> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Si Zeke ay may listahan ng mga numero at gustong kalkulahin at ipakita ang kabuuan nito gamit ang PHP! Kailangan niyang gumamit ng array, foreach loop, at ipakita ang resulta. Tulungan siyang pumili ng tamang code!'
-                : 'Zeke has a list of numbers and wants to calculate and display their sum using PHP! He needs to use an array, foreach loop, and show the result. Help him choose the correct code!',
+                ? 'Si Maria ay gumagawa ng calculator program! Dapat safe ang program kahit mag-input ng zero o text ang user. Kailangan niyang gamitin ang try-except para ma-handle ang mga errors gracefully. Protektahan ang program mula sa crashes!'
+                : 'Maria is creating a calculator program! The program should be safe even if users input zero or text. She needs to use try-except to handle errors gracefully. Protect the program from crashes!',
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the 6 correct blocks to create the array, calculate the sum, and display the result',
+          Text('🧩 Arrange the 7 correct blocks to create the error-safe calculator',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
@@ -864,13 +877,13 @@ class _PhpLevel6State extends State<PhpLevel6> {
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 140 * _scaleFactor,
-              maxHeight: 200 * _scaleFactor,
+              minHeight: 180 * _scaleFactor,
+              maxHeight: 280 * _scaleFactor,
             ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.deepPurple, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.green[700]!, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -900,10 +913,10 @@ class _PhpLevel6State extends State<PhpLevel6> {
                         data: block,
                         feedback: Material(
                           color: Colors.transparent,
-                          child: puzzleBlock(block, Colors.greenAccent),
+                          child: puzzleBlock(block, Colors.lightGreenAccent[700]!),
                         ),
-                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.greenAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.lightGreenAccent[700]!.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.lightGreenAccent[700]!),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
@@ -948,7 +961,7 @@ class _PhpLevel6State extends State<PhpLevel6> {
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 100 * _scaleFactor,
+              minHeight: 120 * _scaleFactor,
             ),
             padding: EdgeInsets.all(12 * _scaleFactor),
             decoration: BoxDecoration(
@@ -967,13 +980,13 @@ class _PhpLevel6State extends State<PhpLevel6> {
                   data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(block, Colors.deepPurpleAccent),
+                    child: puzzleBlock(block, Colors.greenAccent[700]!),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.deepPurpleAccent),
+                    child: puzzleBlock(block, Colors.greenAccent[700]!),
                   ),
-                  child: puzzleBlock(block, Colors.deepPurpleAccent),
+                  child: puzzleBlock(block, Colors.greenAccent[700]!),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
@@ -1014,7 +1027,7 @@ class _PhpLevel6State extends State<PhpLevel6> {
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple,
+              backgroundColor: Colors.green[700],
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,

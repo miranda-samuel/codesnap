@@ -24,7 +24,7 @@ class _CppLevel6State extends State<CppLevel6> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 90;
+  int remainingSeconds = 180;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -144,7 +144,7 @@ class _CppLevel6State extends State<CppLevel6> {
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 90;
+      remainingSeconds = 180;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       resetBlocks();
@@ -192,7 +192,7 @@ class _CppLevel6State extends State<CppLevel6> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 90), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -216,7 +216,7 @@ class _CppLevel6State extends State<CppLevel6> {
 
     setState(() {
       score = 3;
-      remainingSeconds = 90;
+      remainingSeconds = 180;
       gameStarted = false;
       isAnsweredCorrectly = false;
       droppedBlocks.clear();
@@ -981,11 +981,11 @@ class _CppLevel6State extends State<CppLevel6> {
                 ? 'Ngayon, gustong gumawa ni Alex ng star pattern gamit ang nested loops! Tulungan siyang bumuo ng program na magpi-print ng right-angled triangle na gawa sa stars. Gamitin ang outer loop para sa rows at inner loop para sa stars sa bawat row.'
                 : 'Now, Alex wants to create a star pattern using nested loops! Help him build a program that prints a right-angled triangle made of stars. Use an outer loop for rows and an inner loop for stars in each row.',
             textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
+            style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the blocks to form the correct C++ code',
+          Text('🧩 Arrange the 6 blocks to form the correct C++ code',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
@@ -1165,23 +1165,23 @@ class _CppLevel6State extends State<CppLevel6> {
   }
 
   Widget puzzleBlock(String text, Color color) {
-    // Calculate text width to adjust block size
+    // Calculate text width to adjust block size - SAME AS LEVEL 8
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
-          color: Colors.black, // FORCE BLACK TEXT FOR VISIBILITY
+          fontSize: 12 * _scaleFactor, // Using 12 instead of 14 for consistency
+          color: Colors.black,
         ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
 
     final textWidth = textPainter.width;
-    final minWidth = 80 * _scaleFactor;
-    final maxWidth = 220 * _scaleFactor; // Increased max width for longer text
+    final minWidth = 80 * _scaleFactor;  // Same as Level 8
+    final maxWidth = 240 * _scaleFactor; // Same as Level 8
 
     return Container(
       constraints: BoxConstraints(
@@ -1190,8 +1190,8 @@ class _CppLevel6State extends State<CppLevel6> {
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 16 * _scaleFactor, // Increased horizontal padding
-        vertical: 12 * _scaleFactor,
+        horizontal: 12 * _scaleFactor,  // Same as Level 8
+        vertical: 10 * _scaleFactor,    // Same as Level 8
       ),
       decoration: BoxDecoration(
         color: color,
@@ -1199,7 +1199,7 @@ class _CppLevel6State extends State<CppLevel6> {
           topLeft: Radius.circular(20 * _scaleFactor),
           bottomRight: Radius.circular(20 * _scaleFactor),
         ),
-        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor), // Darker border for contrast
+        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor),
         boxShadow: [
           BoxShadow(
             color: Colors.black45,
@@ -1213,19 +1213,19 @@ class _CppLevel6State extends State<CppLevel6> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
-          color: Colors.black, // FORCE BLACK TEXT FOR MAXIMUM VISIBILITY
+          fontSize: 12 * _scaleFactor, // Changed from 14 to 12 to match Level 8
+          color: Colors.black,
           shadows: [
             Shadow(
               offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
               blurRadius: 2 * _scaleFactor,
-              color: Colors.white.withOpacity(0.8), // White shadow for better contrast
+              color: Colors.white.withOpacity(0.8),
             ),
           ],
         ),
         textAlign: TextAlign.center,
-        overflow: TextOverflow.visible, // Changed from ellipsis to visible
-        maxLines: 2, // Allow 2 lines for longer text
+        overflow: TextOverflow.visible,
+        softWrap: true, // Added for better text wrapping
       ),
     );
   }

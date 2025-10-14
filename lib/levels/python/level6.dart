@@ -29,7 +29,10 @@ class _PythonLevel6State extends State<PythonLevel6> {
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
+  // Track currently dragged block
   String? currentlyDraggedBlock;
+
+  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
@@ -76,43 +79,43 @@ class _PythonLevel6State extends State<PythonLevel6> {
   }
 
   void resetBlocks() {
+    // Correct blocks for Python: Function with parameters and return value
     List<String> correctBlocks = [
-      'def calculate_average(numbers):',
-      'total = sum(numbers)',
-      'average = total / len(numbers)',
-      'for num in numbers:',
-      'if num > average:',
-      'print(f"{num} is above average")'
+      'def calculate_area(length, width):',
+      'area = length * width',
+      'return area',
+      'result = calculate_area(5, 3)',
+      'print(f"The area is: {result}")',
+      'print("Calculation complete!")'
     ];
 
+    // Incorrect/distractor blocks
     List<String> incorrectBlocks = [
-      'def calculate_average numbers:',
-      'def calculate_average():',
-      'total = sum(numbers)',
-      'count = length(numbers)',
-      'average = total / count',
-      'for num in numbers',
-      'while num in numbers:',
-      'if num > average',
-      'if num > avg:',
-      'print(num + " is above average")',
-      'print("above average")',
-      'return total',
-      'function calculate_average(numbers)',
-      'let total = numbers.reduce((a,b) => a+b)',
-      'System.out.println(num + " is above average")',
-      'numbers.forEach((num) => {})',
-      'elif num > average:',
-      'else if num > average:',
-      'cout << num << " is above average";',
-      'numbers = [1,2,3,4,5]',
-      'def main():',
-      'class StatsCalculator:',
+      'def calculate_area(length width):',
+      'def calculate_area():',
+      'area = length * width;',
+      'return area;',
+      'result = calculate_area(5 3)',
+      'result = calculate_area()',
+      'print("The area is: " + result)',
+      'print("Calculation complete!")',
+      'System.out.println(result)',
+      'cout << result << endl;',
+      'def calc_area(l, w):',
+      'area = l * w',
+      'print(area)',
+      'function calculate_area(length, width) {',
+      'return length * width',
+      '}',
+      'let result = calculate_area(5, 3)',
+      'console.log(result)',
     ];
 
+    // Shuffle incorrect blocks and take 4 random ones
     incorrectBlocks.shuffle();
     List<String> selectedIncorrectBlocks = incorrectBlocks.take(4).toList();
 
+    // Combine correct and incorrect blocks, then shuffle
     allBlocks = [
       ...correctBlocks,
       ...selectedIncorrectBlocks,
@@ -174,7 +177,7 @@ class _PythonLevel6State extends State<PythonLevel6> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 40), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 90), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -215,9 +218,9 @@ class _PythonLevel6State extends State<PythonLevel6> {
       final response = await ApiService.saveScore(
         currentUser!['id'],
         'Python',
-        6,
+        6, // Level 6
         score,
-        score == 3,
+        score == 3, // Only completed if perfect score
       );
 
       if (response['success'] == true) {
@@ -242,7 +245,7 @@ class _PythonLevel6State extends State<PythonLevel6> {
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level6Data = scoresData['6'];
+        final level6Data = scoresData['6']; // Level 6
 
         if (level6Data != null) {
           setState(() {
@@ -258,30 +261,54 @@ class _PythonLevel6State extends State<PythonLevel6> {
     }
   }
 
+  Future<void> refreshScore() async {
+    if (currentUser?['id'] != null) {
+      try {
+        final response = await ApiService.getScores(currentUser!['id'], 'Python');
+        if (response['success'] == true && response['scores'] != null) {
+          final scoresData = response['scores'];
+          final level6Data = scoresData['6'];
+
+          setState(() {
+            if (level6Data != null) {
+              previousScore = level6Data['score'] ?? 0;
+              level6Completed = level6Data['completed'] ?? false;
+              hasPreviousScore = true;
+              score = previousScore;
+            } else {
+              hasPreviousScore = false;
+              previousScore = 0;
+              level6Completed = false;
+              score = 3;
+            }
+          });
+        }
+      } catch (e) {
+        print('Error refreshing score: $e');
+      }
+    }
+  }
+
+  // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
-      'def calculate_average numbers:',
-      'def calculate_average():',
-      'total = sum(numbers)',
-      'count = length(numbers)',
-      'average = total / count',
-      'for num in numbers',
-      'while num in numbers:',
-      'if num > average',
-      'if num > avg:',
-      'print(num + " is above average")',
-      'print("above average")',
-      'return total',
-      'function calculate_average(numbers)',
-      'let total = numbers.reduce((a,b) => a+b)',
-      'System.out.println(num + " is above average")',
-      'numbers.forEach((num) => {})',
-      'elif num > average:',
-      'else if num > average:',
-      'cout << num << " is above average";',
-      'numbers = [1,2,3,4,5]',
-      'def main():',
-      'class StatsCalculator:',
+      'def calculate_area(length width):',
+      'def calculate_area():',
+      'area = length * width;',
+      'return area;',
+      'result = calculate_area(5 3)',
+      'result = calculate_area()',
+      'print("The area is: " + result)',
+      'System.out.println(result)',
+      'cout << result << endl;',
+      'def calc_area(l, w):',
+      'area = l * w',
+      'print(area)',
+      'function calculate_area(length, width) {',
+      'return length * width',
+      '}',
+      'let result = calculate_area(5, 3)',
+      'console.log(result)',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -338,21 +365,17 @@ class _PythonLevel6State extends State<PythonLevel6> {
       return;
     }
 
-    // SIMPLE CHECK: Just check if all 6 correct blocks are present (order doesn't matter)
-    List<String> correctBlocks = [
-      'def calculate_average(numbers):',
-      'total = sum(numbers)',
-      'average = total / len(numbers)',
-      'for num in numbers:',
-      'if num > average:',
-      'print(f"{num} is above average")'
-    ];
+    // Check for correct Python function with parameters and return value
+    String answer = droppedBlocks.join(' ');
+    String normalizedAnswer = answer
+        .replaceAll(' ', '')
+        .replaceAll('\n', '')
+        .toLowerCase();
 
-    // Check if all correct blocks are in droppedBlocks
-    bool allCorrectBlocksPresent = correctBlocks.every((block) => droppedBlocks.contains(block));
+    // Expected: defcalculate_area(length,width):area=length*widthreturnarearesult=calculate_area(5,3)print(f"theareais:{result}")print("calculationcomplete!")
+    String expected = 'defcalculate_area(length,width):area=length*widthreturnarearesult=calculate_area(5,3)print(f"theareais:{result}")print("calculationcomplete!")';
 
-    // If all 6 correct blocks are used and no incorrect blocks, it's correct!
-    if (allCorrectBlocksPresent && droppedBlocks.length == 6) {
+    if (normalizedAnswer == expected) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -362,6 +385,7 @@ class _PythonLevel6State extends State<PythonLevel6> {
 
       saveScoreToDatabase(score);
 
+      // PLAY SUCCESS SOUND BASED ON SCORE
       if (score == 3) {
         musicService.playSoundEffect('perfect.mp3');
       } else {
@@ -382,7 +406,7 @@ class _PythonLevel6State extends State<PythonLevel6> {
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've mastered Level 6!",
+                  "🎉 Perfect! You've unlocked Level 7!",
                   style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
                 )
               else
@@ -391,15 +415,15 @@ class _PythonLevel6State extends State<PythonLevel6> {
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
-              Text("Function Output (for [10, 20, 30, 40]):", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("30 is above average", style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 14)),
-                    Text("40 is above average", style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 14)),
+                    Text("The area is: 15", style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 14)),
+                    Text("Calculation complete!", style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 14)),
                   ],
                 ),
               ),
@@ -430,10 +454,7 @@ class _PythonLevel6State extends State<PythonLevel6> {
           score--;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("❌ You need to use exactly 6 correct blocks! -1 point. Current score: $score"),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text("❌ Incorrect arrangement. -1 point. Current score: $score")),
         );
       } else {
         setState(() {
@@ -449,7 +470,7 @@ class _PythonLevel6State extends State<PythonLevel6> {
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("You need to use exactly 6 correct blocks!"),
+            content: Text("You lost all your points."),
             actions: [
               TextButton(
                 onPressed: () {
@@ -472,6 +493,7 @@ class _PythonLevel6State extends State<PythonLevel6> {
     return "$m:$s";
   }
 
+  // ADVANCED CODE PREVIEW WITH INDENTATION
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -483,6 +505,7 @@ class _PythonLevel6State extends State<PythonLevel6> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Code editor header
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
             decoration: BoxDecoration(
@@ -497,7 +520,7 @@ class _PythonLevel6State extends State<PythonLevel6> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'average_calculator.py',
+                  'function_area.py',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -507,14 +530,17 @@ class _PythonLevel6State extends State<PythonLevel6> {
               ],
             ),
           ),
+          // Code content
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Line numbers and code
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Line numbers
                     Container(
                       width: 30 * _scaleFactor,
                       child: Column(
@@ -531,6 +557,7 @@ class _PythonLevel6State extends State<PythonLevel6> {
                       ),
                     ),
                     SizedBox(width: 16 * _scaleFactor),
+                    // Actual code with syntax highlighting
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -538,9 +565,9 @@ class _PythonLevel6State extends State<PythonLevel6> {
                           _buildUserCodeLine(1, droppedBlocks.length > 0 ? droppedBlocks[0] : '', indent: 0),
                           _buildUserCodeLine(2, droppedBlocks.length > 1 ? droppedBlocks[1] : '', indent: 1),
                           _buildUserCodeLine(3, droppedBlocks.length > 2 ? droppedBlocks[2] : '', indent: 1),
-                          _buildUserCodeLine(4, droppedBlocks.length > 3 ? droppedBlocks[3] : '', indent: 1),
-                          _buildUserCodeLine(5, droppedBlocks.length > 4 ? droppedBlocks[4] : '', indent: 2),
-                          _buildUserCodeLine(6, droppedBlocks.length > 5 ? droppedBlocks[5] : '', indent: 3),
+                          _buildUserCodeLine(4, droppedBlocks.length > 3 ? droppedBlocks[3] : '', indent: 0),
+                          _buildUserCodeLine(5, droppedBlocks.length > 4 ? droppedBlocks[4] : '', indent: 0),
+                          _buildUserCodeLine(6, droppedBlocks.length > 5 ? droppedBlocks[5] : '', indent: 0),
                         ],
                       ),
                     ),
@@ -773,11 +800,11 @@ class _PythonLevel6State extends State<PythonLevel6> {
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create a Python function that:\n• Takes a list of numbers as parameter\n• Calculates the total and average\n• Loops through each number\n• Prints numbers that are above average",
+                    "Create a Python program that:\n• Defines a function with parameters\n• Calculates area using length and width\n• Returns the calculated value\n• Calls the function with arguments\n• Prints the result using f-string\n• Displays a completion message",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.green[700]),
                   ),
-                  SizedBox(height: 5 * _scaleFactor),
+                  SizedBox(height: 10 * _scaleFactor),
                   Text(
                     "🎁  Get a perfect score (3/3) to unlock Level 7!",
                     textAlign: TextAlign.center,
@@ -807,7 +834,7 @@ class _PythonLevel6State extends State<PythonLevel6> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Advanced Story',
+                child: Text('📖 Short Story',
                     style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
@@ -827,18 +854,19 @@ class _PythonLevel6State extends State<PythonLevel6> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Si Maria ay gumagawa ng statistics calculator! Kailangan niyang gumawa ng function na kalkulahin ang average at mag-display ng mga numerong mas mataas sa average. Gamitin ang function definition, list operations, at conditional statements!'
-                : 'Maria is building a statistics calculator! She needs to create a function that calculates the average and displays numbers that are above average. Use function definition, list operations, and conditional statements!',
+                ? 'Si Juan ay nangangailangan ng function para kalkulahin ang area ng rectangle! Kailangan niyang gumawa ng function na may parameters at return value. Gamitin ang function definition, parameters, at return statement!'
+                : 'Juan needs a function to calculate the area of a rectangle! He needs to create a function with parameters and return value. Use function definition, parameters, and return statement!',
             textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
+            style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the 6 correct blocks to create the function',
+          Text('🧩 Arrange the 6 correct blocks to create the program',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
+          // TARGET AREA
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
@@ -922,6 +950,7 @@ class _PythonLevel6State extends State<PythonLevel6> {
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
 
+          // SOURCE AREA
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
@@ -1012,13 +1041,14 @@ class _PythonLevel6State extends State<PythonLevel6> {
   }
 
   Widget puzzleBlock(String text, Color color) {
+    // Calculate text width to adjust block size
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
+          fontSize: 12 * _scaleFactor,
           color: Colors.black,
         ),
       ),
@@ -1036,8 +1066,8 @@ class _PythonLevel6State extends State<PythonLevel6> {
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 16 * _scaleFactor,
-        vertical: 12 * _scaleFactor,
+        horizontal: 12 * _scaleFactor,
+        vertical: 10 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
@@ -1059,7 +1089,7 @@ class _PythonLevel6State extends State<PythonLevel6> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
+          fontSize: 12 * _scaleFactor,
           color: Colors.black,
           shadows: [
             Shadow(
@@ -1071,7 +1101,7 @@ class _PythonLevel6State extends State<PythonLevel6> {
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.visible,
-        maxLines: 2,
+        softWrap: true,
       ),
     );
   }
