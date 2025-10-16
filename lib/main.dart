@@ -69,6 +69,13 @@ import 'levels/sql/level8.dart';
 import 'levels/sql/level9.dart';
 import 'levels/sql/level10.dart';
 
+// Import new module screens
+import 'screens/php_modules_screen.dart';
+import 'screens/cpp_modules_screen.dart';
+import 'screens/python_modules_screen.dart';
+import 'screens/java_modules_screen.dart';
+import 'screens/sql_modules_screen.dart';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -97,6 +104,11 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _musicService = MusicService();
     print('🎵 App initialized with Music Service');
+
+    // Start music after a short delay to ensure everything is initialized
+    Future.delayed(Duration(milliseconds: 500), () {
+      _musicService.playBackgroundMusic();
+    });
   }
 
   @override
@@ -105,13 +117,6 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     print('💀 APP DISPOSING - KILLING ALL MUSIC');
     _musicService.stopAllMusic();
-
-    // Start music after a short delay to ensure everything is initialized
-    Future.delayed(Duration(milliseconds: 500), () {
-      _musicService.playBackgroundMusic();
-    });
-
-    print('🎵 App initialized with Music Service');
   }
 
   @override
@@ -164,6 +169,13 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           '/game': (context) => const GameScreen(),
           '/forgot_password': (context) => const ForgotPasswordPage(),
           '/settings': (context) => const SettingsScreen(),
+
+          // NEW: Programming Modules Screens
+          '/php_modules': (context) => const PhpModulesScreen(),
+          '/cpp_modules': (context) => const CppModulesScreen(),
+          '/python_modules': (context) => const PythonModulesScreen(),
+          '/java_modules': (context) => const JavaModulesScreen(),
+          '/sql_modules': (context) => const SqlModulesScreen(),
 
           // Python levels
           '/python_level1': (context) => const PythonLevel1(),

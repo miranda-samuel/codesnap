@@ -195,6 +195,125 @@ class ApiService {
     }
   }
 
+  // NEW: Season methods
+  static Future<Map<String, dynamic>> resetSeasonScores() async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/scores.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'reset_season',
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('Season reset response: $data');
+        return data;
+      } else {
+        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      print('Error resetting season: $e');
+      return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getSeasonInfo() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/scores.php?action=get_season_info'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        if (data['success'] == true && data['season_info'] != null) {
+          // Process season info to ensure proper types
+          final seasonInfo = data['season_info'];
+          seasonInfo['current_season'] = _safeIntConversion(seasonInfo['current_season']);
+          seasonInfo['days_remaining'] = _safeIntConversion(seasonInfo['days_remaining']);
+
+          // Parse dates if provided
+          if (seasonInfo['season_start'] != null) {
+            try {
+              seasonInfo['season_start'] = DateTime.parse(seasonInfo['season_start']);
+            } catch (e) {
+              seasonInfo['season_start'] = DateTime.now();
+            }
+          }
+
+          if (seasonInfo['season_end'] != null) {
+            try {
+              seasonInfo['season_end'] = DateTime.parse(seasonInfo['season_end']);
+            } catch (e) {
+              seasonInfo['season_end'] = DateTime.now().add(Duration(days: 60));
+            }
+          }
+        }
+
+        return data;
+      } else {
+        return {
+          'success': false,
+          'message': 'Server error: ${response.statusCode}'
+        };
+      }
+    } catch (e) {
+      print('Error getting season info: $e');
+      return {
+        'success': false,
+        'message': 'Connection error: $e'
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> getSeasonLeaderboard() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/scores.php?action=get_season_leaderboard'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        // Debug print to see what the API returns
+        print('Season Leaderboard API Response: $data');
+
+        // Handle different response structures
+        if (data['success'] == true) {
+          if (data['leaderboard'] != null && data['leaderboard'] is List) {
+            return {
+              'success': true,
+              'leaderboard': data['leaderboard']
+            };
+          } else {
+            return {
+              'success': false,
+              'message': 'Invalid season leaderboard data format'
+            };
+          }
+        } else {
+          return {
+            'success': false,
+            'message': data['message'] ?? 'Unknown error'
+          };
+        }
+      } else {
+        return {
+          'success': false,
+          'message': 'Server error: ${response.statusCode}'
+        };
+      }
+    } catch (e) {
+      print('Connection error: $e');
+      return {
+        'success': false,
+        'message': 'Connection error: $e'
+      };
+    }
+  }
+
   // Profile methods
   static Future<Map<String, dynamic>> updateProfile(int userId, String fullName, String username) async {
     try {

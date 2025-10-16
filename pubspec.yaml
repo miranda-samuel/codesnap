@@ -17,6 +17,7 @@ dependencies:
   audioplayers: ^6.5.0
   provider: ^6.1.1
   device_info_plus: ^9.0.0
+  flutter_highlight: 0.7.0
 
 dev_dependencies:
   flutter_test:
@@ -30,6 +31,7 @@ flutter:
   assets:
     - assets/audio/
     - assets/icon.png  # ✅ Your app icon file
+    - assets/tutorials/
 
 # ✅ Flutter Launcher Icons Configuration (single image only)
 flutter_icons:
