@@ -25,19 +25,16 @@ class _SqlLevel9State extends State<SqlLevel9> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 200;
+  int remainingSeconds = 180; // 3 minutes for complex query
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
-  // Track currently dragged block
   String? currentlyDraggedBlock;
-
-  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // Hint card system using UserPreferences
+  // Hint card system
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
@@ -78,7 +75,6 @@ class _SqlLevel9State extends State<SqlLevel9> {
     });
   }
 
-  // Load hint cards using UserPreferences
   Future<void> _loadHintCards() async {
     final user = await UserPreferences.getUser();
     if (user['id'] != null) {
@@ -89,7 +85,6 @@ class _SqlLevel9State extends State<SqlLevel9> {
     }
   }
 
-  // Use hint card - shows hint and auto-drags correct answer
   void _useHintCard() async {
     if (_availableHintCards > 0 && !_isUsingHint) {
       final musicService = Provider.of<MusicService>(context, listen: false);
@@ -102,13 +97,11 @@ class _SqlLevel9State extends State<SqlLevel9> {
         _availableHintCards--;
       });
 
-      // Save the updated hint card count
       final user = await UserPreferences.getUser();
       if (user['id'] != null) {
         await DailyChallengeService.useHintCard(user['id']);
       }
 
-      // Auto-drag the correct blocks after a short delay
       _autoDragCorrectBlocks();
     } else if (_availableHintCards <= 0) {
       final musicService = Provider.of<MusicService>(context, listen: false);
@@ -117,13 +110,12 @@ class _SqlLevel9State extends State<SqlLevel9> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('No hint cards available! Complete daily challenges to earn more.'),
-          backgroundColor: Colors.teal,
+          backgroundColor: Colors.orange,
         ),
       );
     }
   }
 
-  // Auto-drag correct blocks to answer area
   void _autoDragCorrectBlocks() {
     // Correct blocks for SQL: SELECT c.customer_name, o.order_date, SUM(oi.quantity * oi.unit_price) as total_amount FROM customers c JOIN orders o ON c.customer_id = o.customer_id JOIN order_items oi ON o.order_id = oi.order_id GROUP BY c.customer_name, o.order_date HAVING total_amount > 1000 ORDER BY total_amount DESC;
     List<String> correctBlocks = [
@@ -136,12 +128,10 @@ class _SqlLevel9State extends State<SqlLevel9> {
       'ORDER BY total_amount DESC;'
     ];
 
-    // Remove any existing correct blocks from dropped area first
     setState(() {
       droppedBlocks.clear();
     });
 
-    // Add correct blocks one by one with delay
     int delay = 0;
     for (String block in correctBlocks) {
       Future.delayed(Duration(milliseconds: delay), () {
@@ -159,7 +149,6 @@ class _SqlLevel9State extends State<SqlLevel9> {
       delay += 500;
     }
 
-    // Hide hint after all blocks are placed
     Future.delayed(Duration(milliseconds: delay + 1000), () {
       if (mounted) {
         setState(() {
@@ -234,7 +223,7 @@ class _SqlLevel9State extends State<SqlLevel9> {
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 200;
+      remainingSeconds = 180;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       _showHint = false;
@@ -284,7 +273,7 @@ class _SqlLevel9State extends State<SqlLevel9> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 45), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 60), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -308,7 +297,7 @@ class _SqlLevel9State extends State<SqlLevel9> {
 
     setState(() {
       score = 3;
-      remainingSeconds = 200;
+      remainingSeconds = 180;
       gameStarted = false;
       isAnsweredCorrectly = false;
       _showHint = false;
@@ -370,7 +359,6 @@ class _SqlLevel9State extends State<SqlLevel9> {
     }
   }
 
-  // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
       'SELECT * FROM',
@@ -471,7 +459,6 @@ class _SqlLevel9State extends State<SqlLevel9> {
 
       saveScoreToDatabase(score);
 
-      // PLAY SUCCESS SOUND BASED ON SCORE
       if (score == 3) {
         musicService.playSoundEffect('perfect.mp3');
       } else {
@@ -481,23 +468,23 @@ class _SqlLevel9State extends State<SqlLevel9> {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text("🏆 SQL MASTER CHALLENGE COMPLETED!"),
+          title: Text("✅ Correct!"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("INCREDIBLE! You've solved the most complex SQL challenge!", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("SQL Double JOIN Expert!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 PERFECT! You are now a SQL EXPERT!",
-                  style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold, fontSize: 16),
+                  "🎉 Perfect! You've mastered advanced SQL!",
+                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) to achieve SQL Expert status!",
+                  "⚠️ Get a perfect score (3/3) to complete this level!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
@@ -510,46 +497,8 @@ class _SqlLevel9State extends State<SqlLevel9> {
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
-                    fontSize: 12,
+                    fontSize: 14,
                   ),
-                ),
-              ),
-              SizedBox(height: 10),
-              Text("EXPERT SQL CONCEPTS:", style: TextStyle(fontWeight: FontWeight.bold)),
-              Container(
-                padding: EdgeInsets.all(10),
-                color: Colors.teal[50],
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("• DOUBLE JOIN operations", style: TextStyle(color: Colors.teal[900])),
-                    Text("• Calculated columns with arithmetic", style: TextStyle(color: Colors.teal[900])),
-                    Text("• Column aliases (AS)", style: TextStyle(color: Colors.teal[900])),
-                    Text("• Multiple table joins with ON clauses", style: TextStyle(color: Colors.teal[900])),
-                    Text("• GROUP BY multiple columns", style: TextStyle(color: Colors.teal[900])),
-                    Text("• HAVING with calculated column", style: TextStyle(color: Colors.teal[900])),
-                    Text("• Complex aggregate filtering", style: TextStyle(color: Colors.teal[900])),
-                  ],
-                ),
-              ),
-              SizedBox(height: 10),
-              Container(
-                padding: EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.amber[50],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.emoji_events, color: Colors.teal),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        "This is the ULTIMATE SQL challenge! You've mastered complex multi-table queries!",
-                        style: TextStyle(color: Colors.teal[800], fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ],
@@ -559,10 +508,15 @@ class _SqlLevel9State extends State<SqlLevel9> {
               onPressed: () {
                 musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
-                musicService.playSoundEffect('victory.mp3');
-                Navigator.pushReplacementNamed(context, '/levels', arguments: 'SQL');
+                if (score == 3) {
+                  musicService.playSoundEffect('level_complete.mp3');
+                  Navigator.pushReplacementNamed(context, '/sql_level10');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/levels',
+                      arguments: 'SQL');
+                }
               },
-              child: Text("Complete Journey"),
+              child: Text(score == 3 ? "Next Level" : "Go Back"),
             )
           ],
         ),
@@ -575,7 +529,7 @@ class _SqlLevel9State extends State<SqlLevel9> {
           score--;
         });
 
-        String errorMessage = "❌ Incorrect arrangement. -1 point. Current score: $score";
+        String errorMessage = "❌ Incorrect SQL arrangement. -1 point. Current score: $score";
 
         // Provide specific feedback
         if (!allCorrectBlocksPresent) {
@@ -624,7 +578,6 @@ class _SqlLevel9State extends State<SqlLevel9> {
     return "$m:$s";
   }
 
-  // Hint Display Widget
   Widget _buildHintDisplay() {
     if (!_showHint) return SizedBox();
 
@@ -635,9 +588,9 @@ class _SqlLevel9State extends State<SqlLevel9> {
       child: Container(
         padding: EdgeInsets.all(16 * _scaleFactor),
         decoration: BoxDecoration(
-          color: Colors.teal.withOpacity(0.95),
+          color: Colors.orange.withOpacity(0.95),
           borderRadius: BorderRadius.circular(12 * _scaleFactor),
-          border: Border.all(color: Colors.tealAccent, width: 2 * _scaleFactor),
+          border: Border.all(color: Colors.orangeAccent, width: 2 * _scaleFactor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.3),
@@ -653,7 +606,7 @@ class _SqlLevel9State extends State<SqlLevel9> {
                 Icon(Icons.lightbulb, color: Colors.white, size: 20 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  '💡 Expert Hint Activated!',
+                  '💡 Hint Activated!',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16 * _scaleFactor,
@@ -667,7 +620,7 @@ class _SqlLevel9State extends State<SqlLevel9> {
               _currentHint,
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 12 * _scaleFactor,
+                fontSize: 14 * _scaleFactor,
               ),
               textAlign: TextAlign.center,
             ),
@@ -676,7 +629,7 @@ class _SqlLevel9State extends State<SqlLevel9> {
               'Correct blocks are being placed automatically...',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 10 * _scaleFactor,
+                fontSize: 12 * _scaleFactor,
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -686,7 +639,6 @@ class _SqlLevel9State extends State<SqlLevel9> {
     );
   }
 
-  // CODE PREVIEW
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -698,7 +650,6 @@ class _SqlLevel9State extends State<SqlLevel9> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // SQL editor header
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
             decoration: BoxDecoration(
@@ -713,7 +664,7 @@ class _SqlLevel9State extends State<SqlLevel9> {
                 Icon(Icons.storage, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'expert_double_join.sql',
+                  'double_join_analysis.sql',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -723,17 +674,14 @@ class _SqlLevel9State extends State<SqlLevel9> {
               ],
             ),
           ),
-          // SQL content
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Line numbers and SQL
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Line numbers
                     Container(
                       width: 30 * _scaleFactor,
                       child: Column(
@@ -743,17 +691,25 @@ class _SqlLevel9State extends State<SqlLevel9> {
                           _buildCodeLine(2),
                           _buildCodeLine(3),
                           _buildCodeLine(4),
+                          _buildCodeLine(5),
+                          _buildCodeLine(6),
+                          _buildCodeLine(7),
                         ],
                       ),
                     ),
                     SizedBox(width: 16 * _scaleFactor),
-                    // Actual SQL with syntax highlighting
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildUserCodeLine(getPreviewCode()),
-                          _buildSyntaxHighlightedLine('-- ULTIMATE SQL: Double JOIN with calculated column and HAVING', isComment: true),
+                          _buildUserCodeLine(1, droppedBlocks.length > 0 ? droppedBlocks[0] : ''),
+                          _buildUserCodeLine(2, droppedBlocks.length > 1 ? droppedBlocks[1] : ''),
+                          _buildUserCodeLine(3, droppedBlocks.length > 2 ? droppedBlocks[2] : ''),
+                          _buildUserCodeLine(4, droppedBlocks.length > 3 ? droppedBlocks[3] : ''),
+                          _buildUserCodeLine(5, droppedBlocks.length > 4 ? droppedBlocks[4] : ''),
+                          _buildUserCodeLine(6, droppedBlocks.length > 5 ? droppedBlocks[5] : ''),
+                          _buildUserCodeLine(7, droppedBlocks.length > 6 ? droppedBlocks[6] : ''),
+                          _buildSyntaxHighlightedLine('-- Find high-value orders using double JOIN', isComment: true),
                         ],
                       ),
                     ),
@@ -767,7 +723,7 @@ class _SqlLevel9State extends State<SqlLevel9> {
     );
   }
 
-  Widget _buildUserCodeLine(String code) {
+  Widget _buildUserCodeLine(int lineNumber, String code) {
     if (code.isEmpty) {
       return Container(
         height: 20 * _scaleFactor,
@@ -790,7 +746,7 @@ class _SqlLevel9State extends State<SqlLevel9> {
             TextSpan(
               text: code,
               style: TextStyle(
-                color: Colors.tealAccent[400],
+                color: Colors.orangeAccent[400],
                 fontFamily: 'monospace',
                 fontSize: 12 * _scaleFactor,
                 fontWeight: FontWeight.bold,
@@ -839,10 +795,6 @@ class _SqlLevel9State extends State<SqlLevel9> {
     );
   }
 
-  String getPreviewCode() {
-    return droppedBlocks.join(' ');
-  }
-
   @override
   void dispose() {
     countdownTimer?.cancel();
@@ -858,7 +810,6 @@ class _SqlLevel9State extends State<SqlLevel9> {
 
   @override
   Widget build(BuildContext context) {
-    // Recalculate scale factor when screen size changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
       final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
@@ -872,8 +823,8 @@ class _SqlLevel9State extends State<SqlLevel9> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("⚡ SQL - Level 9", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.teal,
+        title: Text("🚀 SQL - Level 9", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.orange,
         actions: gameStarted
             ? [
           Padding(
@@ -899,16 +850,15 @@ class _SqlLevel9State extends State<SqlLevel9> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF004D40),
-              Color(0xFF00695C),
-              Color(0xFF00796B),
+              Color(0xFF0D1B2A),
+              Color(0xFF1B263B),
+              Color(0xFF415A77),
             ],
           ),
         ),
         child: Stack(
           children: [
             gameStarted ? buildGameUI() : buildStartScreen(),
-            // HINT BUTTON AND DISPLAY
             if (gameStarted && !isAnsweredCorrectly) ...[
               _buildHintDisplay(),
               Positioned(
@@ -919,7 +869,7 @@ class _SqlLevel9State extends State<SqlLevel9> {
                   child: Container(
                     padding: EdgeInsets.all(12 * _scaleFactor),
                     decoration: BoxDecoration(
-                      color: _availableHintCards > 0 ? Colors.teal : Colors.grey,
+                      color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
                       borderRadius: BorderRadius.circular(20 * _scaleFactor),
                       boxShadow: [
                         BoxShadow(
@@ -929,7 +879,7 @@ class _SqlLevel9State extends State<SqlLevel9> {
                         )
                       ],
                       border: Border.all(
-                        color: _availableHintCards > 0 ? Colors.tealAccent : Colors.grey,
+                        color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
                         width: 2 * _scaleFactor,
                       ),
                     ),
@@ -974,31 +924,30 @@ class _SqlLevel9State extends State<SqlLevel9> {
                 startGame();
               },
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Ultimate Challenge", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.teal,
+                backgroundColor: Colors.orange,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
 
-            // Display available hint cards in start screen
             Container(
               padding: EdgeInsets.all(12 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.teal.withOpacity(0.2),
+                color: Colors.orange.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.teal),
+                border: Border.all(color: Colors.orange),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.lightbulb_outline, color: Colors.teal, size: 20 * _scaleFactor),
+                  Icon(Icons.lightbulb_outline, color: Colors.orange, size: 20 * _scaleFactor),
                   SizedBox(width: 8 * _scaleFactor),
                   Text(
                     'Hint Cards: $_availableHintCards',
                     style: TextStyle(
-                      color: Colors.teal,
+                      color: Colors.orange,
                       fontSize: 16 * _scaleFactor,
                       fontWeight: FontWeight.bold,
                     ),
@@ -1008,7 +957,7 @@ class _SqlLevel9State extends State<SqlLevel9> {
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Use hint cards during this expert challenge!',
+              'Use hint cards during the game for help!',
               style: TextStyle(
                 color: Colors.white70,
                 fontSize: 12 * _scaleFactor,
@@ -1027,8 +976,8 @@ class _SqlLevel9State extends State<SqlLevel9> {
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "🏆 You are now a SQL EXPERT!",
-                      style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "You've mastered advanced SQL queries!",
+                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1046,8 +995,8 @@ class _SqlLevel9State extends State<SqlLevel9> {
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score and become SQL Expert!",
-                      style: TextStyle(color: Colors.teal, fontSize: 14 * _scaleFactor),
+                      "Try again to get a perfect score!",
+                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1065,8 +1014,8 @@ class _SqlLevel9State extends State<SqlLevel9> {
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
-                        "This is the ultimate challenge! Give it your best shot!",
-                        style: TextStyle(color: Colors.teal, fontSize: 14 * _scaleFactor),
+                        "Don't give up! You can do better this time!",
+                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1078,49 +1027,32 @@ class _SqlLevel9State extends State<SqlLevel9> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.teal[50]!.withOpacity(0.9),
+                color: Colors.orange[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.teal[200]!),
+                border: Border.all(color: Colors.orange[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎯 ULTIMATE CHALLENGE",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.teal[800]),
+                    "🎯 Level 9 Objective",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.orange[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create a SQL query with DOUBLE JOIN and calculated totals",
+                    "Create a SQL query with DOUBLE JOIN and calculated totals to find high-value orders",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.teal[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.orange[700]),
                   ),
-                  SizedBox(height: 5 * _scaleFactor),
+                  SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🏆 Get a perfect score (3/3) to achieve SQL EXPERT status!",
+                    "🎁 Get a perfect score (3/3) to complete the SQL journey!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
                         color: Colors.purple,
                         fontWeight: FontWeight.bold,
                         fontStyle: FontStyle.italic
-                    ),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.orange[50],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      "⚠️ EXPERT LEVEL: This challenge tests the most advanced SQL concepts!",
-                      style: TextStyle(
-                        color: Colors.orange[800],
-                        fontSize: 11 * _scaleFactor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
                     ),
                   ),
                 ],
@@ -1142,7 +1074,7 @@ class _SqlLevel9State extends State<SqlLevel9> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 ULTIMATE SQL CHALLENGE',
+                child: Text('📖 Advanced Challenge Story',
                     style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
@@ -1162,14 +1094,14 @@ class _SqlLevel9State extends State<SqlLevel9> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'ULTIMATE CHALLENGE! Kailangan ni Maria ng listahan ng mga customer na may order total na higit sa 1000. Gamitin ang DOUBLE JOIN para i-connect ang customers, orders, at order_items tables, kalkulahin ang total amount, at i-filter ang malalaking orders.'
-                : 'ULTIMATE CHALLENGE! Maria needs a list of customers with order totals exceeding 1000. Use DOUBLE JOIN to connect customers, orders, and order_items tables, calculate total amount, and filter large orders.',
+                ? 'Kailangan ni Maria ng listahan ng mga customer na may order total na higit sa 1000. Gamitin ang DOUBLE JOIN para i-connect ang customers, orders, at order_items tables, kalkulahin ang total amount, at i-filter ang malalaking orders.'
+                : 'Maria needs a list of customers with order totals exceeding 1000. Use DOUBLE JOIN to connect customers, orders, and order_items tables, calculate total amount, and filter large orders.',
             textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: 12 * _scaleFactor, color: Colors.white70),
+            style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange 7 blocks to form the ULTIMATE SQL query',
+          Text('🧩 Arrange 7 correct blocks to form the advanced SQL query with double JOIN',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
@@ -1184,7 +1116,7 @@ class _SqlLevel9State extends State<SqlLevel9> {
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.teal, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.orange, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -1214,10 +1146,10 @@ class _SqlLevel9State extends State<SqlLevel9> {
                         data: block,
                         feedback: Material(
                           color: Colors.transparent,
-                          child: puzzleBlock(block, Colors.tealAccent),
+                          child: puzzleBlock(block, Colors.orangeAccent),
                         ),
-                        childWhenDragging: puzzleBlock(block, Colors.tealAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.tealAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.orangeAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.orangeAccent),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
@@ -1253,7 +1185,7 @@ class _SqlLevel9State extends State<SqlLevel9> {
           ),
 
           SizedBox(height: 20 * _scaleFactor),
-          Text('💻 Query Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          Text('💻 Double JOIN Analysis Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
           SizedBox(height: 10 * _scaleFactor),
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
@@ -1281,13 +1213,13 @@ class _SqlLevel9State extends State<SqlLevel9> {
                   data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(block, Colors.teal[400]!),
+                    child: puzzleBlock(block, Colors.orange[400]!),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.teal[400]!),
+                    child: puzzleBlock(block, Colors.orange[400]!),
                   ),
-                  child: puzzleBlock(block, Colors.teal[400]!),
+                  child: puzzleBlock(block, Colors.orange[400]!),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
@@ -1326,9 +1258,9 @@ class _SqlLevel9State extends State<SqlLevel9> {
               checkAnswer();
             },
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
-            label: Text("Run Expert Query", style: TextStyle(fontSize: 16 * _scaleFactor)),
+            label: Text("Run Query", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.teal,
+              backgroundColor: Colors.orange,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -1348,7 +1280,6 @@ class _SqlLevel9State extends State<SqlLevel9> {
     );
   }
 
-  // PUZZLE BLOCK - SMALLER FOR MORE BLOCKS
   Widget puzzleBlock(String text, Color color) {
     final textPainter = TextPainter(
       text: TextSpan(
@@ -1414,4 +1345,4 @@ class _SqlLevel9State extends State<SqlLevel9> {
       ),
     );
   }
-}
+}                               

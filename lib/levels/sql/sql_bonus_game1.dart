@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
+import 'level6.dart';
 
-class JavaBonusGame1 extends StatefulWidget {
-  const JavaBonusGame1({super.key});
+class SQLBonusGame1 extends StatefulWidget {
+  const SQLBonusGame1({super.key});
 
   @override
-  State<JavaBonusGame1> createState() => _JavaBonusGame1State();
+  State<SQLBonusGame1> createState() => _SQLBonusGame1State();
 }
 
-class _JavaBonusGame1State extends State<JavaBonusGame1> {
+class _SQLBonusGame1State extends State<SQLBonusGame1> {
+  List<String> sqlKeywords = [];
   List<String> answerBlocks = [];
-  String selectedAnswer = '';
+  List<String> selectedAnswer = [];
+  String correctAnswer = '';
   bool gameStarted = false;
   bool isTagalog = true;
   bool isAnsweredCorrectly = false;
@@ -21,9 +24,9 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
   int previousScore = 0;
 
   int currentScore = 0;
-  int totalPossibleScore = 50; // 50 POINTS for perfect score
+  int totalPossibleScore = 50;
   int questionsCorrect = 0;
-  int remainingSeconds = 10;
+  int remainingSeconds = 15;
   Timer? countdownTimer;
   Map<String, dynamic>? currentUser;
 
@@ -31,41 +34,46 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // Questions and Answers for Java
+  // Questions and Answers for SQL - Now with multiple parts
   List<Map<String, dynamic>> questions = [
     {
-      'question': 'Which keyword is used to prevent a class from being inherited?',
-      'tagalogQuestion': 'Aling keyword ang ginagamit para pigilan ang isang klase na ma-inherit?',
-      'correctAnswer': 'final',
-      'options': ['final', 'static', 'private', 'abstract'],
+      'question': 'Complete the SQL query to get all customers from London:',
+      'tagalogQuestion': 'Kumpletuhin ang SQL query para makuha ang lahat ng customer mula sa London:',
+      'correctAnswer': 'SELECT * FROM customers WHERE city = "London"',
+      'sqlKeywords': ['SELECT', '*', 'FROM', 'customers', 'WHERE', 'city', '=', '"London"'],
+      'distractors': ['INSERT', 'UPDATE', 'DELETE', 'name', 'age', '>', '<', 'LIKE'],
       'points': 10
     },
     {
-      'question': 'What is the return type of a constructor?',
-      'tagalogQuestion': 'Ano ang return type ng isang constructor?',
-      'correctAnswer': 'No return type',
-      'options': ['void', 'int', 'Object', 'No return type'],
+      'question': 'Complete the SQL query to update product price to 25 where id is 5:',
+      'tagalogQuestion': 'Kumpletuhin ang SQL query para i-update ang presyo ng product sa 25 kung saan ang id ay 5:',
+      'correctAnswer': 'UPDATE products SET price = 25 WHERE id = 5',
+      'sqlKeywords': ['UPDATE', 'products', 'SET', 'price', '=', '25', 'WHERE', 'id', '=', '5'],
+      'distractors': ['SELECT', 'INSERT', 'DELETE', 'name', 'category', '>', '<', 'FROM'],
       'points': 10
     },
     {
-      'question': 'Which method must be implemented when using Runnable interface?',
-      'tagalogQuestion': 'Aling method ang dapat i-implement kapag gumagamit ng Runnable interface?',
-      'correctAnswer': 'run()',
-      'options': ['start()', 'run()', 'execute()', 'main()'],
+      'question': 'Complete the SQL query to insert a new employee:',
+      'tagalogQuestion': 'Kumpletuhin ang SQL query para mag-insert ng bagong employee:',
+      'correctAnswer': 'INSERT INTO employees (name, salary) VALUES ("John", 50000)',
+      'sqlKeywords': ['INSERT', 'INTO', 'employees', '(', 'name', ',', 'salary', ')', 'VALUES', '(', '"John"', ',', '50000', ')'],
+      'distractors': ['UPDATE', 'DELETE', 'SELECT', 'age', 'department', 'SET', 'WHERE', 'FROM'],
       'points': 10
     },
     {
-      'question': 'What is the size of int data type in Java?',
-      'tagalogQuestion': 'Ano ang size ng int data type sa Java?',
-      'correctAnswer': '4 bytes',
-      'options': ['2 bytes', '4 bytes', '8 bytes', 'Depends on platform'],
+      'question': 'Complete the SQL query to delete orders older than 2023:',
+      'tagalogQuestion': 'Kumpletuhin ang SQL query para mag-delete ng mga order na mas luma sa 2023:',
+      'correctAnswer': 'DELETE FROM orders WHERE year < 2023',
+      'sqlKeywords': ['DELETE', 'FROM', 'orders', 'WHERE', 'year', '<', '2023'],
+      'distractors': ['INSERT', 'UPDATE', 'SELECT', 'month', '=', '>', 'SET', 'VALUES'],
       'points': 10
     },
     {
-      'question': 'Which collection class allows duplicate elements?',
-      'tagalogQuestion': 'Aling collection class ang nagpapahintulot ng duplicate elements?',
-      'correctAnswer': 'ArrayList',
-      'options': ['HashSet', 'ArrayList', 'HashMap', 'TreeSet'],
+      'question': 'Complete the SQL query to count products in each category:',
+      'tagalogQuestion': 'Kumpletuhin ang SQL query para bilangin ang mga product sa bawat category:',
+      'correctAnswer': 'SELECT category, COUNT(*) FROM products GROUP BY category',
+      'sqlKeywords': ['SELECT', 'category', ',', 'COUNT', '(', '*', ')', 'FROM', 'products', 'GROUP BY', 'category'],
+      'distractors': ['INSERT', 'UPDATE', 'DELETE', 'WHERE', 'SET', 'VALUES', 'name', 'price'],
       'points': 10
     }
   ];
@@ -108,13 +116,27 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
     setState(() {
       currentScore = 0;
       questionsCorrect = 0;
-      remainingSeconds = 10;
+      remainingSeconds = 15;
       gameStarted = false;
       isAnsweredCorrectly = false;
-      selectedAnswer = '';
+      selectedAnswer = [];
+      correctAnswer = '';
       currentQuestionIndex = 0;
-      answerBlocks = List.from(currentQuestion['options']);
-      answerBlocks.shuffle();
+      _setupQuestion();
+    });
+  }
+
+  void _setupQuestion() {
+    List<String> allBlocks = [
+      ...currentQuestion['sqlKeywords'],
+      ...currentQuestion['distractors']
+    ];
+    allBlocks.shuffle();
+
+    setState(() {
+      sqlKeywords = List.from(currentQuestion['sqlKeywords']);
+      answerBlocks = allBlocks;
+      correctAnswer = currentQuestion['correctAnswer'];
     });
   }
 
@@ -123,12 +145,12 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
       gameStarted = true;
       currentScore = 0;
       questionsCorrect = 0;
-      remainingSeconds = 10;
+      remainingSeconds = 15;
       isAnsweredCorrectly = false;
-      selectedAnswer = '';
+      selectedAnswer = [];
+      correctAnswer = '';
       currentQuestionIndex = 0;
-      answerBlocks = List.from(currentQuestion['options']);
-      answerBlocks.shuffle();
+      _setupQuestion();
     });
     startTimers();
   }
@@ -187,7 +209,7 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
           children: [
             Icon(Icons.celebration, size: 60, color: Colors.amber[700]),
             SizedBox(height: 10),
-            Text("You've completed the Java Bonus Game!"),
+            Text("You've completed the SQL Query Builder Game!"),
             SizedBox(height: 10),
             Text("Questions Correct: $questionsCorrect/${questions.length}",
                 style: TextStyle(fontWeight: FontWeight.bold)),
@@ -198,8 +220,13 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
                   Text("🎉 PERFECT SCORE!",
                       style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 18)),
                   SizedBox(height: 10),
-                  Text("🚧 More advanced levels coming soon!",
+                  Text("Bonus Points Earned: $totalPossibleScore",
                       style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                  SizedBox(height: 10),
+                  Text(
+                    "🔓 Level 6 is now unlocked!",
+                    style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                  ),
                   SizedBox(height: 10),
                   Text(
                     "✅ $totalPossibleScore points added to your leaderboard!",
@@ -212,7 +239,7 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
                 children: [
                   SizedBox(height: 10),
                   Text(
-                    "⚠️ Get all ${questions.length} questions correct to earn bonus points!",
+                    "⚠️ Get all ${questions.length} questions correct to unlock Level 6!",
                     style: TextStyle(color: Colors.orange[700], fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
@@ -221,20 +248,37 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
           ],
         ),
         actions: [
+          if (questionsCorrect == questions.length)
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _navigateToLevel6();
+              },
+              child: Text("Play Level 6"),
+            ),
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop(); // Close the dialog
+              Navigator.of(context).pop();
               _navigateToLevels();
             },
-            child: Text("Back to Levels"),
+            child: Text(questionsCorrect == questions.length ? "Back to Levels" : "Go to Levels"),
           )
         ],
       ),
     );
   }
 
+  void _navigateToLevel6() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SqlLevel6(),
+      ),
+    );
+  }
+
   void _navigateToLevels() {
-    Navigator.pushReplacementNamed(context, '/levels', arguments: 'Java');
+    Navigator.pushReplacementNamed(context, '/levels', arguments: 'SQL');
   }
 
   Future<void> saveScoreToDatabase(int score) async {
@@ -243,13 +287,12 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
     try {
       print('🎯 SAVING BONUS POINTS: $score/$totalPossibleScore');
 
-      // SAVE BONUS POINTS TO LEVEL 98 (Bonus Game 1)
       final response = await ApiService.saveScore(
         currentUser!['id'],
-        'Java',
-        98,  // BONUS GAME 1 LEVEL
-        score, // 50 POINTS FOR PERFECT SCORE
-        true,  // ALWAYS MARK AS COMPLETED IF PERFECT
+        'SQL',
+        99,  // BONUS LEVEL
+        score,
+        true,
       );
 
       if (response['success'] == true) {
@@ -260,6 +303,18 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
           previousScore = score;
           hasPreviousScore = true;
         });
+
+        if (score == totalPossibleScore) {
+          print('🔓 UNLOCKING LEVEL 6...');
+          await ApiService.saveScore(
+            currentUser!['id'],
+            'SQL',
+            6,
+            0,
+            true,
+          );
+          print('✅ LEVEL 6 UNLOCKED');
+        }
       } else {
         print('❌ FAILED TO SAVE BONUS: ${response['message']}');
       }
@@ -272,11 +327,11 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScores(currentUser!['id'], 'Java');
+      final response = await ApiService.getScores(currentUser!['id'], 'SQL');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final bonusData = scoresData['98']; // Bonus Game 1 level
+        final bonusData = scoresData['99'];
 
         if (bonusData != null) {
           setState(() {
@@ -294,10 +349,12 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
   void checkAnswer() async {
     if (isAnsweredCorrectly || selectedAnswer.isEmpty) return;
 
-    String correctAnswer = currentQuestion['correctAnswer'];
+    String userAnswer = selectedAnswer.join(' ');
+    String expectedAnswer = sqlKeywords.join(' ');
+
     countdownTimer?.cancel();
 
-    if (selectedAnswer == correctAnswer) {
+    if (userAnswer == expectedAnswer) {
       setState(() {
         isAnsweredCorrectly = true;
         questionsCorrect++;
@@ -306,7 +363,6 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
 
       bool isLastQuestion = currentQuestionIndex == questions.length - 1;
 
-      // Save score immediately when last question is answered correctly
       if (isLastQuestion) {
         final finalScore = questionsCorrect == questions.length ? totalPossibleScore : 0;
         await saveScoreToDatabase(finalScore);
@@ -316,19 +372,32 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
         context: context,
         barrierDismissible: false,
         builder: (_) => AlertDialog(
-          title: Text("✅ Correct!"),
+          title: Text("✅ Correct SQL Query!"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Great job! Your answer is correct!"),
+              Text("Great job! You built the correct SQL query!"),
+              SizedBox(height: 10),
+              Container(
+                padding: EdgeInsets.all(10),
+                color: Colors.black,
+                child: Text(
+                  correctAnswer,
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontFamily: 'monospace',
+                    fontSize: 14 * _scaleFactor,
+                  ),
+                ),
+              ),
               SizedBox(height: 10),
               Text("Current Progress: $questionsCorrect/${questions.length} correct",
                   style: TextStyle(fontWeight: FontWeight.bold)),
               SizedBox(height: 10),
               if (questionsCorrect == questions.length)
                 Text(
-                  "🎉 Perfect! 🚧 More advanced levels coming soon!!",
+                  "🎉 Perfect! You Unlocked Level 6",
                   style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
                 )
               else if (isLastQuestion)
@@ -341,10 +410,10 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
                 if (isLastQuestion) {
                   if (questionsCorrect == questions.length) {
-                    _navigateToLevels();
+                    _navigateToLevel6();
                   } else {
                     _navigateToLevels();
                   }
@@ -354,7 +423,7 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
               },
               child: Text(
                   isLastQuestion
-                      ? "Back to Levels"
+                      ? (questionsCorrect == questions.length ? "Next Level" : "Back to Levels")
                       : "Next Question"
               ),
             )
@@ -364,7 +433,7 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("❌ Incorrect answer. Moving to next question."),
+          content: Text("❌ Incorrect query. Moving to next question."),
           backgroundColor: Colors.red,
         ),
       );
@@ -382,20 +451,35 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
   void nextQuestion() {
     setState(() {
       currentQuestionIndex++;
-      selectedAnswer = '';
+      selectedAnswer = [];
       isAnsweredCorrectly = false;
-      remainingSeconds = 10;
-      answerBlocks = List.from(questions[currentQuestionIndex]['options']);
-      answerBlocks.shuffle();
+      remainingSeconds = 15;
+      _setupQuestion();
     });
 
     startTimers();
   }
 
-  void selectAnswer(String answer) {
+  void addToAnswer(String keyword) {
     if (!isAnsweredCorrectly) {
       setState(() {
-        selectedAnswer = answer;
+        selectedAnswer.add(keyword);
+      });
+    }
+  }
+
+  void removeFromAnswer(int index) {
+    if (!isAnsweredCorrectly) {
+      setState(() {
+        selectedAnswer.removeAt(index);
+      });
+    }
+  }
+
+  void clearAnswer() {
+    if (!isAnsweredCorrectly) {
+      setState(() {
+        selectedAnswer.clear();
       });
     }
   }
@@ -425,8 +509,8 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("🎁 Java - Bonus Game", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.amber[700],
+        title: Text("🧩 SQL Query Builder", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.purple[700],
         actions: gameStarted
             ? [
           Padding(
@@ -463,9 +547,9 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1A1A00),
-              Color(0xFF333300),
-              Color(0xFF4D4D00),
+              Color(0xFF2D1B69),
+              Color(0xFF4A2C8C),
+              Color(0xFF6B46C1),
             ],
           ),
         ),
@@ -484,10 +568,10 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
             ElevatedButton.icon(
               onPressed: startGame,
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Bonus Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text("Start Query Builder", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.amber[700],
+                backgroundColor: Colors.purple[700],
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
@@ -498,8 +582,8 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
                 child: Column(
                   children: [
                     Text(
-                      "✅ Bonus Completed!",
-                      style: TextStyle(color: Colors.amber[700], fontSize: 16 * _scaleFactor),
+                      "✅ Query Builder Completed!",
+                      style: TextStyle(color: Colors.purple[300], fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
@@ -507,16 +591,23 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
                       Column(
                         children: [
                           Text(
-                            "🎉 You earned $totalPossibleScore bonus points!",
+                            "🎉 You earned $totalPossibleScore bonus points! Level 6 is unlocked!",
                             style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                             textAlign: TextAlign.center,
                           ),
                           SizedBox(height: 10 * _scaleFactor),
+                          ElevatedButton(
+                            onPressed: _navigateToLevel6,
+                            child: Text("Play Level 6 Now"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                            ),
+                          ),
                         ],
                       )
                     else
                       Text(
-                        "❌ Get perfect score to earn bonus points",
+                        "❌ Get perfect score to unlock Level 6",
                         style: TextStyle(color: Colors.orange[700], fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
@@ -529,14 +620,14 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
                 child: Column(
                   children: [
                     Text(
-                      "📊 Your previous bonus score: $previousScore/$totalPossibleScore",
-                      style: TextStyle(color: Colors.amber[700], fontSize: 16 * _scaleFactor),
+                      "📊 Your previous score: $previousScore/$totalPossibleScore",
+                      style: TextStyle(color: Colors.purple[300], fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Play again to get perfect score and earn bonus points!",
-                      style: TextStyle(color: Colors.amber[600], fontSize: 14 * _scaleFactor),
+                      "Play again to get perfect score and unlock Level 6!",
+                      style: TextStyle(color: Colors.purple[300], fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -548,28 +639,28 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.amber[50]!.withOpacity(0.9),
+                color: Colors.purple[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.amber[200]!),
+                border: Border.all(color: Colors.purple[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎯 JAVA BONUS GAME",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.amber[900]),
+                    "🧩 SQL QUERY BUILDER",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.purple[900]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Advanced Java Concepts Challenge",
+                    "Build SQL queries by dragging keywords",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.amber[800], fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[800], fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Answer all ${questions.length} questions correctly to earn bonus points",
+                    "Drag SQL keywords to build correct queries in the right order",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.amber[800]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[800]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Container(
@@ -578,7 +669,7 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
                     child: Column(
                       children: [
                         Text(
-                          "⏰ 10 Seconds Per Question!",
+                          "⏰ 15 Seconds Per Query!",
                           style: TextStyle(
                             color: Colors.orange,
                             fontWeight: FontWeight.bold,
@@ -587,7 +678,7 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
                         ),
                         SizedBox(height: 5 * _scaleFactor),
                         Text(
-                          "• ${questions.length} multiple choice questions\n• 10 seconds to answer each\n• Any wrong answer = 0 points\n• Perfect score earns bonus points",
+                          "• ${questions.length} SQL query building challenges\n• 15 seconds to build each query\n• Drag keywords in correct order\n• Perfect score unlocks Level 6",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 12 * _scaleFactor,
@@ -598,11 +689,11 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎁 Topics: Inheritance, Constructors, Interfaces, Data Types, Collections",
+                    "🎁 Get a perfect score (5/5) to unlock Level 6",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
-                        color: Colors.amber[700],
+                        color: Colors.purple[700],
                         fontWeight: FontWeight.bold,
                         fontStyle: FontStyle.italic
                     ),
@@ -622,35 +713,15 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: Text('📖 Question',
-                    style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
-              ),
-              TextButton.icon(
-                onPressed: () {
-                  setState(() {
-                    isTagalog = !isTagalog;
-                  });
-                },
-                icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
-                label: Text(isTagalog ? 'English' : 'Tagalog',
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
-              ),
-            ],
-          ),
-          SizedBox(height: 10 * _scaleFactor),
-
+          // Question
           Container(
             width: double.infinity,
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
-              color: Colors.amber[100]!.withOpacity(0.9),
+              color: Colors.purple[100]!.withOpacity(0.9),
               borderRadius: BorderRadius.circular(12 * _scaleFactor),
               border: Border.all(
-                  color: remainingSeconds <= 3 ? Colors.red : Colors.amber[700]!,
+                  color: remainingSeconds <= 3 ? Colors.red : Colors.purple[700]!,
                   width: 2 * _scaleFactor
               ),
             ),
@@ -660,17 +731,17 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Question ${currentQuestionIndex + 1} of ${questions.length}',
+                      'Query ${currentQuestionIndex + 1} of ${questions.length}',
                       style: TextStyle(
                         fontSize: 14 * _scaleFactor,
                         fontWeight: FontWeight.bold,
-                        color: Colors.amber[900],
+                        color: Colors.purple[900],
                       ),
                     ),
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 8 * _scaleFactor, vertical: 4 * _scaleFactor),
                       decoration: BoxDecoration(
-                        color: remainingSeconds <= 3 ? Colors.red : Colors.amber[700],
+                        color: remainingSeconds <= 3 ? Colors.red : Colors.purple[700],
                         borderRadius: BorderRadius.circular(8 * _scaleFactor),
                       ),
                       child: Text(
@@ -698,49 +769,105 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
             ),
           ),
 
-          SizedBox(height: 30 * _scaleFactor),
-          Text('💡 Select your answer:',
-              style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          Wrap(
-            spacing: 12 * _scaleFactor,
-            runSpacing: 12 * _scaleFactor,
-            alignment: WrapAlignment.center,
-            children: answerBlocks.map((answer) {
-              bool isSelected = selectedAnswer == answer;
-              return GestureDetector(
-                onTap: () => selectAnswer(answer),
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 20 * _scaleFactor,
-                    vertical: 15 * _scaleFactor,
+          // Answer Builder Area
+          Text('🧩 Build Your SQL Query:',
+              style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white, fontWeight: FontWeight.bold)),
+          SizedBox(height: 10 * _scaleFactor),
+
+          Container(
+            width: double.infinity,
+            height: 100 * _scaleFactor,
+            padding: EdgeInsets.all(12 * _scaleFactor),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(12 * _scaleFactor),
+              border: Border.all(color: Colors.purple[300]!),
+            ),
+            child: selectedAnswer.isEmpty
+                ? Center(
+              child: Text(
+                "Drag SQL keywords here to build your query...",
+                style: TextStyle(color: Colors.grey, fontSize: 14 * _scaleFactor),
+                textAlign: TextAlign.center,
+              ),
+            )
+                : Wrap(
+              spacing: 8 * _scaleFactor,
+              runSpacing: 8 * _scaleFactor,
+              children: List.generate(selectedAnswer.length, (index) {
+                return GestureDetector(
+                  onTap: () => removeFromAnswer(index),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 8 * _scaleFactor),
+                    decoration: BoxDecoration(
+                      color: Colors.purple[600],
+                      borderRadius: BorderRadius.circular(20 * _scaleFactor),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          selectedAnswer[index],
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14 * _scaleFactor,
+                          ),
+                        ),
+                        SizedBox(width: 4 * _scaleFactor),
+                        Icon(Icons.close, size: 14 * _scaleFactor, color: Colors.white),
+                      ],
+                    ),
                   ),
+                );
+              }),
+            ),
+          ),
+
+          SizedBox(height: 10 * _scaleFactor),
+          if (selectedAnswer.isNotEmpty)
+            TextButton(
+              onPressed: clearAnswer,
+              child: Text("🗑️ Clear Query", style: TextStyle(fontSize: 12 * _scaleFactor, color: Colors.white)),
+            ),
+
+          SizedBox(height: 20 * _scaleFactor),
+
+          // SQL Keywords
+          Text('🔤 Available SQL Keywords:',
+              style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white, fontWeight: FontWeight.bold)),
+          SizedBox(height: 10 * _scaleFactor),
+
+          Wrap(
+            spacing: 8 * _scaleFactor,
+            runSpacing: 8 * _scaleFactor,
+            alignment: WrapAlignment.center,
+            children: answerBlocks.map((keyword) {
+              bool isUsed = selectedAnswer.contains(keyword);
+              bool isCorrectKeyword = currentQuestion['sqlKeywords'].contains(keyword);
+
+              return GestureDetector(
+                onTap: isUsed ? null : () => addToAnswer(keyword),
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 16 * _scaleFactor, vertical: 10 * _scaleFactor),
                   decoration: BoxDecoration(
-                    color: isSelected ? Colors.amber[600] : Colors.amber[700],
+                    color: isUsed ? Colors.grey : (isCorrectKeyword ? Colors.purple[600] : Colors.red[400]),
                     borderRadius: BorderRadius.circular(20 * _scaleFactor),
                     border: Border.all(
-                      color: isSelected ? Colors.white : Colors.transparent,
-                      width: 2 * _scaleFactor,
+                      color: isUsed ? Colors.transparent : Colors.white,
+                      width: 1 * _scaleFactor,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 4 * _scaleFactor,
-                        offset: Offset(2 * _scaleFactor, 2 * _scaleFactor),
-                      )
-                    ],
                   ),
                   child: Text(
-                    answer,
+                    keyword,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontFamily: 'monospace',
                       fontSize: 14 * _scaleFactor,
                       color: Colors.white,
                     ),
-                    textAlign: TextAlign.center,
                   ),
                 ),
               );
@@ -753,9 +880,9 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
             ElevatedButton.icon(
               onPressed: isAnsweredCorrectly ? null : checkAnswer,
               icon: Icon(Icons.check, size: 18 * _scaleFactor),
-              label: Text("Submit Answer", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text("Execute Query", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.amber[700],
+                backgroundColor: Colors.purple[700],
                 padding: EdgeInsets.symmetric(
                   horizontal: 24 * _scaleFactor,
                   vertical: 16 * _scaleFactor,
@@ -766,7 +893,7 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
           SizedBox(height: 10 * _scaleFactor),
           TextButton(
             onPressed: resetGame,
-            child: Text("🔁 Restart Quiz", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+            child: Text("🔁 Restart Game", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
           ),
         ],
       ),

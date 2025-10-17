@@ -25,19 +25,16 @@ class _SqlLevel8State extends State<SqlLevel8> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 180;
+  int remainingSeconds = 180; // 3 minutes for complex JOIN query
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
-  // Track currently dragged block
   String? currentlyDraggedBlock;
-
-  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // Hint card system using UserPreferences
+  // Hint card system
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
@@ -78,7 +75,6 @@ class _SqlLevel8State extends State<SqlLevel8> {
     });
   }
 
-  // Load hint cards using UserPreferences
   Future<void> _loadHintCards() async {
     final user = await UserPreferences.getUser();
     if (user['id'] != null) {
@@ -89,7 +85,6 @@ class _SqlLevel8State extends State<SqlLevel8> {
     }
   }
 
-  // Use hint card - shows hint and auto-drags correct answer
   void _useHintCard() async {
     if (_availableHintCards > 0 && !_isUsingHint) {
       final musicService = Provider.of<MusicService>(context, listen: false);
@@ -102,13 +97,11 @@ class _SqlLevel8State extends State<SqlLevel8> {
         _availableHintCards--;
       });
 
-      // Save the updated hint card count
       final user = await UserPreferences.getUser();
       if (user['id'] != null) {
         await DailyChallengeService.useHintCard(user['id']);
       }
 
-      // Auto-drag the correct blocks after a short delay
       _autoDragCorrectBlocks();
     } else if (_availableHintCards <= 0) {
       final musicService = Provider.of<MusicService>(context, listen: false);
@@ -123,23 +116,21 @@ class _SqlLevel8State extends State<SqlLevel8> {
     }
   }
 
-  // Auto-drag correct blocks to answer area
   void _autoDragCorrectBlocks() {
-    // Correct blocks for SQL: SELECT product_name, category, price, stock FROM products WHERE price BETWEEN 50 AND 200 AND stock > 0 ORDER BY price ASC;
+    // Correct blocks for SQL: SELECT e.name, e.salary, d.department_name FROM employees e JOIN departments d ON e.department_id = d.id WHERE e.salary > 50000 ORDER BY e.salary DESC;
     List<String> correctBlocks = [
-      'SELECT product_name, category, price, stock FROM',
-      'products',
-      'WHERE price BETWEEN 50 AND 200',
-      'AND stock > 0',
-      'ORDER BY price ASC;'
+      'SELECT e.name, e.salary, d.department_name',
+      'FROM employees e',
+      'JOIN departments d',
+      'ON e.department_id = d.id',
+      'WHERE e.salary > 50000',
+      'ORDER BY e.salary DESC;'
     ];
 
-    // Remove any existing correct blocks from dropped area first
     setState(() {
       droppedBlocks.clear();
     });
 
-    // Add correct blocks one by one with delay
     int delay = 0;
     for (String block in correctBlocks) {
       Future.delayed(Duration(milliseconds: delay), () {
@@ -157,7 +148,6 @@ class _SqlLevel8State extends State<SqlLevel8> {
       delay += 500;
     }
 
-    // Hide hint after all blocks are placed
     Future.delayed(Duration(milliseconds: delay + 1000), () {
       if (mounted) {
         setState(() {
@@ -169,7 +159,7 @@ class _SqlLevel8State extends State<SqlLevel8> {
   }
 
   String _getLevelHint() {
-    return "The correct SQL query is: SELECT product_name, category, price, stock FROM products WHERE price BETWEEN 50 AND 200 AND stock > 0 ORDER BY price ASC;\n\n💡 Hint: Use 'SELECT product_name, category, price, stock FROM' followed by 'products', then 'WHERE price BETWEEN 50 AND 200' for price range, add 'AND stock > 0' for available products, and finally 'ORDER BY price ASC;' to sort by lowest price first!";
+    return "The correct SQL query is: SELECT e.name, e.salary, d.department_name FROM employees e JOIN departments d ON e.department_id = d.id WHERE e.salary > 50000 ORDER BY e.salary DESC;\n\n💡 Hint: Start with 'SELECT e.name, e.salary, d.department_name', then 'FROM employees e', followed by 'JOIN departments d', 'ON e.department_id = d.id', 'WHERE e.salary > 50000', and finally 'ORDER BY e.salary DESC;'";
   }
 
   void _loadUserData() async {
@@ -182,33 +172,35 @@ class _SqlLevel8State extends State<SqlLevel8> {
   }
 
   void resetBlocks() {
-    // 5 correct blocks for SQL: SELECT product_name, category, price, stock FROM products WHERE price BETWEEN 50 AND 200 AND stock > 0 ORDER BY price ASC;
+    // 6 correct blocks for SQL JOIN query
     List<String> correctBlocks = [
-      'SELECT product_name, category, price, stock FROM',
-      'products',
-      'WHERE price BETWEEN 50 AND 200',
-      'AND stock > 0',
-      'ORDER BY price ASC;'
+      'SELECT e.name, e.salary, d.department_name',
+      'FROM employees e',
+      'JOIN departments d',
+      'ON e.department_id = d.id',
+      'WHERE e.salary > 50000',
+      'ORDER BY e.salary DESC;'
     ];
 
     // Incorrect/distractor blocks
     List<String> incorrectBlocks = [
-      'SELECT * FROM',
-      'SELECT product_name FROM',
-      'SELECT price FROM',
-      'WHERE price > 100',
-      'WHERE stock = 0',
-      'AND category =',
-      "'Electronics'",
-      "'Clothing'",
-      'OR price < 50',
-      'ORDER BY product_name ASC',
-      'ORDER BY price DESC',
-      'customers',
-      'orders',
-      'inventory',
-      'LIMIT 20',
-      'GROUP BY category',
+      'SELECT name, salary',
+      'SELECT *',
+      'FROM departments',
+      'WHERE salary > (SELECT AVG(salary)',
+      'WHERE department =',
+      "'Engineering'",
+      'ORDER BY name ASC',
+      'GROUP BY department',
+      'HAVING salary > 50000',
+      'LEFT JOIN employees',
+      'ON d.id = e.department_id',
+      'INNER JOIN salaries',
+      'WHERE e.salary < 30000',
+      'LIMIT 10',
+      'employees.department_id',
+      'd.manager_name',
+      'UNION SELECT',
     ];
 
     // Shuffle incorrect blocks and take 4 random ones
@@ -279,7 +271,7 @@ class _SqlLevel8State extends State<SqlLevel8> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 40), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 60), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -324,7 +316,7 @@ class _SqlLevel8State extends State<SqlLevel8> {
         'SQL',
         8,
         score,
-        score == 3,
+        score == 3, // Only completed if perfect score
       );
 
       if (response['success'] == true) {
@@ -333,6 +325,19 @@ class _SqlLevel8State extends State<SqlLevel8> {
           previousScore = score;
           hasPreviousScore = true;
         });
+
+        // UNLOCK LEVEL 9 IF PERFECT SCORE
+        if (score == 3) {
+          print('🔓 UNLOCKING LEVEL 9...');
+          await ApiService.saveScore(
+            currentUser!['id'],
+            'SQL',
+            9,  // LEVEL 9
+            0,  // 0 POINTS - user needs to play level 9 to earn points
+            true, // MARK AS UNLOCKED
+          );
+          print('✅ LEVEL 9 UNLOCKED');
+        }
       } else {
         print('Failed to save score: ${response['message']}');
       }
@@ -365,25 +370,25 @@ class _SqlLevel8State extends State<SqlLevel8> {
     }
   }
 
-  // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
-      'SELECT * FROM',
-      'SELECT product_name FROM',
-      'SELECT price FROM',
-      'WHERE price > 100',
-      'WHERE stock = 0',
-      'AND category =',
-      "'Electronics'",
-      "'Clothing'",
-      'OR price < 50',
-      'ORDER BY product_name ASC',
-      'ORDER BY price DESC',
-      'customers',
-      'orders',
-      'inventory',
-      'LIMIT 20',
-      'GROUP BY category',
+      'SELECT name, salary',
+      'SELECT *',
+      'FROM departments',
+      'WHERE salary > (SELECT AVG(salary)',
+      'WHERE department =',
+      "'Engineering'",
+      'ORDER BY name ASC',
+      'GROUP BY department',
+      'HAVING salary > 50000',
+      'LEFT JOIN employees',
+      'ON d.id = e.department_id',
+      'INNER JOIN salaries',
+      'WHERE e.salary < 30000',
+      'LIMIT 10',
+      'employees.department_id',
+      'd.manager_name',
+      'UNION SELECT',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -440,15 +445,15 @@ class _SqlLevel8State extends State<SqlLevel8> {
       return;
     }
 
-    // Check for: SELECT product_name, category, price, stock FROM products WHERE price BETWEEN 50 AND 200 AND stock > 0 ORDER BY price ASC;
+    // Check for: SELECT e.name, e.salary, d.department_name FROM employees e JOIN departments d ON e.department_id = d.id WHERE e.salary > 50000 ORDER BY e.salary DESC;
     String answer = droppedBlocks.join(' ');
     String normalizedAnswer = answer
         .replaceAll(' ', '')
         .replaceAll('\n', '')
         .toLowerCase();
 
-    // Exact match for the 5-block version
-    String expected = "selectproduct_name,category,price,stockfromproductswherepricebetween50and200andstock>0orderbypriceasc;";
+    // Exact match for the 6-block version
+    String expected = "selecte.name,e.salary,d.department_namefromemployeesejoindepartmentsdone.department_id=d.idwheree.salary>50000orderbye.salarydesc;";
 
     if (normalizedAnswer == expected) {
       countdownTimer?.cancel();
@@ -460,7 +465,6 @@ class _SqlLevel8State extends State<SqlLevel8> {
 
       saveScoreToDatabase(score);
 
-      // PLAY SUCCESS SOUND BASED ON SCORE
       if (score == 3) {
         musicService.playSoundEffect('perfect.mp3');
       } else {
@@ -470,23 +474,23 @@ class _SqlLevel8State extends State<SqlLevel8> {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text("🏆 SQL Expert Level!"),
+          title: Text("✅ Correct!"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Outstanding! You've mastered advanced SQL queries!", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("SQL JOIN Expert!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've conquered Level 8!",
+                  "🎉 Perfect! You've unlocked Level 9!",
                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) to complete this level!",
+                  "⚠️ Get a perfect score (3/3) to unlock Level 9!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
@@ -495,28 +499,12 @@ class _SqlLevel8State extends State<SqlLevel8> {
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  "Will display available products priced between 50 and 200, sorted by lowest price first",
+                  "Will display employees with salary > 50000 along with their department names, sorted by highest salary",
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
                     fontSize: 14,
                   ),
-                ),
-              ),
-              SizedBox(height: 10),
-              Text("Advanced SQL Concepts:", style: TextStyle(fontWeight: FontWeight.bold)),
-              Container(
-                padding: EdgeInsets.all(10),
-                color: Colors.orange[50],
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("• Multiple column selection", style: TextStyle(color: Colors.orange[900])),
-                    Text("• BETWEEN operator for range filtering", style: TextStyle(color: Colors.orange[900])),
-                    Text("• Multiple conditions with AND", style: TextStyle(color: Colors.orange[900])),
-                    Text("• Numeric comparisons", style: TextStyle(color: Colors.orange[900])),
-                    Text("• ASC sorting for ascending order", style: TextStyle(color: Colors.orange[900])),
-                  ],
                 ),
               ),
             ],
@@ -526,9 +514,15 @@ class _SqlLevel8State extends State<SqlLevel8> {
               onPressed: () {
                 musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
-                Navigator.pushReplacementNamed(context, '/levels', arguments: 'SQL');
+                if (score == 3) {
+                  musicService.playSoundEffect('level_complete.mp3');
+                  Navigator.pushReplacementNamed(context, '/sql_level9');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/levels',
+                      arguments: 'SQL');
+                }
               },
-              child: Text("Continue"),
+              child: Text(score == 3 ? "Next Level" : "Go Back"),
             )
           ],
         ),
@@ -580,7 +574,6 @@ class _SqlLevel8State extends State<SqlLevel8> {
     return "$m:$s";
   }
 
-  // Hint Display Widget
   Widget _buildHintDisplay() {
     if (!_showHint) return SizedBox();
 
@@ -642,7 +635,6 @@ class _SqlLevel8State extends State<SqlLevel8> {
     );
   }
 
-  // CODE PREVIEW
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -654,7 +646,6 @@ class _SqlLevel8State extends State<SqlLevel8> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // SQL editor header
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
             decoration: BoxDecoration(
@@ -669,7 +660,7 @@ class _SqlLevel8State extends State<SqlLevel8> {
                 Icon(Icons.storage, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'advanced_filter_query.sql',
+                  'join_analysis.sql',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -679,17 +670,14 @@ class _SqlLevel8State extends State<SqlLevel8> {
               ],
             ),
           ),
-          // SQL content
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Line numbers and SQL
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Line numbers
                     Container(
                       width: 30 * _scaleFactor,
                       child: Column(
@@ -697,17 +685,25 @@ class _SqlLevel8State extends State<SqlLevel8> {
                         children: [
                           _buildCodeLine(1),
                           _buildCodeLine(2),
+                          _buildCodeLine(3),
+                          _buildCodeLine(4),
+                          _buildCodeLine(5),
+                          _buildCodeLine(6),
                         ],
                       ),
                     ),
                     SizedBox(width: 16 * _scaleFactor),
-                    // Actual SQL with syntax highlighting
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildUserCodeLine(getPreviewCode()),
-                          _buildSyntaxHighlightedLine('-- Advanced filtering with BETWEEN and multiple conditions', isComment: true),
+                          _buildUserCodeLine(1, droppedBlocks.length > 0 ? droppedBlocks[0] : ''),
+                          _buildUserCodeLine(2, droppedBlocks.length > 1 ? droppedBlocks[1] : ''),
+                          _buildUserCodeLine(3, droppedBlocks.length > 2 ? droppedBlocks[2] : ''),
+                          _buildUserCodeLine(4, droppedBlocks.length > 3 ? droppedBlocks[3] : ''),
+                          _buildUserCodeLine(5, droppedBlocks.length > 4 ? droppedBlocks[4] : ''),
+                          _buildUserCodeLine(6, droppedBlocks.length > 5 ? droppedBlocks[5] : ''),
+                          _buildSyntaxHighlightedLine('-- Find high-earning employees with department info', isComment: true),
                         ],
                       ),
                     ),
@@ -721,7 +717,7 @@ class _SqlLevel8State extends State<SqlLevel8> {
     );
   }
 
-  Widget _buildUserCodeLine(String code) {
+  Widget _buildUserCodeLine(int lineNumber, String code) {
     if (code.isEmpty) {
       return Container(
         height: 20 * _scaleFactor,
@@ -793,10 +789,6 @@ class _SqlLevel8State extends State<SqlLevel8> {
     );
   }
 
-  String getPreviewCode() {
-    return droppedBlocks.join(' ');
-  }
-
   @override
   void dispose() {
     countdownTimer?.cancel();
@@ -812,7 +804,6 @@ class _SqlLevel8State extends State<SqlLevel8> {
 
   @override
   Widget build(BuildContext context) {
-    // Recalculate scale factor when screen size changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
       final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
@@ -826,8 +817,8 @@ class _SqlLevel8State extends State<SqlLevel8> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("⚡ SQL - Level 8", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.deepPurple,
+        title: Text("🚀 SQL - Level 8", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.orange,
         actions: gameStarted
             ? [
           Padding(
@@ -853,16 +844,15 @@ class _SqlLevel8State extends State<SqlLevel8> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1A237E),
-              Color(0xFF283593),
-              Color(0xFF3949AB),
+              Color(0xFF0D1B2A),
+              Color(0xFF1B263B),
+              Color(0xFF415A77),
             ],
           ),
         ),
         child: Stack(
           children: [
             gameStarted ? buildGameUI() : buildStartScreen(),
-            // HINT BUTTON AND DISPLAY
             if (gameStarted && !isAnsweredCorrectly) ...[
               _buildHintDisplay(),
               Positioned(
@@ -873,7 +863,7 @@ class _SqlLevel8State extends State<SqlLevel8> {
                   child: Container(
                     padding: EdgeInsets.all(12 * _scaleFactor),
                     decoration: BoxDecoration(
-                      color: _availableHintCards > 0 ? Colors.deepPurple : Colors.grey,
+                      color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
                       borderRadius: BorderRadius.circular(20 * _scaleFactor),
                       boxShadow: [
                         BoxShadow(
@@ -883,7 +873,7 @@ class _SqlLevel8State extends State<SqlLevel8> {
                         )
                       ],
                       border: Border.all(
-                        color: _availableHintCards > 0 ? Colors.deepPurpleAccent : Colors.grey,
+                        color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
                         width: 2 * _scaleFactor,
                       ),
                     ),
@@ -931,28 +921,27 @@ class _SqlLevel8State extends State<SqlLevel8> {
               label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.deepPurple,
+                backgroundColor: Colors.orange,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
 
-            // Display available hint cards in start screen
             Container(
               padding: EdgeInsets.all(12 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.deepPurple.withOpacity(0.2),
+                color: Colors.orange.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.deepPurple),
+                border: Border.all(color: Colors.orange),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.lightbulb_outline, color: Colors.deepPurple, size: 20 * _scaleFactor),
+                  Icon(Icons.lightbulb_outline, color: Colors.orange, size: 20 * _scaleFactor),
                   SizedBox(width: 8 * _scaleFactor),
                   Text(
                     'Hint Cards: $_availableHintCards',
                     style: TextStyle(
-                      color: Colors.deepPurple,
+                      color: Colors.orange,
                       fontSize: 16 * _scaleFactor,
                       fontWeight: FontWeight.bold,
                     ),
@@ -981,8 +970,8 @@ class _SqlLevel8State extends State<SqlLevel8> {
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "🏆 Advanced SQL filtering mastered!",
-                      style: TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "You've unlocked Level 9!",
+                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1000,8 +989,8 @@ class _SqlLevel8State extends State<SqlLevel8> {
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score and master advanced filtering!",
-                      style: TextStyle(color: Colors.deepPurple, fontSize: 14 * _scaleFactor),
+                      "Try again to get a perfect score and unlock Level 9!",
+                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1020,7 +1009,7 @@ class _SqlLevel8State extends State<SqlLevel8> {
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
                         "Don't give up! You can do better this time!",
-                        style: TextStyle(color: Colors.deepPurple, fontSize: 14 * _scaleFactor),
+                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1032,26 +1021,26 @@ class _SqlLevel8State extends State<SqlLevel8> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.deepPurple[50]!.withOpacity(0.9),
+                color: Colors.orange[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.deepPurple[200]!),
+                border: Border.all(color: Colors.orange[200]!),
               ),
               child: Column(
                 children: [
                   Text(
                     "🎯 Level 8 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.deepPurple[800]),
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.orange[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create a SQL query to find available products in specific price range",
+                    "Create a SQL JOIN query to find high-earning employees with department information",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.deepPurple[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.orange[700]),
                   ),
-                  SizedBox(height: 5 * _scaleFactor),
+                  SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🏆 Get a perfect score (3/3) to master advanced SQL filtering!",
+                    "🎁 Get a perfect score (3/3) to unlock Level 9!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
@@ -1079,7 +1068,7 @@ class _SqlLevel8State extends State<SqlLevel8> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Advanced Challenge',
+                child: Text('📖 Challenge Story',
                     style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
@@ -1099,14 +1088,14 @@ class _SqlLevel8State extends State<SqlLevel8> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Kailangan ni Maria ng listahan ng mga available na produkto na may presyo sa pagitan ng 50 at 200. Gamitin ang BETWEEN operator at multiple conditions para makuha ang tamang resulta.'
-                : 'Maria needs a list of available products priced between 50 and 200. Use BETWEEN operator and multiple conditions to get the correct result.',
+                ? 'Kailangan ng management ng listahan ng mga empleyado na kumikita ng higit sa 50,000 kasama ang kanilang department names. Gamitin ang JOIN para pagsamahin ang employees at departments tables.'
+                : 'Management needs a list of employees earning more than 50,000 with their department names. Use JOIN to combine employees and departments tables.',
             textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
+            style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange 5 blocks to form the advanced SQL query',
+          Text('🧩 Arrange 6 correct blocks to form the SQL JOIN query',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
@@ -1121,7 +1110,7 @@ class _SqlLevel8State extends State<SqlLevel8> {
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.deepPurple, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.orange, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -1151,10 +1140,10 @@ class _SqlLevel8State extends State<SqlLevel8> {
                         data: block,
                         feedback: Material(
                           color: Colors.transparent,
-                          child: puzzleBlock(block, Colors.deepPurpleAccent),
+                          child: puzzleBlock(block, Colors.orangeAccent),
                         ),
-                        childWhenDragging: puzzleBlock(block, Colors.deepPurpleAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.deepPurpleAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.orangeAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.orangeAccent),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
@@ -1190,7 +1179,7 @@ class _SqlLevel8State extends State<SqlLevel8> {
           ),
 
           SizedBox(height: 20 * _scaleFactor),
-          Text('💻 Query Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          Text('💻 JOIN Query Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
           SizedBox(height: 10 * _scaleFactor),
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
@@ -1218,13 +1207,13 @@ class _SqlLevel8State extends State<SqlLevel8> {
                   data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(block, Colors.deepPurple[400]!),
+                    child: puzzleBlock(block, Colors.orange[400]!),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.deepPurple[400]!),
+                    child: puzzleBlock(block, Colors.orange[400]!),
                   ),
-                  child: puzzleBlock(block, Colors.deepPurple[400]!),
+                  child: puzzleBlock(block, Colors.orange[400]!),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
@@ -1265,7 +1254,7 @@ class _SqlLevel8State extends State<SqlLevel8> {
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Run Query", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple,
+              backgroundColor: Colors.orange,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -1285,7 +1274,6 @@ class _SqlLevel8State extends State<SqlLevel8> {
     );
   }
 
-  // PUZZLE BLOCK
   Widget puzzleBlock(String text, Color color) {
     final textPainter = TextPainter(
       text: TextSpan(

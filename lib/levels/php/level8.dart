@@ -34,7 +34,7 @@ class _PhpLevel8State extends State<PhpLevel8> {
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // NEW: Hint card system using UserPreferences
+  // Hint card system
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
@@ -47,7 +47,7 @@ class _PhpLevel8State extends State<PhpLevel8> {
     _loadUserData();
     _calculateScaleFactor();
     _startGameMusic();
-    _loadHintCards(); // Load hint cards for current user
+    _loadHintCards();
   }
 
   void _startGameMusic() {
@@ -75,7 +75,6 @@ class _PhpLevel8State extends State<PhpLevel8> {
     });
   }
 
-  // NEW: Load hint cards using UserPreferences
   Future<void> _loadHintCards() async {
     final user = await UserPreferences.getUser();
     if (user['id'] != null) {
@@ -86,21 +85,6 @@ class _PhpLevel8State extends State<PhpLevel8> {
     }
   }
 
-  // NEW: Save hint cards using UserPreferences
-  Future<void> _saveHintCards(int count) async {
-    final user = await UserPreferences.getUser();
-    if (user['id'] != null) {
-      final prefs = await SharedPreferences.getInstance();
-      final userKey = 'hint_cards_${user['id']}';
-      await prefs.setInt(userKey, count);
-
-      setState(() {
-        _availableHintCards = count;
-      });
-    }
-  }
-
-  // NEW: Use hint card - shows hint and auto-drags correct answer
   void _useHintCard() async {
     if (_availableHintCards > 0 && !_isUsingHint) {
       final musicService = Provider.of<MusicService>(context, listen: false);
@@ -113,13 +97,11 @@ class _PhpLevel8State extends State<PhpLevel8> {
         _availableHintCards--;
       });
 
-      // Save the updated hint card count
       final user = await UserPreferences.getUser();
       if (user['id'] != null) {
         await DailyChallengeService.useHintCard(user['id']);
       }
 
-      // Auto-drag the correct blocks after a short delay
       _autoDragCorrectBlocks();
     } else if (_availableHintCards <= 0) {
       final musicService = Provider.of<MusicService>(context, listen: false);
@@ -134,24 +116,21 @@ class _PhpLevel8State extends State<PhpLevel8> {
     }
   }
 
-  // NEW: Auto-drag correct blocks to answer area
   void _autoDragCorrectBlocks() {
-    // Correct blocks for PHP arrays and loops
+    // Correct blocks for PHP arrays and foreach loop
     List<String> correctBlocks = [
-      '\$fruits = ["apple", "banana", "orange"];',
+      '\$fruits = ["apple", "banana", "cherry"];',
       'foreach (\$fruits as \$fruit) {',
-      'echo "I like " . \$fruit . "\\\\n";',
+      'echo \$fruit . " ";',
       '}',
       '\$numbers = [1, 2, 3, 4, 5];',
       'foreach (\$numbers as \$number) {',
     ];
 
-    // Remove any existing correct blocks from dropped area first
     setState(() {
       droppedBlocks.clear();
     });
 
-    // Add correct blocks one by one with delay
     int delay = 0;
     for (String block in correctBlocks) {
       Future.delayed(Duration(milliseconds: delay), () {
@@ -166,10 +145,9 @@ class _PhpLevel8State extends State<PhpLevel8> {
           });
         }
       });
-      delay += 500; // 0.5 second delay between each block
+      delay += 500;
     }
 
-    // Hide hint after all blocks are placed
     Future.delayed(Duration(milliseconds: delay + 1000), () {
       if (mounted) {
         setState(() {
@@ -181,7 +159,7 @@ class _PhpLevel8State extends State<PhpLevel8> {
   }
 
   String _getLevelHint() {
-    return "The correct code is: \$fruits = [\"apple\", \"banana\", \"orange\"]; foreach (\$fruits as \$fruit) { echo \"I like \" . \$fruit . \"\\\\n\"; } \$numbers = [1, 2, 3, 4, 5]; foreach (\$numbers as \$number) {\n\n💡 Hint: Use foreach loops to iterate through arrays and display each element!";
+    return "The correct code is: \$fruits = [\"apple\", \"banana\", \"cherry\"];\nforeach (\$fruits as \$fruit) {\necho \$fruit . \" \";\n}\n\$numbers = [1, 2, 3, 4, 5];\nforeach (\$numbers as \$number) {\n\n💡 Hint: Create arrays with [] and use foreach loops to iterate through them!";
   }
 
   void _loadUserData() async {
@@ -190,15 +168,15 @@ class _PhpLevel8State extends State<PhpLevel8> {
       currentUser = user;
     });
     loadScoreFromDatabase();
-    _loadHintCards(); // Load hint cards for this user
+    _loadHintCards();
   }
 
   void resetBlocks() {
-    // Correct blocks for PHP arrays and loops - 6 BLOCKS NA
+    // Correct blocks for PHP arrays and foreach loops - 6 BLOCKS
     List<String> correctBlocks = [
-      '\$fruits = ["apple", "banana", "orange"];',
+      '\$fruits = ["apple", "banana", "cherry"];',
       'foreach (\$fruits as \$fruit) {',
-      'echo "I like " . \$fruit . "\\\\n";',
+      'echo \$fruit . " ";',
       '}',
       '\$numbers = [1, 2, 3, 4, 5];',
       'foreach (\$numbers as \$number) {',
@@ -206,23 +184,22 @@ class _PhpLevel8State extends State<PhpLevel8> {
 
     // Incorrect blocks
     List<String> incorrectBlocks = [
-      '\$fruits = array("apple", "banana", "orange")',
+      '\$fruits = array("apple", "banana", "cherry");',
       'for (\$i = 0; \$i < count(\$fruits); \$i++) {',
-      'print "I like " . \$fruits[\$i];',
+      'print \$fruit;',
       'while (\$fruit in \$fruits) {',
-      '\$fruits = {"apple", "banana", "orange"};',
+      'echo \$fruits[\$i];',
+      'foreach (\$fruits) {',
       'for \$fruit in \$fruits:',
-      'echo "I like \$fruit\\\\n";',
+      'print(\$fruit . " ");',
+      'printf(\$fruit);',
+      '\$fruits = {"apple", "banana", "cherry"};',
+      'for each (\$fruits as \$fruit)',
+      'echo \$fruit;',
       'endforeach;',
       '\$numbers = (1, 2, 3, 4, 5);',
-      'for (\$i = 1; \$i <= 5; \$i++) {',
-      'echo \$i . "\\\\n";',
-      '}',
-      'while (\$number <= 5) {',
-      'echo \$number++;',
-      '}',
-      '\$fruits = ["apple", "banana", "orange"]',
-      'foreach (\$fruits) {',
+      'for (\$numbers as \$number) {',
+      'while (\$number in \$numbers) {',
     ];
 
     // Shuffle incorrect blocks and take 4 random ones (6 correct + 3 incorrect = 9 total)
@@ -380,23 +357,22 @@ class _PhpLevel8State extends State<PhpLevel8> {
 
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
-      '\$fruits = array("apple", "banana", "orange")',
+      '\$fruits = array("apple", "banana", "cherry");',
       'for (\$i = 0; \$i < count(\$fruits); \$i++) {',
-      'print "I like " . \$fruits[\$i];',
+      'print \$fruit;',
       'while (\$fruit in \$fruits) {',
-      '\$fruits = {"apple", "banana", "orange"};',
+      'echo \$fruits[\$i];',
+      'foreach (\$fruits) {',
       'for \$fruit in \$fruits:',
-      'echo "I like \$fruit\\\\n";',
+      'print(\$fruit . " ");',
+      'printf(\$fruit);',
+      '\$fruits = {"apple", "banana", "cherry"};',
+      'for each (\$fruits as \$fruit)',
+      'echo \$fruit;',
       'endforeach;',
       '\$numbers = (1, 2, 3, 4, 5);',
-      'for (\$i = 1; \$i <= 5; \$i++) {',
-      'echo \$i . "\\\\n";',
-      '}',
-      'while (\$number <= 5) {',
-      'echo \$number++;',
-      '}',
-      '\$fruits = ["apple", "banana", "orange"]',
-      'foreach (\$fruits) {',
+      'for (\$numbers as \$number) {',
+      'while (\$number in \$numbers) {',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -459,8 +435,8 @@ class _PhpLevel8State extends State<PhpLevel8> {
         .replaceAll('\n', '')
         .toLowerCase();
 
-    // Expected: $fruits=["apple","banana","orange"];foreach($fruitsas$fruit){echo"Ilike".$fruit."\\n";}$numbers=[1,2,3,4,5];foreach($numbersas$number){
-    String expected = '\$fruits=["apple","banana","orange"];foreach(\$fruitsas\$fruit){echo"ilike".\$fruit."\\\\n";}\$numbers=[1,2,3,4,5];foreach(\$numbersas\$number){';
+    // Expected: $fruits=["apple","banana","cherry"];foreach($fruitsas$fruit){echo$fruit."";}$numbers=[1,2,3,4,5];foreach($numbersas$number){
+    String expected = '\$fruits=["apple","banana","cherry"];foreach(\$fruitsas\$fruit){echo\$fruit."";}\$numbers=[1,2,3,4,5];foreach(\$numbersas\$number){';
 
     if (normalizedAnswer == expected) {
       countdownTimer?.cancel();
@@ -506,7 +482,7 @@ class _PhpLevel8State extends State<PhpLevel8> {
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  "I like apple\nI like banana\nI like orange\n",
+                  "apple banana cherry ",
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
@@ -580,7 +556,6 @@ class _PhpLevel8State extends State<PhpLevel8> {
     return "$m:$s";
   }
 
-  // NEW: Hint Display Widget
   Widget _buildHintDisplay() {
     if (!_showHint) return SizedBox();
 
@@ -794,6 +769,8 @@ class _PhpLevel8State extends State<PhpLevel8> {
       textColor = Color(0xFFC586C0);
     } else if (isNormal && code.contains('\$')) {
       textColor = Color(0xFF9CDCFE);
+    } else if (isNormal && code.contains('[')) {
+      textColor = Color(0xFFCE9178);
     } else if (isNormal) {
       textColor = Colors.white;
     }
@@ -875,10 +852,8 @@ class _PhpLevel8State extends State<PhpLevel8> {
         child: Stack(
           children: [
             gameStarted ? buildGameUI() : buildStartScreen(),
-            // ADD HINT BUTTON AND DISPLAY TO STACK
             if (gameStarted && !isAnsweredCorrectly) ...[
               _buildHintDisplay(),
-              // ✅ HINT CARD BUTTON - BOTTOM RIGHT
               Positioned(
                 bottom: 20 * _scaleFactor,
                 right: 20 * _scaleFactor,
@@ -949,7 +924,6 @@ class _PhpLevel8State extends State<PhpLevel8> {
               ),
             ),
 
-            // Display available hint cards in start screen
             SizedBox(height: 20 * _scaleFactor),
             Container(
               padding: EdgeInsets.all(12 * _scaleFactor),
@@ -1059,7 +1033,7 @@ class _PhpLevel8State extends State<PhpLevel8> {
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create PHP arrays and use foreach loops to iterate through them and display each element",
+                    "Create PHP arrays and use foreach loops to iterate through them and display their values",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.deepPurple[700]),
                   ),
@@ -1113,8 +1087,8 @@ class _PhpLevel8State extends State<PhpLevel8> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Si Zeke ay may listahan ng mga prutas at numero na gusto niyang ipakita gamit ang loops! Kailangan niyang gumamit ng arrays at foreach loops para ma-iterate at ma-display ang bawat elemento. Tulungan siyang pumili ng tamang code!'
-                : 'Zeke has a list of fruits and numbers that he wants to display using loops! He needs to use arrays and foreach loops to iterate through and display each element. Help him choose the correct code!',
+                ? 'Si Zeke ay gustong matuto ng arrays at loops sa PHP! Kailangan niyang gumawa ng array ng mga prutas at numero, tapos gamitin ang foreach loop para i-display ang bawat value. Tulungan siyang pumili ng tamang code!'
+                : 'Zeke wants to learn arrays and loops in PHP! He needs to create arrays of fruits and numbers, then use foreach loops to display each value. Help him choose the correct code!',
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
