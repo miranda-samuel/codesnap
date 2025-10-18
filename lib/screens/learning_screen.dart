@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'practice_screen.dart'; // MAKE SURE THIS IMPORT IS ADDED
+import 'cpp_practice_screen.dart'; // MAKE SURE THIS IMPORT IS ADDED
+import 'java_practice_screen.dart'; // ADD THIS IMPORT
 
 class LearningScreen extends StatefulWidget {
   final String moduleTitle;
@@ -62,15 +63,24 @@ Check back soon for the complete content!
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PracticeScreen(
-          moduleTitle: widget.moduleTitle,
-          primaryColor: widget.primaryColor,
-          language: _getLanguageName(widget.fileName),
-        ),
+        builder: (context) {
+          if (widget.fileName.contains('java')) {
+            return JavaPracticeScreen(
+              moduleTitle: widget.moduleTitle,
+              primaryColor: widget.primaryColor,
+              language: 'Java',
+            );
+          } else {
+            return CppPracticeScreen( // yung existing C++ practice screen
+              moduleTitle: widget.moduleTitle,
+              primaryColor: widget.primaryColor,
+              language: 'C++',
+            );
+          }
+        },
       ),
     );
   }
-
   Widget _buildContentSection(String title, String content) {
     return Container(
       width: double.infinity,

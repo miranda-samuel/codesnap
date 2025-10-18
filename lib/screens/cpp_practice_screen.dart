@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_highlight/themes/darcula.dart';
 
-class PracticeScreen extends StatefulWidget {
+class CppPracticeScreen extends StatefulWidget {
   final String moduleTitle;
   final Color primaryColor;
   final String language;
 
-  const PracticeScreen({
+  const CppPracticeScreen({
     Key? key,
     required this.moduleTitle,
     required this.primaryColor,
@@ -15,10 +15,10 @@ class PracticeScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<PracticeScreen> createState() => _PracticeScreenState();
+  State<CppPracticeScreen> createState() => _CppPracticeScreenState();
 }
 
-class _PracticeScreenState extends State<PracticeScreen> {
+class _CppPracticeScreenState extends State<CppPracticeScreen> {
   final TextEditingController _codeController = TextEditingController();
   final ScrollController _codeScrollController = ScrollController();
   final ScrollController _outputScrollController = ScrollController();
@@ -965,7 +965,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
       backgroundColor: Color(0xFF0D1B2A),
       appBar: AppBar(
         title: Text(
-          'C++ IDE - ${widget.moduleTitle}',
+          'Java IDE - ${widget.moduleTitle}',
           style: TextStyle(color: Colors.white, fontSize: screenWidth < 360 ? 16 : 18),
         ),
         backgroundColor: Color(0xFF1B263B),
@@ -1056,123 +1056,124 @@ class _PracticeScreenState extends State<PracticeScreen> {
       children: [
         // Code Editor with Syntax Highlighting
         Expanded(
-          flex: 3,
-          child: Container(
-            padding: EdgeInsets.all(screenWidth < 360 ? 12 : 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      '📝 Code Editor',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: screenWidth < 360 ? 14 : 16,
+          child: SingleChildScrollView(
+            child: Container(
+              padding: EdgeInsets.all(screenWidth < 360 ? 12 : 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        '📝 Java Code Editor',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: screenWidth < 360 ? 14 : 16,
+                        ),
                       ),
-                    ),
-                    Spacer(),
-                    IconButton(
-                      icon: Icon(Icons.refresh,
-                          color: Colors.grey,
-                          size: screenWidth < 360 ? 18 : 24),
-                      onPressed: _resetCode,
-                      tooltip: 'Reset Code',
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black, // Pure black background
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[700]!), // Darker border
-                    ),
-                    child: Row(
-                      children: [
-                        // Line Numbers
-                        Container(
-                          width: 40,
-                          padding: EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.black, // Pure black din dito
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(8),
-                              bottomLeft: Radius.circular(8),
+                      Spacer(),
+                      IconButton(
+                        icon: Icon(Icons.refresh,
+                            color: Colors.grey,
+                            size: screenWidth < 360 ? 18 : 24),
+                        onPressed: _resetCode,
+                        tooltip: 'Reset Code',
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Container(
+                    height: _calculateEditorHeight(),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey[700]!),
+                      ),
+                      child: Row(
+                        children: [
+                          // Line Numbers
+                          Container(
+                            width: 40,
+                            padding: EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(8),
+                                bottomLeft: Radius.circular(8),
+                              ),
+                            ),
+                            child: ListView.builder(
+                              controller: _codeScrollController,
+                              itemCount: _codeLines.length,
+                              itemBuilder: (context, index) {
+                                return Text(
+                                  '${index + 1}',
+                                  style: TextStyle(
+                                    color: Colors.grey[400],
+                                    fontSize: screenWidth < 360 ? 10 : 12,
+                                    fontFamily: 'Monospace',
+                                  ),
+                                  textAlign: TextAlign.right,
+                                );
+                              },
                             ),
                           ),
-                          child: ListView.builder(
-                            controller: _codeScrollController,
-                            itemCount: _codeLines.length,
-                            itemBuilder: (context, index) {
-                              return Text(
-                                '${index + 1}',
-                                style: TextStyle(
-                                  color: Colors.grey[400], // Light gray for line numbers
-                                  fontSize: screenWidth < 360 ? 10 : 12,
-                                  fontFamily: 'Monospace',
-                                ),
-                                textAlign: TextAlign.right,
-                              );
-                            },
-                          ),
-                        ),
-                        // Code Editor
-                        Expanded(
-                          child: Stack(
-                            children: [
-                              // Syntax Highlighting Background - PURE BLACK
-                              Container(
-                                color: Colors.black, // Ensure pure black background
-                                child: Padding(
-                                  padding: EdgeInsets.all(12),
-                                  child: HighlightView(
-                                    _codeController.text,
-                                    language: 'cpp',
-                                    theme: darculaTheme, // Balik sa original theme
-                                    textStyle: TextStyle(
-                                      fontFamily: 'Monospace',
-                                      fontSize: screenWidth < 360 ? 12 : 14,
-                                      color: Colors.white, // IMPORTANTE: White text color
+                          // Code Editor
+                          Expanded(
+                            child: Stack(
+                              children: [
+                                // Syntax Highlighting Background
+                                Container(
+                                  color: Colors.black,
+                                  child: Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: HighlightView(
+                                      _codeController.text,
+                                      language: 'java',
+                                      theme: darculaTheme,
+                                      textStyle: TextStyle(
+                                        fontFamily: 'Monospace',
+                                        fontSize: screenWidth < 360 ? 12 : 14,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              // TextField for Editing
-                              TextField(
-                                controller: _codeController,
-                                maxLines: null,
-                                expands: true,
-                                style: TextStyle(
-                                  color: Colors.transparent, // Transparent para kita yung syntax highlighting
-                                  fontFamily: 'Monospace',
-                                  fontSize: screenWidth < 360 ? 12 : 14,
-                                  height: 1.3,
+                                // TextField for Editing
+                                TextField(
+                                  controller: _codeController,
+                                  maxLines: null,
+                                  expands: true,
+                                  style: TextStyle(
+                                    color: Colors.transparent,
+                                    fontFamily: 'Monospace',
+                                    fontSize: screenWidth < 360 ? 12 : 14,
+                                    height: 1.3,
+                                  ),
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.all(12),
+                                    filled: false,
+                                  ),
+                                  cursorColor: Colors.white,
                                 ),
-                                decoration: InputDecoration(
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.all(12),
-                                  filled: false, // Wag filled para kita yung background
-                                ),
-                                cursorColor: Colors.white,
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
 
         // Output Panel
         Expanded(
-          flex: 2,
           child: Container(
             padding: EdgeInsets.all(screenWidth < 360 ? 12 : 16),
             child: Column(
@@ -1211,7 +1212,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                     child: SingleChildScrollView(
                       controller: _outputScrollController,
                       child: Text(
-                        _output.isEmpty ? '🚀 Click "Run Code" to execute your program...' : _output,
+                        _output.isEmpty ? '🚀 Click "Run Code" to execute your Java program...' : _output,
                         style: TextStyle(
                           color: Colors.white,
                           fontFamily: 'Monospace',
@@ -1234,123 +1235,124 @@ class _PracticeScreenState extends State<PracticeScreen> {
       children: [
         // Code Editor
         Expanded(
-          flex: 2,
-          child: Container(
-            padding: EdgeInsets.all(screenWidth < 600 ? 12 : 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      '📝 Code Editor',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: screenWidth < 600 ? 14 : 16,
+          child: SingleChildScrollView(
+            child: Container(
+              padding: EdgeInsets.all(screenWidth < 600 ? 12 : 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        '📝 Java Code Editor',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: screenWidth < 600 ? 14 : 16,
+                        ),
                       ),
-                    ),
-                    Spacer(),
-                    IconButton(
-                      icon: Icon(Icons.refresh,
-                          color: Colors.grey,
-                          size: screenWidth < 600 ? 18 : 24),
-                      onPressed: _resetCode,
-                      tooltip: 'Reset Code',
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black, // Pure black background
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[700]!), // Darker border
-                    ),
-                    child: Row(
-                      children: [
-                        // Line Numbers
-                        Container(
-                          width: 40,
-                          padding: EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.black, // Pure black din dito
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(8),
-                              bottomLeft: Radius.circular(8),
+                      Spacer(),
+                      IconButton(
+                        icon: Icon(Icons.refresh,
+                            color: Colors.grey,
+                            size: screenWidth < 600 ? 18 : 24),
+                        onPressed: _resetCode,
+                        tooltip: 'Reset Code',
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Container(
+                    height: _calculateEditorHeight(),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey[700]!),
+                      ),
+                      child: Row(
+                        children: [
+                          // Line Numbers
+                          Container(
+                            width: 40,
+                            padding: EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(8),
+                                bottomLeft: Radius.circular(8),
+                              ),
+                            ),
+                            child: ListView.builder(
+                              controller: _codeScrollController,
+                              itemCount: _codeLines.length,
+                              itemBuilder: (context, index) {
+                                return Text(
+                                  '${index + 1}',
+                                  style: TextStyle(
+                                    color: Colors.grey[400],
+                                    fontSize: screenWidth < 600 ? 10 : 12,
+                                    fontFamily: 'Monospace',
+                                  ),
+                                  textAlign: TextAlign.right,
+                                );
+                              },
                             ),
                           ),
-                          child: ListView.builder(
-                            controller: _codeScrollController,
-                            itemCount: _codeLines.length,
-                            itemBuilder: (context, index) {
-                              return Text(
-                                '${index + 1}',
-                                style: TextStyle(
-                                  color: Colors.grey[400], // Light gray for line numbers
-                                  fontSize: screenWidth < 600 ? 10 : 12,
-                                  fontFamily: 'Monospace',
-                                ),
-                                textAlign: TextAlign.right,
-                              );
-                            },
-                          ),
-                        ),
-                        // Code Editor
-                        Expanded(
-                          child: Stack(
-                            children: [
-                              // Syntax Highlighting Background - PURE BLACK
-                              Container(
-                                color: Colors.black, // Ensure pure black background
-                                child: Padding(
-                                  padding: EdgeInsets.all(12),
-                                  child: HighlightView(
-                                    _codeController.text,
-                                    language: 'cpp',
-                                    theme: darculaTheme, // Balik sa original theme
-                                    textStyle: TextStyle(
-                                      fontFamily: 'Monospace',
-                                      fontSize: screenWidth < 600 ? 12 : 14,
-                                      color: Colors.white, // IMPORTANTE: White text color
+                          // Code Editor
+                          Expanded(
+                            child: Stack(
+                              children: [
+                                // Syntax Highlighting Background
+                                Container(
+                                  color: Colors.black,
+                                  child: Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: HighlightView(
+                                      _codeController.text,
+                                      language: 'java',
+                                      theme: darculaTheme,
+                                      textStyle: TextStyle(
+                                        fontFamily: 'Monospace',
+                                        fontSize: screenWidth < 600 ? 12 : 14,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              // TextField for Editing
-                              TextField(
-                                controller: _codeController,
-                                maxLines: null,
-                                expands: true,
-                                style: TextStyle(
-                                  color: Colors.transparent, // Transparent para kita yung syntax highlighting
-                                  fontFamily: 'Monospace',
-                                  fontSize: screenWidth < 600 ? 12 : 14,
-                                  height: 1.3,
+                                // TextField for Editing
+                                TextField(
+                                  controller: _codeController,
+                                  maxLines: null,
+                                  expands: true,
+                                  style: TextStyle(
+                                    color: Colors.transparent,
+                                    fontFamily: 'Monospace',
+                                    fontSize: screenWidth < 600 ? 12 : 14,
+                                    height: 1.3,
+                                  ),
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.all(12),
+                                    filled: false,
+                                  ),
+                                  cursorColor: Colors.white,
                                 ),
-                                decoration: InputDecoration(
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.all(12),
-                                  filled: false, // Wag filled para kita yung background
-                                ),
-                                cursorColor: Colors.white,
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
 
         // Output Panel
         Expanded(
-          flex: 1,
           child: Container(
             padding: EdgeInsets.all(screenWidth < 600 ? 12 : 16),
             child: Column(
@@ -1388,7 +1390,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                     padding: EdgeInsets.all(screenWidth < 600 ? 8 : 12),
                     child: SingleChildScrollView(
                       child: Text(
-                        _output.isEmpty ? '🚀 Click "Run Code" to execute your program...' : _output,
+                        _output.isEmpty ? '🚀 Click "Run Code" to execute your Java program...' : _output,
                         style: TextStyle(
                           color: Colors.white,
                           fontFamily: 'Monospace',
@@ -1406,42 +1408,20 @@ class _PracticeScreenState extends State<PracticeScreen> {
     );
   }
 
-// Dagdag dito sa class _PracticeScreenState
-  Map<String, TextStyle> _createPureBlackTheme() {
-    return {
-      'root': TextStyle(
-        backgroundColor: Colors.black,
-        color: Colors.white,
-      ),
-      'comment': TextStyle(color: Colors.green),
-      'quote': TextStyle(color: Colors.green),
-      'keyword': TextStyle(color: Colors.purpleAccent),
-      'selector-tag': TextStyle(color: Colors.purpleAccent),
-      'addition': TextStyle(color: Colors.purpleAccent),
-      'number': TextStyle(color: Colors.orange),
-      'string': TextStyle(color: Colors.orange),
-      'literal': TextStyle(color: Colors.orange),
-      'doctag': TextStyle(color: Colors.orange),
-      'regexp': TextStyle(color: Colors.orange),
-      'type': TextStyle(color: Colors.blueAccent),
-      'built_in': TextStyle(color: Colors.blueAccent),
-      'title': TextStyle(color: Colors.blueAccent),
-      'name': TextStyle(color: Colors.blueAccent),
-      'tag': TextStyle(color: Colors.blueAccent),
-      'attr': TextStyle(color: Colors.blueAccent),
-      'variable': TextStyle(color: Colors.blueAccent),
-      'template-variable': TextStyle(color: Colors.blueAccent),
-      'class title': TextStyle(color: Colors.blueAccent),
-      'symbol': TextStyle(color: Colors.yellow),
-      'bullet': TextStyle(color: Colors.yellow),
-      'subst': TextStyle(color: Colors.yellow),
-      'meta': TextStyle(color: Colors.yellow),
-      'section': TextStyle(color: Colors.yellow),
-      'emphasis': TextStyle(fontStyle: FontStyle.italic),
-      'strong': TextStyle(fontWeight: FontWeight.bold),
-    };
-  }
+// DAGDAG MO ITO SA STATE CLASS
+  double _calculateEditorHeight() {
+    int lineCount = _codeLines.length;
+    double baseHeight = 40.0; // Minimum height
+    double lineHeight = 20.0; // Height per line
 
+    // Calculate height based on number of lines
+    double calculatedHeight = baseHeight + (lineCount * lineHeight);
+
+    // Set maximum height to 70% of screen height
+    double maxHeight = MediaQuery.of(context).size.height * 0.7;
+
+    return calculatedHeight.clamp(200.0, maxHeight); // Min 200, max 70% of screen
+  }
   Widget _buildControlButtons(double screenWidth) {
     bool isSmallScreen = screenWidth < 360;
     double buttonFontSize = isSmallScreen ? 12 : 14;
@@ -1518,7 +1498,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
       ],
     );
   }
-
 
   @override
   void dispose() {
