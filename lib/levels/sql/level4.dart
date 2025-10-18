@@ -5,7 +5,7 @@ import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
 import '../../services/music_service.dart';
-import '../../services/daily_challenge_service.dart'; // ADD THIS IMPORT
+import '../../services/daily_challenge_service.dart';
 
 class SqlLevel4 extends StatefulWidget {
   const SqlLevel4({super.key});
@@ -30,12 +30,9 @@ class _SqlLevel4State extends State<SqlLevel4> {
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
-  // Track currently dragged block
   String? currentlyDraggedBlock;
-
-  // Scaling factors
   double _scaleFactor = 1.0;
-  final double _baseScreenWidth = 360.0; // Base width for scaling
+  final double _baseScreenWidth = 360.0;
 
   // NEW: Hint card system using UserPreferences
   int _availableHintCards = 0;
@@ -85,6 +82,21 @@ class _SqlLevel4State extends State<SqlLevel4> {
       final hintCards = await DailyChallengeService.getUserHintCards(user['id']);
       setState(() {
         _availableHintCards = hintCards;
+      });
+    }
+  }
+
+  // NEW: Save hint cards using UserPreferences
+  Future<void> _saveHintCards(int count) async {
+    final user = await UserPreferences.getUser();
+    if (user['id'] != null) {
+      // We'll update the hint cards count in shared preferences
+      final prefs = await SharedPreferences.getInstance();
+      final userKey = 'hint_cards_${user['id']}';
+      await prefs.setInt(userKey, count);
+
+      setState(() {
+        _availableHintCards = count;
       });
     }
   }
@@ -168,7 +180,7 @@ class _SqlLevel4State extends State<SqlLevel4> {
   }
 
   String _getLevelHint() {
-    return "The correct SQL query is: SELECT category, COUNT(*) FROM products GROUP BY category HAVING COUNT(*) > 5;\n\n💡 Hint: Use 'SELECT category, COUNT(*) FROM' followed by the table name 'products', then 'GROUP BY category' to group results, and finally 'HAVING COUNT(*) > 5;' to filter groups with more than 5 products!";
+    return "The correct SQL query is: SELECT category, COUNT(*) FROM products GROUP BY category HAVING COUNT(*) > 5;\n\n💡 Hint: Start with 'SELECT category, COUNT(*) FROM', then the table 'products', followed by 'GROUP BY category' and finally 'HAVING COUNT(*) > 5;' to filter groups!";
   }
 
   void _loadUserData() async {
@@ -630,7 +642,7 @@ class _SqlLevel4State extends State<SqlLevel4> {
     );
   }
 
-  // CODE PREVIEW
+  // ORGANIZED CODE PREVIEW - TOP TO BOTTOM STRUCTURE
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -667,13 +679,13 @@ class _SqlLevel4State extends State<SqlLevel4> {
               ],
             ),
           ),
-          // SQL content
+          // SQL content - ORGANIZED TOP TO BOTTOM
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Line numbers and SQL
+                // Line numbers and SQL - VERTICAL ORGANIZATION
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -685,16 +697,22 @@ class _SqlLevel4State extends State<SqlLevel4> {
                         children: [
                           _buildCodeLine(1),
                           _buildCodeLine(2),
+                          _buildCodeLine(3),
+                          _buildCodeLine(4),
                         ],
                       ),
                     ),
                     SizedBox(width: 16 * _scaleFactor),
-                    // Actual SQL with syntax highlighting
+                    // Actual SQL with syntax highlighting - VERTICAL ORGANIZATION
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildUserCodeLine(getPreviewCode()),
+                          // User's SQL query - displayed line by line
+                          _buildUserCodeLine(1, droppedBlocks.length > 0 ? droppedBlocks[0] : ''),
+                          _buildUserCodeLine(2, droppedBlocks.length > 1 ? droppedBlocks[1] : ''),
+                          _buildUserCodeLine(3, droppedBlocks.length > 2 ? droppedBlocks[2] : ''),
+                          _buildUserCodeLine(4, droppedBlocks.length > 3 ? droppedBlocks[3] : ''),
                           _buildSyntaxHighlightedLine('-- Advanced aggregate query with GROUP BY and HAVING', isComment: true),
                         ],
                       ),
@@ -709,7 +727,7 @@ class _SqlLevel4State extends State<SqlLevel4> {
     );
   }
 
-  Widget _buildUserCodeLine(String code) {
+  Widget _buildUserCodeLine(int lineNumber, String code) {
     if (code.isEmpty) {
       return Container(
         height: 20 * _scaleFactor,
@@ -779,10 +797,6 @@ class _SqlLevel4State extends State<SqlLevel4> {
         ),
       ),
     );
-  }
-
-  String getPreviewCode() {
-    return droppedBlocks.join(' ');
   }
 
   @override
@@ -1095,7 +1109,7 @@ class _SqlLevel4State extends State<SqlLevel4> {
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange 4 blocks to form the advanced SQL query',
+          Text('🧩 Arrange 4 correct blocks to form the advanced SQL query',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
@@ -1275,14 +1289,14 @@ class _SqlLevel4State extends State<SqlLevel4> {
   }
 
   Widget puzzleBlock(String text, Color color) {
-    // Calculate text width to adjust block size - SAME AS LEVEL 8
+    // Calculate text width to adjust block size - SAME AS LEVEL 1
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 12 * _scaleFactor, // Using 12 instead of 14 for consistency
+          fontSize: 12 * _scaleFactor,
           color: Colors.black,
         ),
       ),
@@ -1290,8 +1304,8 @@ class _SqlLevel4State extends State<SqlLevel4> {
     )..layout();
 
     final textWidth = textPainter.width;
-    final minWidth = 80 * _scaleFactor;  // Same as Level 8
-    final maxWidth = 240 * _scaleFactor; // Same as Level 8
+    final minWidth = 80 * _scaleFactor;
+    final maxWidth = 240 * _scaleFactor;
 
     return Container(
       constraints: BoxConstraints(
@@ -1300,8 +1314,8 @@ class _SqlLevel4State extends State<SqlLevel4> {
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 12 * _scaleFactor,  // Same as Level 8
-        vertical: 10 * _scaleFactor,    // Same as Level 8
+        horizontal: 12 * _scaleFactor,
+        vertical: 10 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
@@ -1323,7 +1337,7 @@ class _SqlLevel4State extends State<SqlLevel4> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 12 * _scaleFactor, // Changed from 14 to 12 to match Level 8
+          fontSize: 12 * _scaleFactor,
           color: Colors.black,
           shadows: [
             Shadow(
@@ -1335,7 +1349,7 @@ class _SqlLevel4State extends State<SqlLevel4> {
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.visible,
-        softWrap: true, // Added for better text wrapping
+        softWrap: true,
       ),
     );
   }

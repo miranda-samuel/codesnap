@@ -3,14 +3,14 @@ import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
 
-class JavaBonusGame1 extends StatefulWidget {
-  const JavaBonusGame1({super.key});
+class PhpBonusGame1 extends StatefulWidget {
+  const PhpBonusGame1({super.key});
 
   @override
-  State<JavaBonusGame1> createState() => _JavaBonusGame1State();
+  State<PhpBonusGame1> createState() => _PhpBonusGame1State();
 }
 
-class _JavaBonusGame1State extends State<JavaBonusGame1> {
+class _PhpBonusGame1State extends State<PhpBonusGame1> {
   List<String> answerBlocks = [];
   String selectedAnswer = '';
   bool gameStarted = false;
@@ -31,41 +31,41 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // Questions and Answers for Java
+  // Questions and Answers for PHP - Advanced Concepts
   List<Map<String, dynamic>> questions = [
     {
-      'question': 'Which keyword is used to prevent a class from being inherited?',
-      'tagalogQuestion': 'Aling keyword ang ginagamit para pigilan ang isang klase na ma-inherit?',
-      'correctAnswer': 'final',
-      'options': ['final', 'static', 'private', 'abstract'],
+      'question': 'Which keyword is used to declare a constant in PHP?',
+      'tagalogQuestion': 'Aling keyword ang ginagamit para mag-declare ng constant sa PHP?',
+      'correctAnswer': 'define',
+      'options': ['define', 'const', 'constant', 'set'],
       'points': 10
     },
     {
-      'question': 'What is the return type of a constructor?',
-      'tagalogQuestion': 'Ano ang return type ng isang constructor?',
-      'correctAnswer': 'No return type',
-      'options': ['void', 'int', 'Object', 'No return type'],
+      'question': 'What is the default method for form submission in PHP?',
+      'tagalogQuestion': 'Ano ang default na method para sa form submission sa PHP?',
+      'correctAnswer': 'GET',
+      'options': ['GET', 'POST', 'REQUEST', 'SUBMIT'],
       'points': 10
     },
     {
-      'question': 'Which method must be implemented when using Runnable interface?',
-      'tagalogQuestion': 'Aling method ang dapat i-implement kapag gumagamit ng Runnable interface?',
-      'correctAnswer': 'run()',
-      'options': ['start()', 'run()', 'execute()', 'main()'],
+      'question': 'Which function is used to start a session in PHP?',
+      'tagalogQuestion': 'Aling function ang ginagamit para magsimula ng session sa PHP?',
+      'correctAnswer': 'session_start()',
+      'options': ['session_start()', 'start_session()', 'session_begin()', 'begin_session()'],
       'points': 10
     },
     {
-      'question': 'What is the size of int data type in Java?',
-      'tagalogQuestion': 'Ano ang size ng int data type sa Java?',
-      'correctAnswer': '4 bytes',
-      'options': ['2 bytes', '4 bytes', '8 bytes', 'Depends on platform'],
+      'question': 'What does PDO stand for in PHP?',
+      'tagalogQuestion': 'Ano ang ibig sabihin ng PDO sa PHP?',
+      'correctAnswer': 'PHP Data Objects',
+      'options': ['PHP Data Objects', 'PHP Database Output', 'PHP Data Operations', 'PHP Development Objects'],
       'points': 10
     },
     {
-      'question': 'Which collection class allows duplicate elements?',
-      'tagalogQuestion': 'Aling collection class ang nagpapahintulot ng duplicate elements?',
-      'correctAnswer': 'ArrayList',
-      'options': ['HashSet', 'ArrayList', 'HashMap', 'TreeSet'],
+      'question': 'Which method is used to prevent SQL injection in PHP?',
+      'tagalogQuestion': 'Anong method ang ginagamit para maiwasan ang SQL injection sa PHP?',
+      'correctAnswer': 'Prepared Statements',
+      'options': ['Prepared Statements', 'String Escape', 'Query Filter', 'SQL Clean'],
       'points': 10
     }
   ];
@@ -187,7 +187,7 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
           children: [
             Icon(Icons.celebration, size: 60, color: Colors.amber[700]),
             SizedBox(height: 10),
-            Text("You've completed the Java Bonus Game!"),
+            Text("You've completed the PHP Bonus Game!"),
             SizedBox(height: 10),
             Text("Questions Correct: $questionsCorrect/${questions.length}",
                 style: TextStyle(fontWeight: FontWeight.bold)),
@@ -234,7 +234,7 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
   }
 
   void _navigateToLevels() {
-    Navigator.pushReplacementNamed(context, '/levels', arguments: 'Java');
+    Navigator.pushReplacementNamed(context, '/levels', arguments: 'PHP');
   }
 
   Future<void> saveScoreToDatabase(int score) async {
@@ -246,7 +246,7 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
       // SAVE BONUS POINTS TO LEVEL 98 (Bonus Game 1)
       final response = await ApiService.saveScore(
         currentUser!['id'],
-        'Java',
+        'PHP',
         98,  // BONUS GAME 1 LEVEL
         score, // 50 POINTS FOR PERFECT SCORE
         true,  // ALWAYS MARK AS COMPLETED IF PERFECT
@@ -272,7 +272,7 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScores(currentUser!['id'], 'Java');
+      final response = await ApiService.getScores(currentUser!['id'], 'PHP');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
@@ -425,8 +425,8 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("🎁 Java - Bonus Game", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.amber[700],
+        title: Text("🎁 PHP - Bonus Game", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.amber[700], // AMBER THEME like Java
         actions: gameStarted
             ? [
           Padding(
@@ -463,7 +463,7 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1A1A00),
+              Color(0xFF1A1A00), // DARK GOLD/GREEN THEME like Java
               Color(0xFF333300),
               Color(0xFF4D4D00),
             ],
@@ -487,7 +487,7 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
               label: Text("Start Bonus Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.amber[700],
+                backgroundColor: Colors.amber[700], // AMBER THEME
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
@@ -548,20 +548,20 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.amber[50]!.withOpacity(0.9),
+                color: Colors.amber[50]!.withOpacity(0.9), // AMBER THEME
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
                 border: Border.all(color: Colors.amber[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎯 JAVA BONUS GAME",
+                    "🎯 PHP BONUS GAME",
                     style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.amber[900]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Advanced Java Concepts Challenge",
+                    "Advanced PHP Concepts Challenge",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.amber[800], fontWeight: FontWeight.bold),
                   ),
@@ -598,7 +598,7 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎁 Topics: Inheritance, Constructors, Interfaces, Data Types, Collections",
+                    "🎁 Topics: Constants, Forms, Sessions, PDO, SQL Injection",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
@@ -647,7 +647,7 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
             width: double.infinity,
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
-              color: Colors.amber[100]!.withOpacity(0.9),
+              color: Colors.amber[100]!.withOpacity(0.9), // AMBER THEME
               borderRadius: BorderRadius.circular(12 * _scaleFactor),
               border: Border.all(
                   color: remainingSeconds <= 3 ? Colors.red : Colors.amber[700]!,
@@ -718,7 +718,7 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
                     vertical: 15 * _scaleFactor,
                   ),
                   decoration: BoxDecoration(
-                    color: isSelected ? Colors.amber[600] : Colors.amber[700],
+                    color: isSelected ? Colors.amber[600] : Colors.amber[700], // AMBER THEME
                     borderRadius: BorderRadius.circular(20 * _scaleFactor),
                     border: Border.all(
                       color: isSelected ? Colors.white : Colors.transparent,
@@ -755,7 +755,7 @@ class _JavaBonusGame1State extends State<JavaBonusGame1> {
               icon: Icon(Icons.check, size: 18 * _scaleFactor),
               label: Text("Submit Answer", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.amber[700],
+                backgroundColor: Colors.amber[700], // AMBER THEME
                 padding: EdgeInsets.symmetric(
                   horizontal: 24 * _scaleFactor,
                   vertical: 16 * _scaleFactor,

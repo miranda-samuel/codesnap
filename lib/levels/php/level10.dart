@@ -6,6 +6,7 @@ import '../../services/api_service.dart';
 import '../../services/user_preferences.dart';
 import '../../services/music_service.dart';
 import '../../services/daily_challenge_service.dart';
+import 'php_bonus_game1.dart';
 
 class PhpLevel10 extends StatefulWidget {
   const PhpLevel10({super.key});
@@ -25,7 +26,7 @@ class _PhpLevel10State extends State<PhpLevel10> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 180;
+  int remainingSeconds = 240;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -34,7 +35,7 @@ class _PhpLevel10State extends State<PhpLevel10> {
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // NEW: Hint card system using UserPreferences
+  // Hint card system
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
@@ -47,7 +48,7 @@ class _PhpLevel10State extends State<PhpLevel10> {
     _loadUserData();
     _calculateScaleFactor();
     _startGameMusic();
-    _loadHintCards(); // Load hint cards for current user
+    _loadHintCards();
   }
 
   void _startGameMusic() {
@@ -75,7 +76,6 @@ class _PhpLevel10State extends State<PhpLevel10> {
     });
   }
 
-  // NEW: Load hint cards using UserPreferences
   Future<void> _loadHintCards() async {
     final user = await UserPreferences.getUser();
     if (user['id'] != null) {
@@ -86,21 +86,6 @@ class _PhpLevel10State extends State<PhpLevel10> {
     }
   }
 
-  // NEW: Save hint cards using UserPreferences
-  Future<void> _saveHintCards(int count) async {
-    final user = await UserPreferences.getUser();
-    if (user['id'] != null) {
-      final prefs = await SharedPreferences.getInstance();
-      final userKey = 'hint_cards_${user['id']}';
-      await prefs.setInt(userKey, count);
-
-      setState(() {
-        _availableHintCards = count;
-      });
-    }
-  }
-
-  // NEW: Use hint card - shows hint and auto-drags correct answer
   void _useHintCard() async {
     if (_availableHintCards > 0 && !_isUsingHint) {
       final musicService = Provider.of<MusicService>(context, listen: false);
@@ -113,13 +98,11 @@ class _PhpLevel10State extends State<PhpLevel10> {
         _availableHintCards--;
       });
 
-      // Save the updated hint card count
       final user = await UserPreferences.getUser();
       if (user['id'] != null) {
         await DailyChallengeService.useHintCard(user['id']);
       }
 
-      // Auto-drag the correct blocks after a short delay
       _autoDragCorrectBlocks();
     } else if (_availableHintCards <= 0) {
       final musicService = Provider.of<MusicService>(context, listen: false);
@@ -134,29 +117,23 @@ class _PhpLevel10State extends State<PhpLevel10> {
     }
   }
 
-  // NEW: Auto-drag correct blocks to answer area
   void _autoDragCorrectBlocks() {
-    // Correct blocks for PHP Class and Object - FINAL LEVEL
+    // Correct blocks for PHP file handling - 8 BLOCKS (ORIGINAL)
     List<String> correctBlocks = [
-      'class Car {',
-      'public \$brand;',
-      'public function __construct(\$brand) {',
-      '\$this->brand = \$brand;',
-      '}',
-      'public function display() {',
-      'echo "Car brand: " . \$this->brand;',
-      '}',
-      '}',
-      '\$myCar = new Car("Toyota");',
-      '\$myCar->display();',
+      '\$file = fopen("data.txt", "w");',
+      'if (\$file) {',
+      'fwrite(\$file, "Hello PHP File Handling!");',
+      'fclose(\$file);',
+      'echo "File written successfully!";',
+      '\$readFile = fopen("data.txt", "r");',
+      '\$content = fread(\$readFile, filesize("data.txt"));',
+      'echo "Content: " . \$content;',
     ];
 
-    // Remove any existing correct blocks from dropped area first
     setState(() {
       droppedBlocks.clear();
     });
 
-    // Add correct blocks one by one with delay
     int delay = 0;
     for (String block in correctBlocks) {
       Future.delayed(Duration(milliseconds: delay), () {
@@ -171,10 +148,9 @@ class _PhpLevel10State extends State<PhpLevel10> {
           });
         }
       });
-      delay += 500; // 0.5 second delay between each block
+      delay += 500;
     }
 
-    // Hide hint after all blocks are placed
     Future.delayed(Duration(milliseconds: delay + 1000), () {
       if (mounted) {
         setState(() {
@@ -186,7 +162,7 @@ class _PhpLevel10State extends State<PhpLevel10> {
   }
 
   String _getLevelHint() {
-    return "The correct code is: class Car { public \$brand; public function __construct(\$brand) { \$this->brand = \$brand; } public function display() { echo \"Car brand: \" . \$this->brand; } } \$myCar = new Car(\"Toyota\"); \$myCar->display();\n\n💡 Hint: Create a class with properties, constructor, methods, then instantiate and use the object!";
+    return "The correct code is: \$file = fopen(\"data.txt\", \"w\"); if (\$file) { fwrite(\$file, \"Hello PHP File Handling!\"); fclose(\$file); echo \"File written successfully!\"; \$readFile = fopen(\"data.txt\", \"r\"); \$content = fread(\$readFile, filesize(\"data.txt\")); echo \"Content: \" . \$content;\n\n💡 Hint: First open file for writing, write content, close it, then open for reading!";
   }
 
   void _loadUserData() async {
@@ -195,68 +171,43 @@ class _PhpLevel10State extends State<PhpLevel10> {
       currentUser = user;
     });
     loadScoreFromDatabase();
-    _loadHintCards(); // Load hint cards for this user
+    _loadHintCards();
   }
 
   void resetBlocks() {
-    // Correct blocks for PHP Class and Object - FINAL LEVEL (11 blocks)
+    // Correct blocks for PHP file handling - 8 BLOCKS (ORIGINAL)
     List<String> correctBlocks = [
-      'class Car {',
-      'public \$brand;',
-      'public function __construct(\$brand) {',
-      '\$this->brand = \$brand;',
-      '}',
-      'public function display() {',
-      'echo "Car brand: " . \$this->brand;',
-      '}',
-      '}',
-      '\$myCar = new Car("Toyota");',
-      '\$myCar->display();',
+      '\$file = fopen("data.txt", "w");',
+      'if (\$file) {',
+      'fwrite(\$file, "Hello PHP File Handling!");',
+      'fclose(\$file);',
+      'echo "File written successfully!";',
+      '\$readFile = fopen("data.txt", "r");',
+      '\$content = fread(\$readFile, filesize("data.txt"));',
+      'echo "Content: " . \$content;',
     ];
 
-    // Incorrect blocks - DIFFERENT FROM PREVIOUS LEVELS
+    // Incorrect blocks
     List<String> incorrectBlocks = [
-      'class Car {',
-      'private brand;',
-      'function Car(brand) {',
-      'this.brand = brand;',
-      '}',
-      'function display() {',
-      'print("Car brand: " + this.brand);',
-      '}',
-      '}',
-      'myCar = new Car("Toyota");',
-      'myCar.display();',
-      'struct Car {',
-      'string brand;',
-      'Car(string b) { brand = b; }',
-      'void display() {',
-      'cout << "Car brand: " << brand;',
-      '}',
-      '};',
-      'Car myCar("Toyota");',
-      'myCar.display();',
-      'public class Car {',
-      'public String brand;',
-      'public Car(String brand) {',
-      'this.brand = brand;',
-      '}',
-      'public void display() {',
-      'System.out.println("Car brand: " + brand);',
-      '}',
-      '}',
-      'Car myCar = new Car("Toyota");',
-      'myCar.display();',
-      'class Car:',
-      'def __init__(self, brand):',
-      'self.brand = brand',
-      'def display(self):',
-      'print(f"Car brand: {self.brand}")',
-      'my_car = Car("Toyota")',
-      'my_car.display()',
+      'file = open("data.txt", "w")',
+      'file.write("Hello Python!")',
+      'file.close()',
+      'File.open("data.txt", "w") do |file|',
+      'file.puts "Hello Ruby!"',
+      'const fs = require("fs");',
+      'fs.writeFileSync("data.txt", "Hello Node.js!");',
+      'FileWriter writer = new FileWriter("data.txt");',
+      'writer.write("Hello Java!");',
+      'ofstream file("data.txt");',
+      'file << "Hello C++!";',
+      'fopen(\$file, "data.txt", "w");',
+      'write_file(\$file, "Hello!");',
+      'close(\$file);',
+      'print "Content: " . \$content;',
+      'printf("Content: %s", \$content);',
     ];
 
-    // Shuffle incorrect blocks and take 4 random ones (11 correct + 4 incorrect = 15 total)
+    // Shuffle and select 4 incorrect blocks (8 correct + 4 incorrect = 12 total)
     incorrectBlocks.shuffle();
     List<String> selectedIncorrectBlocks = incorrectBlocks.take(4).toList();
 
@@ -273,7 +224,7 @@ class _PhpLevel10State extends State<PhpLevel10> {
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 180;
+      remainingSeconds = 240;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       _showHint = false;
@@ -323,7 +274,7 @@ class _PhpLevel10State extends State<PhpLevel10> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 90), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 120), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -347,7 +298,7 @@ class _PhpLevel10State extends State<PhpLevel10> {
 
     setState(() {
       score = 3;
-      remainingSeconds = 180;
+      remainingSeconds = 240;
       gameStarted = false;
       isAnsweredCorrectly = false;
       _showHint = false;
@@ -366,7 +317,7 @@ class _PhpLevel10State extends State<PhpLevel10> {
       final response = await ApiService.saveScore(
         currentUser!['id'],
         'PHP',
-        10, // FINAL LEVEL 10
+        10, // LEVEL 10
         score,
         score == 3,
       );
@@ -411,44 +362,22 @@ class _PhpLevel10State extends State<PhpLevel10> {
 
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
-      'class Car {',
-      'private brand;',
-      'function Car(brand) {',
-      'this.brand = brand;',
-      '}',
-      'function display() {',
-      'print("Car brand: " + this.brand);',
-      '}',
-      '}',
-      'myCar = new Car("Toyota");',
-      'myCar.display();',
-      'struct Car {',
-      'string brand;',
-      'Car(string b) { brand = b; }',
-      'void display() {',
-      'cout << "Car brand: " << brand;',
-      '}',
-      '};',
-      'Car myCar("Toyota");',
-      'myCar.display();',
-      'public class Car {',
-      'public String brand;',
-      'public Car(String brand) {',
-      'this.brand = brand;',
-      '}',
-      'public void display() {',
-      'System.out.println("Car brand: " + brand);',
-      '}',
-      '}',
-      'Car myCar = new Car("Toyota");',
-      'myCar.display();',
-      'class Car:',
-      'def __init__(self, brand):',
-      'self.brand = brand',
-      'def display(self):',
-      'print(f"Car brand: {self.brand}")',
-      'my_car = Car("Toyota")',
-      'my_car.display()',
+      'file = open("data.txt", "w")',
+      'file.write("Hello Python!")',
+      'file.close()',
+      'File.open("data.txt", "w") do |file|',
+      'file.puts "Hello Ruby!"',
+      'const fs = require("fs");',
+      'fs.writeFileSync("data.txt", "Hello Node.js!");',
+      'FileWriter writer = new FileWriter("data.txt");',
+      'writer.write("Hello Java!");',
+      'ofstream file("data.txt");',
+      'file << "Hello C++!";',
+      'fopen(\$file, "data.txt", "w");',
+      'write_file(\$file, "Hello!");',
+      'close(\$file);',
+      'print "Content: " . \$content;',
+      'printf("Content: %s", \$content);',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -504,15 +433,15 @@ class _PhpLevel10State extends State<PhpLevel10> {
       return;
     }
 
-    // Check for correct PHP Class and Object - FINAL LEVEL
+    // Check for correct PHP file handling code - 8 BLOCKS
     String answer = droppedBlocks.join(' ');
     String normalizedAnswer = answer
         .replaceAll(' ', '')
         .replaceAll('\n', '')
         .toLowerCase();
 
-    // Expected: classcar{public$brand;publicfunction__construct($brand){$this->brand=$brand;}publicfunctiondisplay(){echo"carbrand:".$this->brand;}}$mycar=newcar("toyota");$mycar->display();
-    String expected = 'classcar{public\$brand;publicfunction__construct(\$brand){\$this->brand=\$brand;}publicfunctiondisplay(){echo"carbrand:".\$this->brand;}}\$mycar=newcar("toyota");\$mycar->display();';
+    // Expected: $file=fopen("data.txt","w");if($file){fwrite($file,"Hello PHP File Handling!");fclose($file);echo"File written successfully!";$readFile=fopen("data.txt","r");$content=fread($readFile,filesize("data.txt"));echo"Content: ".$content;
+    String expected = '\$file=fopen("data.txt","w");if(\$file){fwrite(\$file,"hellophpfilehandling!");fclose(\$file);echo"filewrittensuccessfully!";\$readfile=fopen("data.txt","r");\$content=fread(\$readfile,filesize("data.txt"));echo"content:".\$content;';
 
     if (normalizedAnswer == expected) {
       countdownTimer?.cancel();
@@ -533,23 +462,32 @@ class _PhpLevel10State extends State<PhpLevel10> {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text("🎉 PHP Mastered!"),
+          title: Text("✅ Correct!"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Outstanding! You've mastered Object-Oriented Programming in PHP!"),
+              Text("Excellent! You created a PHP file handling script!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
-                Text(
-                  "🏆 PHP Expert Unlocked!",
-                  style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold, fontSize: 16),
+                Column(
+                  children: [
+                    Text(
+                      "🎉 Perfect! You've unlocked the PHP Bonus Game!",
+                      style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      "Complete the Bonus Game to earn extra points!",
+                      style: TextStyle(color: Colors.deepPurple, fontSize: 12),
+                    ),
+                  ],
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) to become a PHP Expert!",
+                  "⚠️ Get a perfect score (3/3) to unlock the Bonus Game!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
@@ -558,7 +496,7 @@ class _PhpLevel10State extends State<PhpLevel10> {
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  "Car brand: Toyota",
+                  "File written successfully!\nContent: Hello PHP File Handling!",
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
@@ -566,37 +504,25 @@ class _PhpLevel10State extends State<PhpLevel10> {
                   ),
                 ),
               ),
-              SizedBox(height: 10),
-              Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.celebration, color: Colors.amber),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        "Congratulations! You've completed all 10 PHP levels!",
-                        style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () {
-                musicService.playSoundEffect('level_complete.mp3');
+                musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
-                // Navigate back to levels list
-                Navigator.pushReplacementNamed(context, '/levels', arguments: 'PHP');
+                if (score == 3) {
+                  musicService.playSoundEffect('level_complete.mp3');
+                  // NAVIGATE TO BONUS GAME 1 ONLY
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => PhpBonusGame1()),
+                  );
+                } else {
+                  resetGame();
+                }
               },
-              child: Text("Complete PHP"),
+              child: Text(score == 3 ? "Play Bonus Game" : "OK"),
             )
           ],
         ),
@@ -648,7 +574,6 @@ class _PhpLevel10State extends State<PhpLevel10> {
     return "$m:$s";
   }
 
-  // NEW: Hint Display Widget
   Widget _buildHintDisplay() {
     if (!_showHint) return SizedBox();
 
@@ -735,7 +660,7 @@ class _PhpLevel10State extends State<PhpLevel10> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'car_class.php', // DIFFERENT FILENAME
+                  'file_handling.php',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -758,20 +683,7 @@ class _PhpLevel10State extends State<PhpLevel10> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          _buildCodeLine(1),
-                          _buildCodeLine(2),
-                          _buildCodeLine(3),
-                          _buildCodeLine(4),
-                          _buildCodeLine(5),
-                          _buildCodeLine(6),
-                          _buildCodeLine(7),
-                          _buildCodeLine(8),
-                          _buildCodeLine(9),
-                          _buildCodeLine(10),
-                          _buildCodeLine(11),
-                          _buildCodeLine(12),
-                          _buildCodeLine(13),
-                          _buildCodeLine(14),
+                          for (int i = 1; i <= 15; i++) _buildCodeLine(i),
                         ],
                       ),
                     ),
@@ -780,20 +692,7 @@ class _PhpLevel10State extends State<PhpLevel10> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildSyntaxHighlightedLine('<?php', isKeyword: true),
-                          _buildUserCodeLine(1, droppedBlocks.length > 0 ? droppedBlocks[0] : ''),
-                          _buildUserCodeLine(2, droppedBlocks.length > 1 ? droppedBlocks[1] : ''),
-                          _buildUserCodeLine(3, droppedBlocks.length > 2 ? droppedBlocks[2] : ''),
-                          _buildUserCodeLine(4, droppedBlocks.length > 3 ? droppedBlocks[3] : ''),
-                          _buildUserCodeLine(5, droppedBlocks.length > 4 ? droppedBlocks[4] : ''),
-                          _buildUserCodeLine(6, droppedBlocks.length > 5 ? droppedBlocks[5] : ''),
-                          _buildUserCodeLine(7, droppedBlocks.length > 6 ? droppedBlocks[6] : ''),
-                          _buildUserCodeLine(8, droppedBlocks.length > 7 ? droppedBlocks[7] : ''),
-                          _buildUserCodeLine(9, droppedBlocks.length > 8 ? droppedBlocks[8] : ''),
-                          _buildUserCodeLine(10, droppedBlocks.length > 9 ? droppedBlocks[9] : ''),
-                          _buildUserCodeLine(11, droppedBlocks.length > 10 ? droppedBlocks[10] : ''),
-                          _buildSyntaxHighlightedLine('', isNormal: true),
-                          _buildSyntaxHighlightedLine('?>', isKeyword: true),
+                          _buildUserCodePreview(),
                         ],
                       ),
                     ),
@@ -807,14 +706,14 @@ class _PhpLevel10State extends State<PhpLevel10> {
     );
   }
 
-  Widget _buildUserCodeLine(int lineNumber, String code) {
-    if (code.isEmpty) {
+  Widget _buildUserCodePreview() {
+    if (droppedBlocks.isEmpty) {
       return Container(
         height: 20 * _scaleFactor,
         child: Text(
-          '        ',
+          '    ',
           style: TextStyle(
-            color: Colors.white,
+            color: Colors.grey[600],
             fontSize: 12 * _scaleFactor,
             fontFamily: 'monospace',
           ),
@@ -822,25 +721,29 @@ class _PhpLevel10State extends State<PhpLevel10> {
       );
     }
 
+    List<Widget> codeLines = [];
+
+    // Add all dropped blocks in the order they appear
+    for (String block in droppedBlocks) {
+      codeLines.add(_buildUserCodeLine(block));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: codeLines,
+    );
+  }
+
+  Widget _buildUserCodeLine(String code) {
     return Container(
       height: 20 * _scaleFactor,
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '        ',
-              style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12 * _scaleFactor),
-            ),
-            TextSpan(
-              text: code,
-              style: TextStyle(
-                color: Colors.greenAccent[400],
-                fontFamily: 'monospace',
-                fontSize: 12 * _scaleFactor,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+      child: Text(
+        code,
+        style: TextStyle(
+          color: Colors.greenAccent[400],
+          fontFamily: 'monospace',
+          fontSize: 12 * _scaleFactor,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
@@ -853,36 +756,6 @@ class _PhpLevel10State extends State<PhpLevel10> {
         lineNumber.toString().padLeft(2, ' '),
         style: TextStyle(
           color: Colors.grey[600],
-          fontSize: 12 * _scaleFactor,
-          fontFamily: 'monospace',
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSyntaxHighlightedLine(String code, {bool isPreprocessor = false, bool isKeyword = false, bool isNormal = false, bool isComment = false}) {
-    Color textColor = Colors.white;
-
-    if (isKeyword) {
-      textColor = Color(0xFF569CD6);
-    } else if (isComment) {
-      textColor = Color(0xFF6A9955);
-    } else if (isNormal && (code.contains('class') || code.contains('function'))) {
-      textColor = Color(0xFFC586C0); // Purple for classes and functions
-    } else if (isNormal && code.contains('\$')) {
-      textColor = Color(0xFF9CDCFE); // Light blue for variables
-    } else if (isNormal && code.contains('public')) {
-      textColor = Color(0xFFDCDCAA); // Light yellow for access modifiers
-    } else if (isNormal) {
-      textColor = Colors.white;
-    }
-
-    return Container(
-      height: 20 * _scaleFactor,
-      child: Text(
-        code,
-        style: TextStyle(
-          color: textColor,
           fontSize: 12 * _scaleFactor,
           fontFamily: 'monospace',
         ),
@@ -918,7 +791,7 @@ class _PhpLevel10State extends State<PhpLevel10> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("🐘 PHP - Level 10 (Final)", style: TextStyle(fontSize: 18 * _scaleFactor)), // FINAL LEVEL
+        title: Text("🐘 PHP - Level 10", style: TextStyle(fontSize: 18 * _scaleFactor)),
         backgroundColor: Colors.deepPurple,
         actions: gameStarted
             ? [
@@ -954,10 +827,8 @@ class _PhpLevel10State extends State<PhpLevel10> {
         child: Stack(
           children: [
             gameStarted ? buildGameUI() : buildStartScreen(),
-            // ADD HINT BUTTON AND DISPLAY TO STACK
             if (gameStarted && !isAnsweredCorrectly) ...[
               _buildHintDisplay(),
-              // ✅ HINT CARD BUTTON - BOTTOM RIGHT
               Positioned(
                 bottom: 20 * _scaleFactor,
                 right: 20 * _scaleFactor,
@@ -1021,14 +892,13 @@ class _PhpLevel10State extends State<PhpLevel10> {
                 startGame();
               },
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Final Level", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
                 backgroundColor: Colors.deepPurple,
               ),
             ),
 
-            // Display available hint cards in start screen
             SizedBox(height: 20 * _scaleFactor),
             Container(
               padding: EdgeInsets.all(12 * _scaleFactor),
@@ -1062,19 +932,43 @@ class _PhpLevel10State extends State<PhpLevel10> {
               ),
             ),
 
-            if (level10Completed) // LEVEL 10
+            // BONUS GAME 1 BUTTON - Only show if level 10 is completed with perfect score
+            if (level10Completed && previousScore == 3)
+              Padding(
+                padding: EdgeInsets.only(top: 20 * _scaleFactor),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    final musicService = Provider.of<MusicService>(context, listen: false);
+                    musicService.playSoundEffect('bonus_unlock.mp3');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => PhpBonusGame1()),
+                    );
+                  },
+                  icon: Icon(Icons.casino, size: 20 * _scaleFactor),
+                  label: Text("Play Bonus Game", style: TextStyle(fontSize: 16 * _scaleFactor)),
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
+                    backgroundColor: Colors.amber[700],
+                  ),
+                ),
+              ),
+
+            SizedBox(height: 20 * _scaleFactor),
+
+            if (level10Completed)
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "🏆 PHP Expert Achieved!",
-                      style: TextStyle(color: Colors.green, fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold),
+                      "✅ Level 10 completed with perfect score!",
+                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "You've mastered all 10 PHP levels!",
+                      "🎁 Bonus Game is now available!",
                       style: TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -1093,7 +987,7 @@ class _PhpLevel10State extends State<PhpLevel10> {
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to become a PHP Expert!",
+                      "Try again to get a perfect score and unlock the Bonus Game!",
                       style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -1112,7 +1006,7 @@ class _PhpLevel10State extends State<PhpLevel10> {
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
-                        "Don't give up! You can master PHP!",
+                        "Don't give up! You can do better this time!",
                         style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
@@ -1132,42 +1026,25 @@ class _PhpLevel10State extends State<PhpLevel10> {
               child: Column(
                 children: [
                   Text(
-                    "🎯 Final Level - Object-Oriented PHP", // FINAL LEVEL OBJECTIVE
+                    "🎯 Level 10 Objective",
                     style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.deepPurple[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create a PHP class with properties, constructor, methods, and demonstrate object instantiation", // ADVANCED OBJECTIVE
+                    "Create a PHP script that writes to a file and then reads back the content using proper file handling functions",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.deepPurple[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🏆  Get a perfect score (3/3) to become a PHP Expert!", // FINAL REWARD
+                    "🎁 Get a perfect score (3/3) to unlock the Bonus Game!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
                         color: Colors.purple,
                         fontWeight: FontWeight.bold,
                         fontStyle: FontStyle.italic
-                    ),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      "💎 Final Challenge: Arrange 11 code blocks",
-                      style: TextStyle(
-                        color: Colors.amber[800],
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12 * _scaleFactor,
-                      ),
-                      textAlign: TextAlign.center,
                     ),
                   ),
                 ],
@@ -1189,7 +1066,7 @@ class _PhpLevel10State extends State<PhpLevel10> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Final Challenge Story',
+                child: Text('📖 Short Story',
                     style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
@@ -1209,24 +1086,24 @@ class _PhpLevel10State extends State<PhpLevel10> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Ito na ang huling hamon! Si Zeke ay gustong lumikha ng Car class gamit ang Object-Oriented Programming sa PHP. Kailangan niyang gumawa ng class na may properties, constructor, at methods, tapos gumawa ng object at tawagin ang method nito. Ipakitang handa ka nang maging PHP expert!' // FINAL STORY
-                : 'This is the final challenge! Zeke wants to create a Car class using Object-Oriented Programming in PHP. He needs to create a class with properties, constructor, and methods, then create an object and call its method. Show that you\'re ready to become a PHP expert!', // FINAL STORY
+                ? 'Ngayon, si Zeke ay gustong matuto ng file handling sa PHP! Kailangan niyang gumawa ng script na magsusulat at magbabasa mula sa isang text file gamit ang fopen, fwrite, fread, at fclose functions. Tulungan siyang buuin ang tamang code!'
+                : 'Now, Zeke wants to learn file handling in PHP! He needs to create a script that writes to and reads from a text file using fopen, fwrite, fread, and fclose functions. Help him build the correct code!',
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the 11 correct blocks to create the Car class and object', // FINAL INSTRUCTION
+          Text('🧩 Arrange the 8 correct blocks to create the file handling script',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          // TARGET AREA - LARGER FOR MORE BLOCKS
+          // TARGET AREA
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
               minHeight: 200 * _scaleFactor,
-              maxHeight: 300 * _scaleFactor,
+              maxHeight: 350 * _scaleFactor,
             ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
@@ -1242,7 +1119,6 @@ class _PhpLevel10State extends State<PhpLevel10> {
                 if (!isAnsweredCorrectly) {
                   final musicService = Provider.of<MusicService>(context, listen: false);
                   musicService.playSoundEffect('block_drop.mp3');
-
                   setState(() {
                     droppedBlocks.add(data);
                     allBlocks.remove(data);
@@ -1268,7 +1144,6 @@ class _PhpLevel10State extends State<PhpLevel10> {
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
-
                           setState(() {
                             currentlyDraggedBlock = block;
                           });
@@ -1277,7 +1152,6 @@ class _PhpLevel10State extends State<PhpLevel10> {
                           setState(() {
                             currentlyDraggedBlock = null;
                           });
-
                           if (!isAnsweredCorrectly && !details.wasAccepted) {
                             Future.delayed(Duration(milliseconds: 50), () {
                               if (mounted) {
@@ -1305,11 +1179,11 @@ class _PhpLevel10State extends State<PhpLevel10> {
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
 
-          // SOURCE AREA - LARGER FOR MORE BLOCKS
+          // SOURCE AREA
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 150 * _scaleFactor,
+              minHeight: 180 * _scaleFactor,
             ),
             padding: EdgeInsets.all(12 * _scaleFactor),
             decoration: BoxDecoration(
@@ -1338,7 +1212,6 @@ class _PhpLevel10State extends State<PhpLevel10> {
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
-
                     setState(() {
                       currentlyDraggedBlock = block;
                     });
@@ -1347,7 +1220,6 @@ class _PhpLevel10State extends State<PhpLevel10> {
                     setState(() {
                       currentlyDraggedBlock = null;
                     });
-
                     if (!isAnsweredCorrectly && !details.wasAccepted) {
                       Future.delayed(Duration(milliseconds: 50), () {
                         if (mounted) {
@@ -1373,7 +1245,7 @@ class _PhpLevel10State extends State<PhpLevel10> {
               checkAnswer();
             },
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
-            label: Text("Run Final Code", style: TextStyle(fontSize: 16 * _scaleFactor)),
+            label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.deepPurple,
               padding: EdgeInsets.symmetric(
@@ -1396,6 +1268,7 @@ class _PhpLevel10State extends State<PhpLevel10> {
   }
 
   Widget puzzleBlock(String text, Color color) {
+    // Calculate text width to adjust block size - SAME AS JAVA LEVEL 10
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,

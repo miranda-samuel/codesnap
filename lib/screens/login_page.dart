@@ -318,18 +318,6 @@ class _LoginPageState extends State<LoginPage> {
                     onSubmitted: (_) => _login(),
                   ),
                   const SizedBox(height: 10),
-
-                  // Forgot Password Link
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: _navigateToForgotPassword,
-                      child: const Text(
-                        'Forgot Password?',
-                        style: TextStyle(color: Colors.teal),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 20),
 
                   // Login Button

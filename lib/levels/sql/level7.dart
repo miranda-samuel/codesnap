@@ -25,15 +25,12 @@ class _SqlLevel7State extends State<SqlLevel7> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 180;
+  int remainingSeconds = 180; // 3 minutes for complex subquery
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
-  // Track currently dragged block
   String? currentlyDraggedBlock;
-
-  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
@@ -120,15 +117,14 @@ class _SqlLevel7State extends State<SqlLevel7> {
   }
 
   void _autoDragCorrectBlocks() {
-    // Correct blocks for SQL: SELECT customer_name, SUM(total_amount) FROM orders WHERE order_date >= '2024-01-01' GROUP BY customer_name HAVING SUM(total_amount) > 1000 ORDER BY SUM(total_amount) DESC;
+    // Correct blocks for SQL: SELECT name, salary FROM employees WHERE salary > (SELECT AVG(salary) FROM employees) ORDER BY salary DESC;
     List<String> correctBlocks = [
-      'SELECT customer_name, SUM(total_amount) FROM',
-      'orders',
-      'WHERE order_date >=',
-      "'2024-01-01'",
-      'GROUP BY customer_name',
-      'HAVING SUM(total_amount) > 1000',
-      'ORDER BY SUM(total_amount) DESC;'
+      'SELECT name, salary',
+      'FROM employees',
+      'WHERE salary >',
+      '(SELECT AVG(salary)',
+      'FROM employees)',
+      'ORDER BY salary DESC;'
     ];
 
     setState(() {
@@ -163,7 +159,7 @@ class _SqlLevel7State extends State<SqlLevel7> {
   }
 
   String _getLevelHint() {
-    return "The correct SQL query is: SELECT customer_name, SUM(total_amount) FROM orders WHERE order_date >= '2024-01-01' GROUP BY customer_name HAVING SUM(total_amount) > 1000 ORDER BY SUM(total_amount) DESC;\n\n💡 Hint: Start with 'SELECT customer_name, SUM(total_amount) FROM', then the table name 'orders', add 'WHERE order_date >=' with date '2024-01-01', use 'GROUP BY customer_name' to group by customer, filter with 'HAVING SUM(total_amount) > 1000', and finally 'ORDER BY SUM(total_amount) DESC;' to sort by highest total!";
+    return "The correct SQL query is: SELECT name, salary FROM employees WHERE salary > (SELECT AVG(salary) FROM employees) ORDER BY salary DESC;\n\n💡 Hint: Start with 'SELECT name, salary', then 'FROM employees', followed by 'WHERE salary >', '(SELECT AVG(salary)', 'FROM employees)', and finally 'ORDER BY salary DESC;'";
   }
 
   void _loadUserData() async {
@@ -176,44 +172,42 @@ class _SqlLevel7State extends State<SqlLevel7> {
   }
 
   void resetBlocks() {
-    // 7 correct blocks for advanced SQL with aggregation and filtering
+    // 6 correct blocks for SQL: SELECT name, salary FROM employees WHERE salary > (SELECT AVG(salary) FROM employees) ORDER BY salary DESC;
     List<String> correctBlocks = [
-      'SELECT customer_name, SUM(total_amount) FROM',
-      'orders',
-      'WHERE order_date >=',
-      "'2024-01-01'",
-      'GROUP BY customer_name',
-      'HAVING SUM(total_amount) > 1000',
-      'ORDER BY SUM(total_amount) DESC;'
+      'SELECT name, salary',
+      'FROM employees',
+      'WHERE salary >',
+      '(SELECT AVG(salary)',
+      'FROM employees)',
+      'ORDER BY salary DESC;'
     ];
 
     // Incorrect/distractor blocks
     List<String> incorrectBlocks = [
-      'SELECT * FROM',
-      'SELECT customer_name FROM',
-      'SELECT SUM(total_amount) FROM',
-      'WHERE order_date <',
-      'WHERE customer_name =',
-      "'2023-01-01'",
-      "'2024-06-01'",
-      'AND total_amount > 500',
-      'OR customer_name LIKE',
-      'ORDER BY customer_name ASC',
-      'ORDER BY order_date DESC',
-      'customers',
-      'products',
-      'payments',
-      'GROUP BY order_date',
-      'GROUP BY total_amount',
-      'HAVING COUNT(*) > 5',
-      'HAVING AVG(total_amount) > 500',
-      'LIMIT 10',
-      'WHERE status = "completed"',
+      'SELECT *',
+      'SELECT name, department',
+      'FROM departments',
+      'WHERE salary > 50000',
+      'WHERE salary =',
+      '(SELECT MAX(salary)',
+      '(SELECT MIN(salary)',
+      'FROM managers)',
+      'ORDER BY name ASC',
+      'ORDER BY department ASC',
+      'GROUP BY department',
+      'HAVING salary > AVG(salary)',
+      'WHERE salary <',
+      'LIMIT 5',
+      'employees.department',
+      'salary, bonus',
+      'JOIN departments',
     ];
 
+    // Shuffle incorrect blocks and take 4 random ones
     incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(5).toList();
+    List<String> selectedIncorrectBlocks = incorrectBlocks.take(4).toList();
 
+    // Combine correct and incorrect blocks, then shuffle
     allBlocks = [
       ...correctBlocks,
       ...selectedIncorrectBlocks,
@@ -277,7 +271,7 @@ class _SqlLevel7State extends State<SqlLevel7> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 40), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 60), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -322,7 +316,7 @@ class _SqlLevel7State extends State<SqlLevel7> {
         'SQL',
         7,
         score,
-        score == 3,
+        score == 3, // Only completed if perfect score
       );
 
       if (response['success'] == true) {
@@ -331,6 +325,19 @@ class _SqlLevel7State extends State<SqlLevel7> {
           previousScore = score;
           hasPreviousScore = true;
         });
+
+        // UNLOCK LEVEL 8 IF PERFECT SCORE
+        if (score == 3) {
+          print('🔓 UNLOCKING LEVEL 8...');
+          await ApiService.saveScore(
+            currentUser!['id'],
+            'SQL',
+            8,  // LEVEL 8
+            0,  // 0 POINTS - user needs to play level 8 to earn points
+            true, // MARK AS UNLOCKED
+          );
+          print('✅ LEVEL 8 UNLOCKED');
+        }
       } else {
         print('Failed to save score: ${response['message']}');
       }
@@ -365,26 +372,23 @@ class _SqlLevel7State extends State<SqlLevel7> {
 
   bool isIncorrectBlock(String block) {
     List<String> incorrectBlocks = [
-      'SELECT * FROM',
-      'SELECT customer_name FROM',
-      'SELECT SUM(total_amount) FROM',
-      'WHERE order_date <',
-      'WHERE customer_name =',
-      "'2023-01-01'",
-      "'2024-06-01'",
-      'AND total_amount > 500',
-      'OR customer_name LIKE',
-      'ORDER BY customer_name ASC',
-      'ORDER BY order_date DESC',
-      'customers',
-      'products',
-      'payments',
-      'GROUP BY order_date',
-      'GROUP BY total_amount',
-      'HAVING COUNT(*) > 5',
-      'HAVING AVG(total_amount) > 500',
-      'LIMIT 10',
-      'WHERE status = "completed"',
+      'SELECT *',
+      'SELECT name, department',
+      'FROM departments',
+      'WHERE salary > 50000',
+      'WHERE salary =',
+      '(SELECT MAX(salary)',
+      '(SELECT MIN(salary)',
+      'FROM managers)',
+      'ORDER BY name ASC',
+      'ORDER BY department ASC',
+      'GROUP BY department',
+      'HAVING salary > AVG(salary)',
+      'WHERE salary <',
+      'LIMIT 5',
+      'employees.department',
+      'salary, bonus',
+      'JOIN departments',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -394,6 +398,7 @@ class _SqlLevel7State extends State<SqlLevel7> {
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
+    // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
@@ -440,13 +445,15 @@ class _SqlLevel7State extends State<SqlLevel7> {
       return;
     }
 
+    // Check for: SELECT name, salary FROM employees WHERE salary > (SELECT AVG(salary) FROM employees) ORDER BY salary DESC;
     String answer = droppedBlocks.join(' ');
     String normalizedAnswer = answer
         .replaceAll(' ', '')
         .replaceAll('\n', '')
         .toLowerCase();
 
-    String expected = "selectcustomer_name,sum(total_amount)fromorderswhereorder_date>='2024-01-01'groupbycustomer_namehavingsum(total_amount)>1000orderbysum(total_amount)desc;";
+    // Exact match for the 6-block version
+    String expected = "selectname,salaryfromemployeeswheresalary>(selectavg(salary)fromemployees)orderbysalarydesc;";
 
     if (normalizedAnswer == expected) {
       countdownTimer?.cancel();
@@ -467,23 +474,23 @@ class _SqlLevel7State extends State<SqlLevel7> {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text("🏆 SQL Analytics Expert!"),
+          title: Text("✅ Correct!"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Amazing! You've mastered SQL Analytics!", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("SQL Subquery Expert!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You're now a SQL Analytics Expert!",
+                  "🎉 Perfect! You've unlocked Level 8!",
                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) to become SQL Analytics Expert!",
+                  "⚠️ Get a perfect score (3/3) to unlock Level 8!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
@@ -492,48 +499,12 @@ class _SqlLevel7State extends State<SqlLevel7> {
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  "Will display customers with total orders over 1000 since 2024, sorted by highest total",
+                  "Will display employees earning above average salary, sorted by highest salary first",
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
                     fontSize: 14,
                   ),
-                ),
-              ),
-              SizedBox(height: 10),
-              Text("Advanced SQL Concepts:", style: TextStyle(fontWeight: FontWeight.bold)),
-              Container(
-                padding: EdgeInsets.all(10),
-                color: Colors.orange[50],
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("• Aggregate functions (SUM)", style: TextStyle(color: Colors.orange[900])),
-                    Text("• Date filtering with >=", style: TextStyle(color: Colors.orange[900])),
-                    Text("• GROUP BY with aggregation", style: TextStyle(color: Colors.orange[900])),
-                    Text("• HAVING clause for group filtering", style: TextStyle(color: Colors.orange[900])),
-                    Text("• Complex ordering with aggregate functions", style: TextStyle(color: Colors.orange[900])),
-                  ],
-                ),
-              ),
-              SizedBox(height: 10),
-              Container(
-                padding: EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.yellow[50],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.analytics, color: Colors.orange),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        "You've mastered complex SQL queries with aggregation and filtering!",
-                        style: TextStyle(color: Colors.orange[800], fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ],
@@ -543,10 +514,15 @@ class _SqlLevel7State extends State<SqlLevel7> {
               onPressed: () {
                 musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
-                musicService.playSoundEffect('victory.mp3');
-                Navigator.pushReplacementNamed(context, '/levels', arguments: 'SQL');
+                if (score == 3) {
+                  musicService.playSoundEffect('level_complete.mp3');
+                  Navigator.pushReplacementNamed(context, '/sql_level8');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/levels',
+                      arguments: 'SQL');
+                }
               },
-              child: Text("Complete Level"),
+              child: Text(score == 3 ? "Next Level" : "Go Back"),
             )
           ],
         ),
@@ -684,7 +660,7 @@ class _SqlLevel7State extends State<SqlLevel7> {
                 Icon(Icons.storage, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'analytics_query.sql',
+                  'subquery_analysis.sql',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -709,6 +685,10 @@ class _SqlLevel7State extends State<SqlLevel7> {
                         children: [
                           _buildCodeLine(1),
                           _buildCodeLine(2),
+                          _buildCodeLine(3),
+                          _buildCodeLine(4),
+                          _buildCodeLine(5),
+                          _buildCodeLine(6),
                         ],
                       ),
                     ),
@@ -717,8 +697,13 @@ class _SqlLevel7State extends State<SqlLevel7> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildUserCodeLine(getPreviewCode()),
-                          _buildSyntaxHighlightedLine('-- Advanced analytics query with aggregation', isComment: true),
+                          _buildUserCodeLine(1, droppedBlocks.length > 0 ? droppedBlocks[0] : ''),
+                          _buildUserCodeLine(2, droppedBlocks.length > 1 ? droppedBlocks[1] : ''),
+                          _buildUserCodeLine(3, droppedBlocks.length > 2 ? droppedBlocks[2] : ''),
+                          _buildUserCodeLine(4, droppedBlocks.length > 3 ? droppedBlocks[3] : ''),
+                          _buildUserCodeLine(5, droppedBlocks.length > 4 ? droppedBlocks[4] : ''),
+                          _buildUserCodeLine(6, droppedBlocks.length > 5 ? droppedBlocks[5] : ''),
+                          _buildSyntaxHighlightedLine('-- Find employees earning above average salary', isComment: true),
                         ],
                       ),
                     ),
@@ -732,7 +717,7 @@ class _SqlLevel7State extends State<SqlLevel7> {
     );
   }
 
-  Widget _buildUserCodeLine(String code) {
+  Widget _buildUserCodeLine(int lineNumber, String code) {
     if (code.isEmpty) {
       return Container(
         height: 20 * _scaleFactor,
@@ -804,10 +789,6 @@ class _SqlLevel7State extends State<SqlLevel7> {
     );
   }
 
-  String getPreviewCode() {
-    return droppedBlocks.join(' ');
-  }
-
   @override
   void dispose() {
     countdownTimer?.cancel();
@@ -836,7 +817,7 @@ class _SqlLevel7State extends State<SqlLevel7> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("⚡ SQL - Level 7", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        title: Text("🚀 SQL - Level 7", style: TextStyle(fontSize: 18 * _scaleFactor)),
         backgroundColor: Colors.orange,
         actions: gameStarted
             ? [
@@ -989,8 +970,8 @@ class _SqlLevel7State extends State<SqlLevel7> {
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "🏆 You are now a SQL Analytics Expert!",
-                      style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "You've unlocked Level 8!",
+                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1008,7 +989,7 @@ class _SqlLevel7State extends State<SqlLevel7> {
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score and become SQL Analytics Expert!",
+                      "Try again to get a perfect score and unlock Level 8!",
                       style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -1053,13 +1034,13 @@ class _SqlLevel7State extends State<SqlLevel7> {
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create a SQL query to find customers with total orders over 1000 since 2024",
+                    "Create a SQL query to find employees earning above average salary using subquery",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.orange[700]),
                   ),
-                  SizedBox(height: 5 * _scaleFactor),
+                  SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🏆 Get a perfect score (3/3) to become SQL Analytics Expert!",
+                    "🎁 Get a perfect score (3/3) to unlock Level 8!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
@@ -1087,7 +1068,7 @@ class _SqlLevel7State extends State<SqlLevel7> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Analytics Challenge Story',
+                child: Text('📖 Challenge Story',
                     style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
@@ -1107,23 +1088,24 @@ class _SqlLevel7State extends State<SqlLevel7> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Analytics challenge! Kailangan ng kumpanya ng listahan ng mga customer na may kabuuang order na higit sa 1000 simula noong 2024. Gamitin ang SUM function, GROUP BY, at HAVING clause para makuha ang mga top customer.'
-                : 'Analytics challenge! The company needs a list of customers with total orders over 1000 since 2024. Use SUM function, GROUP BY, and HAVING clause to get top customers.',
+                ? 'Kailangan ng HR ng listahan ng mga empleyado na kumikita ng higit sa average na sahod. Gamitin ang subquery para mahanap ang average na sahod at ikumpara sa bawat empleyado.'
+                : 'HR needs a list of employees earning above average salary. Use a subquery to find the average salary and compare with each employee.',
             textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white70),
+            style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange 7 blocks to form the advanced analytics SQL query',
+          Text('🧩 Arrange 6 correct blocks to form the SQL query with subquery',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
+          // TARGET AREA
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 200 * _scaleFactor,
-              maxHeight: 260 * _scaleFactor,
+              minHeight: 160 * _scaleFactor,
+              maxHeight: 220 * _scaleFactor,
             ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
@@ -1197,15 +1179,16 @@ class _SqlLevel7State extends State<SqlLevel7> {
           ),
 
           SizedBox(height: 20 * _scaleFactor),
-          Text('💻 Query Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          Text('💻 Subquery Analysis Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
           SizedBox(height: 10 * _scaleFactor),
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
 
+          // SOURCE AREA
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 150 * _scaleFactor,
+              minHeight: 120 * _scaleFactor,
             ),
             padding: EdgeInsets.all(12 * _scaleFactor),
             decoration: BoxDecoration(
@@ -1298,7 +1281,7 @@ class _SqlLevel7State extends State<SqlLevel7> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
+          fontSize: 12 * _scaleFactor,
           color: Colors.black,
         ),
       ),
@@ -1306,8 +1289,8 @@ class _SqlLevel7State extends State<SqlLevel7> {
     )..layout();
 
     final textWidth = textPainter.width;
-    final minWidth = 60 * _scaleFactor;
-    final maxWidth = 200 * _scaleFactor;
+    final minWidth = 80 * _scaleFactor;
+    final maxWidth = 240 * _scaleFactor;
 
     return Container(
       constraints: BoxConstraints(
@@ -1316,8 +1299,8 @@ class _SqlLevel7State extends State<SqlLevel7> {
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 16 * _scaleFactor,
-        vertical: 12 * _scaleFactor,
+        horizontal: 12 * _scaleFactor,
+        vertical: 10 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
@@ -1339,7 +1322,7 @@ class _SqlLevel7State extends State<SqlLevel7> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 14 * _scaleFactor,
+          fontSize: 12 * _scaleFactor,
           color: Colors.black,
           shadows: [
             Shadow(
@@ -1351,7 +1334,7 @@ class _SqlLevel7State extends State<SqlLevel7> {
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.visible,
-        maxLines: 2,
+        softWrap: true,
       ),
     );
   }
