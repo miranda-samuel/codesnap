@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'learning_screen.dart';
+import 'sql_practice_screen.dart';
 
 class SqlModulesScreen extends StatefulWidget {
   const SqlModulesScreen({super.key});
@@ -13,6 +15,7 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
       'title': 'SQL Introduction',
       'icon': Icons.play_arrow,
       'color': Colors.green,
+      'fileName': 'sql_introduction.md',
       'topics': [
         'What is SQL?',
         'SQL vs NoSQL',
@@ -26,6 +29,7 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
       'title': 'SQL Syntax',
       'icon': Icons.code,
       'color': Colors.green,
+      'fileName': 'sql_syntax.md',
       'topics': [
         'SELECT Statement',
         'FROM Clause',
@@ -39,6 +43,7 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
       'title': 'SQL SELECT',
       'icon': Icons.search,
       'color': Colors.green,
+      'fileName': 'sql_select.md',
       'topics': [
         'SELECT All Columns',
         'SELECT Specific Columns',
@@ -52,6 +57,7 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
       'title': 'SQL WHERE',
       'icon': Icons.filter_list,
       'color': Colors.green,
+      'fileName': 'sql_where.md',
       'topics': [
         'WHERE Clause Basics',
         'Comparison Operators',
@@ -65,6 +71,7 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
       'title': 'SQL ORDER BY',
       'icon': Icons.sort,
       'color': Colors.green,
+      'fileName': 'sql_order_by.md',
       'topics': [
         'Sort by Single Column',
         'Sort by Multiple Columns',
@@ -78,6 +85,7 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
       'title': 'SQL INSERT',
       'icon': Icons.add,
       'color': Colors.green,
+      'fileName': 'sql_insert.md',
       'topics': [
         'INSERT INTO',
         'Insert Single Row',
@@ -91,6 +99,7 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
       'title': 'SQL UPDATE',
       'icon': Icons.edit,
       'color': Colors.green,
+      'fileName': 'sql_update.md',
       'topics': [
         'UPDATE Statement',
         'Update Single Column',
@@ -104,6 +113,7 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
       'title': 'SQL DELETE',
       'icon': Icons.delete,
       'color': Colors.green,
+      'fileName': 'sql_delete.md',
       'topics': [
         'DELETE Statement',
         'Delete Specific Rows',
@@ -117,6 +127,7 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
       'title': 'SQL Joins',
       'icon': Icons.link,
       'color': Colors.green,
+      'fileName': 'sql_joins.md',
       'topics': [
         'INNER JOIN',
         'LEFT JOIN',
@@ -130,6 +141,7 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
       'title': 'SQL Functions',
       'icon': Icons.functions,
       'color': Colors.green,
+      'fileName': 'sql_functions.md',
       'topics': [
         'Aggregate Functions',
         'String Functions',
@@ -143,6 +155,7 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
       'title': 'SQL Constraints',
       'icon': Icons.lock,
       'color': Colors.green,
+      'fileName': 'sql_constraints.md',
       'topics': [
         'NOT NULL',
         'UNIQUE',
@@ -156,6 +169,7 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
       'title': 'SQL Indexes',
       'icon': Icons.speed,
       'color': Colors.green,
+      'fileName': 'sql_indexes.md',
       'topics': [
         'Create Index',
         'Drop Index',
@@ -169,6 +183,7 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
       'title': 'SQL Views',
       'icon': Icons.remove_red_eye,
       'color': Colors.green,
+      'fileName': 'sql_views.md',
       'topics': [
         'Create View',
         'Update View',
@@ -182,6 +197,7 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
       'title': 'SQL Subqueries',
       'icon': Icons.find_in_page,
       'color': Colors.green,
+      'fileName': 'sql_subqueries.md',
       'topics': [
         'Subquery Basics',
         'WHERE Subqueries',
@@ -195,6 +211,7 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
       'title': 'SQL Transactions',
       'icon': Icons.sync,
       'color': Colors.green,
+      'fileName': 'sql_transactions.md',
       'topics': [
         'BEGIN TRANSACTION',
         'COMMIT',
@@ -276,8 +293,20 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
               ),
               child: Text('Start Learning'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _startPractice(module);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.tealAccent,
+                foregroundColor: Colors.black,
+              ),
+              child: Text('Practice'),
             ),
           ],
         );
@@ -286,11 +315,27 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
   }
 
   void _startLearning(Map<String, dynamic> module) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: Colors.green,
-        content: Text('Starting ${module['title']}...'),
-        duration: Duration(seconds: 2),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LearningScreen(
+          moduleTitle: module['title'],
+          fileName: module['fileName'],
+          primaryColor: module['color'],
+        ),
+      ),
+    );
+  }
+
+  void _startPractice(Map<String, dynamic> module) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SqlPracticeScreen(
+          moduleTitle: module['title'],
+          primaryColor: module['color'],
+          language: 'SQL',
+        ),
       ),
     );
   }
@@ -399,6 +444,24 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
           icon: Icon(Icons.arrow_back, color: Colors.tealAccent),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.quiz, color: Colors.green),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SqlPracticeScreen(
+                    moduleTitle: 'All SQL Exercises',
+                    primaryColor: Colors.green,
+                    language: 'SQL',
+                  ),
+                ),
+              );
+            },
+            tooltip: 'All Practice Exercises',
+          ),
+        ],
       ),
       body: Container(
         decoration: BoxDecoration(

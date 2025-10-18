@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'learning_screen.dart'; // IMPORTANT: Add this import
 
 class PhpModulesScreen extends StatefulWidget {
   const PhpModulesScreen({super.key});
@@ -21,6 +22,7 @@ class _PhpModulesScreenState extends State<PhpModulesScreen> {
         'PHP Syntax Basics'
       ],
       'description': 'Get started with PHP server-side scripting',
+      'fileName': 'php_introduction.md', // ADD THIS FIELD
     },
     {
       'title': 'PHP Syntax',
@@ -34,6 +36,7 @@ class _PhpModulesScreenState extends State<PhpModulesScreen> {
         'PHP Tags'
       ],
       'description': 'Learn PHP basic syntax and structure',
+      'fileName': 'php_syntax.md', // ADD THIS FIELD
     },
     {
       'title': 'PHP Variables',
@@ -47,6 +50,7 @@ class _PhpModulesScreenState extends State<PhpModulesScreen> {
         'Static Variables'
       ],
       'description': 'Understand variables in PHP',
+      'fileName': 'php_variables.md', // ADD THIS FIELD
     },
     {
       'title': 'PHP Operators',
@@ -60,6 +64,7 @@ class _PhpModulesScreenState extends State<PhpModulesScreen> {
         'String Operators'
       ],
       'description': 'Master operators in PHP programming',
+      'fileName': 'php_operators.md', // ADD THIS FIELD
     },
     {
       'title': 'PHP Strings',
@@ -73,6 +78,7 @@ class _PhpModulesScreenState extends State<PhpModulesScreen> {
         'String Manipulation'
       ],
       'description': 'Work with strings in PHP',
+      'fileName': 'php_strings.md', // ADD THIS FIELD
     },
     {
       'title': 'PHP Arrays',
@@ -86,6 +92,7 @@ class _PhpModulesScreenState extends State<PhpModulesScreen> {
         'Array Functions'
       ],
       'description': 'Learn array manipulation in PHP',
+      'fileName': 'php_arrays.md', // ADD THIS FIELD
     },
     {
       'title': 'PHP Conditions',
@@ -99,6 +106,7 @@ class _PhpModulesScreenState extends State<PhpModulesScreen> {
         'Ternary Operator'
       ],
       'description': 'Control program flow with conditions',
+      'fileName': 'php_conditions.md', // ADD THIS FIELD
     },
     {
       'title': 'PHP Loops',
@@ -112,6 +120,7 @@ class _PhpModulesScreenState extends State<PhpModulesScreen> {
         'Break and Continue'
       ],
       'description': 'Learn looping structures in PHP',
+      'fileName': 'php_loops.md', // ADD THIS FIELD
     },
     {
       'title': 'PHP Functions',
@@ -125,6 +134,7 @@ class _PhpModulesScreenState extends State<PhpModulesScreen> {
         'Recursive Functions'
       ],
       'description': 'Create and use functions in PHP',
+      'fileName': 'php_functions.md', // ADD THIS FIELD
     },
     {
       'title': 'PHP Forms',
@@ -138,6 +148,7 @@ class _PhpModulesScreenState extends State<PhpModulesScreen> {
         'File Upload'
       ],
       'description': 'Handle form data in PHP',
+      'fileName': 'php_forms.md', // ADD THIS FIELD
     },
     {
       'title': 'PHP OOP',
@@ -151,6 +162,7 @@ class _PhpModulesScreenState extends State<PhpModulesScreen> {
         'Inheritance'
       ],
       'description': 'Object-oriented programming in PHP',
+      'fileName': 'php_oop.md', // ADD THIS FIELD
     },
     {
       'title': 'PHP MySQL',
@@ -164,6 +176,7 @@ class _PhpModulesScreenState extends State<PhpModulesScreen> {
         'Select Data'
       ],
       'description': 'Connect PHP with MySQL database',
+      'fileName': 'php_mysql.md', // ADD THIS FIELD
     },
     {
       'title': 'PHP Sessions',
@@ -177,6 +190,7 @@ class _PhpModulesScreenState extends State<PhpModulesScreen> {
         'Cookies'
       ],
       'description': 'Manage user sessions in PHP',
+      'fileName': 'php_sessions.md', // ADD THIS FIELD
     },
     {
       'title': 'PHP File Handling',
@@ -190,6 +204,7 @@ class _PhpModulesScreenState extends State<PhpModulesScreen> {
         'Directory Functions'
       ],
       'description': 'Work with files in PHP',
+      'fileName': 'php_file_handling.md', // ADD THIS FIELD
     },
     {
       'title': 'PHP Error Handling',
@@ -203,6 +218,7 @@ class _PhpModulesScreenState extends State<PhpModulesScreen> {
         'Exception Handling'
       ],
       'description': 'Handle errors and exceptions in PHP',
+      'fileName': 'php_error_handling.md', // ADD THIS FIELD
     },
   ];
 
@@ -285,12 +301,18 @@ class _PhpModulesScreenState extends State<PhpModulesScreen> {
     );
   }
 
+  // FIXED: Add proper navigation to LearningScreen
   void _startLearning(Map<String, dynamic> module) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: Colors.purple,
-        content: Text('Starting ${module['title']}...'),
-        duration: Duration(seconds: 2),
+    print('🚀 Starting ${module['title']} with file: ${module['fileName']}');
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LearningScreen(
+          moduleTitle: module['title'],
+          fileName: module['fileName'],
+          primaryColor: module['color'],
+        ),
       ),
     );
   }

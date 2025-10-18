@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'learning_screen.dart';
+import 'python_practice_screen.dart';
 
 class PythonModulesScreen extends StatefulWidget {
   const PythonModulesScreen({super.key});
@@ -13,6 +15,7 @@ class _PythonModulesScreenState extends State<PythonModulesScreen> {
       'title': 'Python Introduction',
       'icon': Icons.play_arrow,
       'color': Colors.yellow,
+      'fileName': 'python_introduction.md',
       'topics': [
         'What is Python?',
         'Python Features',
@@ -26,6 +29,7 @@ class _PythonModulesScreenState extends State<PythonModulesScreen> {
       'title': 'Python Syntax',
       'icon': Icons.code,
       'color': Colors.yellow,
+      'fileName': 'python_syntax.md',
       'topics': [
         'Variables and Data Types',
         'Indentation',
@@ -39,6 +43,7 @@ class _PythonModulesScreenState extends State<PythonModulesScreen> {
       'title': 'Python Variables',
       'icon': Icons.storage,
       'color': Colors.yellow,
+      'fileName': 'python_variables.md',
       'topics': [
         'Variable Declaration',
         'Data Types',
@@ -52,6 +57,7 @@ class _PythonModulesScreenState extends State<PythonModulesScreen> {
       'title': 'Python Data Types',
       'icon': Icons.data_array,
       'color': Colors.yellow,
+      'fileName': 'python_data_types.md',
       'topics': [
         'String Data Type',
         'Numeric Types',
@@ -65,6 +71,7 @@ class _PythonModulesScreenState extends State<PythonModulesScreen> {
       'title': 'Python Strings',
       'icon': Icons.text_fields,
       'color': Colors.yellow,
+      'fileName': 'python_strings.md',
       'topics': [
         'String Basics',
         'String Slicing',
@@ -78,6 +85,7 @@ class _PythonModulesScreenState extends State<PythonModulesScreen> {
       'title': 'Python Operators',
       'icon': Icons.calculate,
       'color': Colors.yellow,
+      'fileName': 'python_operators.md',
       'topics': [
         'Arithmetic Operators',
         'Assignment Operators',
@@ -91,6 +99,7 @@ class _PythonModulesScreenState extends State<PythonModulesScreen> {
       'title': 'Python Lists',
       'icon': Icons.list,
       'color': Colors.yellow,
+      'fileName': 'python_lists.md',
       'topics': [
         'List Basics',
         'Access List Items',
@@ -104,6 +113,7 @@ class _PythonModulesScreenState extends State<PythonModulesScreen> {
       'title': 'Python Tuples',
       'icon': Icons.view_array,
       'color': Colors.yellow,
+      'fileName': 'python_tuples.md',
       'topics': [
         'Tuple Basics',
         'Access Tuple Items',
@@ -117,6 +127,7 @@ class _PythonModulesScreenState extends State<PythonModulesScreen> {
       'title': 'Python Sets',
       'icon': Icons.settings,
       'color': Colors.yellow,
+      'fileName': 'python_sets.md',
       'topics': [
         'Set Basics',
         'Access Set Items',
@@ -130,6 +141,7 @@ class _PythonModulesScreenState extends State<PythonModulesScreen> {
       'title': 'Python Dictionaries',
       'icon': Icons.book,
       'color': Colors.yellow,
+      'fileName': 'python_dictionaries.md',
       'topics': [
         'Dictionary Basics',
         'Access Items',
@@ -143,6 +155,7 @@ class _PythonModulesScreenState extends State<PythonModulesScreen> {
       'title': 'Python Conditions',
       'icon': Icons.settings,
       'color': Colors.yellow,
+      'fileName': 'python_conditions.md',
       'topics': [
         'If Statement',
         'Else Statement',
@@ -156,6 +169,7 @@ class _PythonModulesScreenState extends State<PythonModulesScreen> {
       'title': 'Python Loops',
       'icon': Icons.loop,
       'color': Colors.yellow,
+      'fileName': 'python_loops.md',
       'topics': [
         'While Loop',
         'For Loop',
@@ -169,6 +183,7 @@ class _PythonModulesScreenState extends State<PythonModulesScreen> {
       'title': 'Python Functions',
       'icon': Icons.functions,
       'color': Colors.yellow,
+      'fileName': 'python_functions.md',
       'topics': [
         'Function Definition',
         'Function Parameters',
@@ -182,6 +197,7 @@ class _PythonModulesScreenState extends State<PythonModulesScreen> {
       'title': 'Python Classes',
       'icon': Icons.account_tree,
       'color': Colors.yellow,
+      'fileName': 'python_classes.md',
       'topics': [
         'Class Definition',
         'Create Object',
@@ -195,6 +211,7 @@ class _PythonModulesScreenState extends State<PythonModulesScreen> {
       'title': 'Python Modules',
       'icon': Icons.extension,
       'color': Colors.yellow,
+      'fileName': 'python_modules.md',
       'topics': [
         'Import Module',
         'Built-in Modules',
@@ -287,14 +304,27 @@ class _PythonModulesScreenState extends State<PythonModulesScreen> {
   }
 
   void _startLearning(Map<String, dynamic> module) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: Colors.yellow,
-        content: Text(
-          'Starting ${module['title']}...',
-          style: TextStyle(color: Colors.black),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LearningScreen(
+          moduleTitle: module['title'],
+          fileName: module['fileName'],
+          primaryColor: module['color'],
         ),
-        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _startPractice(Map<String, dynamic> module) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PythonPracticeScreen(
+          moduleTitle: module['title'],
+          primaryColor: module['color'],
+          language: 'python',
+        ),
       ),
     );
   }
@@ -403,6 +433,24 @@ class _PythonModulesScreenState extends State<PythonModulesScreen> {
           icon: Icon(Icons.arrow_back, color: Colors.tealAccent),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.quiz, color: Colors.yellow),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PythonPracticeScreen(
+                    moduleTitle: 'All Python Exercises',
+                    primaryColor: Colors.yellow,
+                    language: 'python',
+                  ),
+                ),
+              );
+            },
+            tooltip: 'All Practice Exercises',
+          ),
+        ],
       ),
       body: Container(
         decoration: BoxDecoration(
