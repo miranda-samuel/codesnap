@@ -157,7 +157,7 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           primarySwatch: Colors.teal,
           useMaterial3: true,
         ),
-        initialRoute: '/home',
+        initialRoute: '/',
         routes: {
           '/splash': (context) => const SplashScreen(),
           '/': (context) => const LoginPage(),
