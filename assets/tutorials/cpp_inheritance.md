@@ -1,16 +1,13 @@
-
----
-
-### **11. cpp_inheritance.md**
-```markdown
 # C++ Inheritance
 
-## Base Class
+## Base and Derived Classes
 ```cpp
-class Vehicle {
-  public:
-    string brand = "Ford";
-    void honk() {
-        cout << "Tuut, tuut! \n";
-    }
+class Animal {
+public:
+    void eat() { cout << "Eating..." << endl; }
+};
+
+class Dog : public Animal {
+public:
+    void bark() { cout << "Barking..." << endl; }
 };

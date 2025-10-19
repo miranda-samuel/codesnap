@@ -1,13 +1,17 @@
-# PHP MySQL
+# PHP Sql
 
-**Description:** Connect PHP with MySQL database
+## Sqli Connection
+```php
+<?php
+$servername = "localhost";
+$username = "root";
+$password = "";
+$dbname = "myDB";
 
-## Topics Covered:
-- Database Connection
-- Create Database
-- Create Table
-- Insert Data
-- Select Data
+$conn = new mysqli($servername, $username, $password, $dbname);
 
----
-*Icon: 💾 | Color: Purple*
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+echo "Connected successfully";
+?>

@@ -1,28 +1,13 @@
+# Java OOP
 
----
-
-### **11. java_oop.md**
-```markdown
-# Java Object-Oriented Programming
-
-## Class and Object
+## Class Definition
 ```java
-// Class definition
-public class Car {
-    // Fields (attributes)
-    String brand;
-    String model;
-    int year;
+public class Person {
+    private String name;
+    private int age;
     
-    // Method
-    public void displayInfo() {
-        System.out.println(brand + " " + model + " " + year);
+    public Person(String name, int age) {
+        this.name = name;
+        this.age = age;
     }
 }
-
-// Creating objects
-Car car1 = new Car();
-car1.brand = "Toyota";
-car1.model = "Corolla";
-car1.year = 2020;
-car1.displayInfo();

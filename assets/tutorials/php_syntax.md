@@ -1,13 +1,9 @@
 # PHP Syntax
 
-**Description:** Learn PHP basic syntax and structure
+## Basic Syntax
+```php
+<?php
+echo "Hello World";
+?>
 
-## Topics Covered:
-- Variables and Data Types
-- Constants
-- Echo and Print
-- Comments
-- PHP Tags
-
----
-*Icon: 💻 | Color: Purple*
+<?= "Hello World" ?>

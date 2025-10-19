@@ -1,13 +1,7 @@
-
----
-
-### **10. java_methods.md**
-```markdown
 # Java Methods
 
 ## Method Definition
 ```java
-returnType methodName(parameters) {
-    // method body
-    return value;
+public static int add(int a, int b) {
+    return a + b;
 }

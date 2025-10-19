@@ -49,232 +49,203 @@ class _SqlPracticeScreenState extends State<SqlPracticeScreen> {
       case 'SQL Introduction':
         _exercises = [
           {
-            'title': 'Basic SELECT Query',
-            'description': 'Write a query to select all columns from the employees table',
-            'starterCode': '-- Write your SQL query here\nSELECT ',
-            'hint': 'Use SELECT * FROM table_name to select all columns',
+            'title': 'Basic SELECT Statement',
+            'description': 'Retrieve all columns from the employees table',
+            'starterCode': '-- Write your SQL query here\n',
             'solution': 'SELECT * FROM employees;',
-            'testCases': ['id', 'name', 'department', 'salary']
+            'hint': 'Use SELECT * to get all columns and FROM to specify the table',
+            'testCases': ['SELECT', 'FROM', 'employees']
           },
           {
-            'title': 'Select Specific Columns',
-            'description': 'Select only name and department columns from employees',
-            'starterCode': '-- Select name and department columns\nSELECT ',
-            'hint': 'Specify column names separated by commas after SELECT',
-            'solution': 'SELECT name, department FROM employees;',
-            'testCases': ['name', 'department']
+            'title': 'Specific Column Selection',
+            'description': 'Select only the name and email columns from users table',
+            'starterCode': '-- Select name and email columns\n',
+            'solution': 'SELECT name, email FROM users;',
+            'hint': 'List column names separated by commas after SELECT',
+            'testCases': ['SELECT', 'name', 'email', 'FROM', 'users']
           },
           {
-            'title': 'Display Text with SELECT',
-            'description': 'Display a welcome message using SELECT',
-            'starterCode': '-- Display a welcome message\nSELECT ',
-            'hint': 'Use SELECT with string literal: SELECT "Hello World"',
-            'solution': 'SELECT "Welcome to SQL!" AS message;',
-            'testCases': ['Welcome to SQL']
-          },
-        ];
-        break;
-
-      case 'SQL Syntax':
-        _exercises = [
-          {
-            'title': 'Complete SELECT Statement',
-            'description': 'Write a complete SELECT statement with FROM clause',
-            'starterCode': '-- Complete the SELECT statement\n',
-            'hint': 'Use SELECT column FROM table_name syntax',
-            'solution': 'SELECT name, age FROM customers;',
-            'testCases': ['name', 'age', 'customers']
-          },
-          {
-            'title': 'WHERE Clause Practice',
-            'description': 'Select customers from a specific city',
-            'starterCode': '-- Select customers from London\nSELECT * FROM customers\n',
-            'hint': 'Use WHERE clause to filter results: WHERE city = "London"',
-            'solution': 'SELECT * FROM customers WHERE city = "London";',
-            'testCases': ['WHERE', 'city', 'London']
-          },
-          {
-            'title': 'ORDER BY Clause',
-            'description': 'Sort products by price in descending order',
-            'starterCode': '-- Sort products by price (highest first)\nSELECT * FROM products\n',
-            'hint': 'Use ORDER BY column_name DESC for descending order',
-            'solution': 'SELECT * FROM products ORDER BY price DESC;',
-            'testCases': ['ORDER BY', 'price', 'DESC']
-          },
+            'title': 'Multiple Table Query',
+            'description': 'Select employee names and their department names',
+            'starterCode': '-- Join employees and departments tables\n',
+            'solution': 'SELECT e.name, d.department_name FROM employees e JOIN departments d ON e.dept_id = d.id;',
+            'hint': 'Use JOIN to combine tables and ON to specify the join condition',
+            'testCases': ['SELECT', 'JOIN', 'ON']
+          }
         ];
         break;
 
       case 'SQL SELECT':
         _exercises = [
           {
+            'title': 'Basic Data Retrieval',
+            'description': 'Get all customer information from the customers table',
+            'starterCode': '-- Retrieve all customer data\n',
+            'solution': 'SELECT * FROM customers;',
+            'hint': 'Use SELECT * to get all columns',
+            'testCases': ['SELECT', 'FROM', 'customers']
+          },
+          {
             'title': 'Column Aliases',
-            'description': 'Use aliases to rename columns in the output',
-            'starterCode': '-- Rename columns using aliases\nSELECT ',
-            'hint': 'Use AS keyword: SELECT column_name AS alias_name',
-            'solution': 'SELECT name AS customer_name, age AS customer_age FROM customers;',
-            'testCases': ['customer_name', 'customer_age']
+            'description': 'Select product names with "Product Name" as column alias',
+            'starterCode': '-- Use column aliases\n',
+            'solution': 'SELECT name AS "Product Name", price AS "Cost" FROM products;',
+            'hint': 'Use AS keyword to create column aliases',
+            'testCases': ['SELECT', 'AS', 'FROM']
           },
           {
             'title': 'Calculated Columns',
-            'description': 'Calculate total price (quantity * unit_price)',
-            'starterCode': '-- Calculate total price\nSELECT ',
-            'hint': 'Use arithmetic operations in SELECT: quantity * unit_price',
-            'solution': 'SELECT product_name, quantity * unit_price AS total_price FROM order_details;',
-            'testCases': ['total_price', 'quantity', 'unit_price']
-          },
-          {
-            'title': 'DISTINCT Values',
-            'description': 'Get unique department names from employees',
-            'starterCode': '-- Get unique departments\nSELECT ',
-            'hint': 'Use DISTINCT keyword to remove duplicates',
-            'solution': 'SELECT DISTINCT department FROM employees;',
-            'testCases': ['DISTINCT', 'department']
-          },
+            'description': 'Calculate total price (quantity * unit_price) from order_items',
+            'starterCode': '-- Calculate total price\n',
+            'solution': 'SELECT product_id, quantity, unit_price, quantity * unit_price AS total_price FROM order_items;',
+            'hint': 'You can perform arithmetic operations in SELECT clause',
+            'testCases': ['SELECT', '*', 'AS', 'FROM']
+          }
         ];
         break;
 
       case 'SQL WHERE':
         _exercises = [
           {
-            'title': 'Basic WHERE Clause',
-            'description': 'Find employees with salary greater than 50000',
-            'starterCode': '-- Find high salary employees\nSELECT * FROM employees\n',
-            'hint': 'Use WHERE with comparison operator: WHERE salary > 50000',
+            'title': 'Basic Filtering',
+            'description': 'Find all employees with salary greater than 50000',
+            'starterCode': '-- Filter employees by salary\n',
             'solution': 'SELECT * FROM employees WHERE salary > 50000;',
-            'testCases': ['WHERE', 'salary', '>', '50000']
+            'hint': 'Use WHERE clause with comparison operators',
+            'testCases': ['SELECT', 'FROM', 'WHERE', '>']
           },
           {
             'title': 'Multiple Conditions',
-            'description': 'Find IT department employees with salary > 60000',
-            'starterCode': '-- IT employees with high salary\nSELECT * FROM employees\n',
-            'hint': 'Use AND operator to combine conditions',
-            'solution': 'SELECT * FROM employees WHERE department = "IT" AND salary > 60000;',
-            'testCases': ['AND', 'department', 'IT', 'salary', '60000']
+            'description': 'Find products in Electronics category priced under 1000',
+            'starterCode': '-- Use AND for multiple conditions\n',
+            'solution': 'SELECT * FROM products WHERE category = \'Electronics\' AND price < 1000;',
+            'hint': 'Use AND to combine multiple conditions',
+            'testCases': ['WHERE', 'AND', '=']
           },
           {
-            'title': 'IN Operator',
-            'description': 'Find customers from specific cities',
-            'starterCode': '-- Customers from London or Paris\nSELECT * FROM customers\n',
-            'hint': 'Use IN operator: WHERE city IN ("London", "Paris")',
-            'solution': 'SELECT * FROM customers WHERE city IN ("London", "Paris");',
-            'testCases': ['IN', 'London', 'Paris']
-          },
+            'title': 'Pattern Matching',
+            'description': 'Find customers whose names start with "J"',
+            'starterCode': '-- Use LIKE for pattern matching\n',
+            'solution': 'SELECT * FROM customers WHERE name LIKE \'J%\';',
+            'hint': 'LIKE operator with % wildcard matches any sequence of characters',
+            'testCases': ['WHERE', 'LIKE']
+          }
         ];
         break;
 
       case 'SQL ORDER BY':
         _exercises = [
           {
-            'title': 'Single Column Sorting',
-            'description': 'Sort products by name in alphabetical order',
-            'starterCode': '-- Sort products by name\nSELECT * FROM products\n',
-            'hint': 'Use ORDER BY column_name ASC (ASC is optional)',
-            'solution': 'SELECT * FROM products ORDER BY product_name;',
-            'testCases': ['ORDER BY', 'product_name']
+            'title': 'Basic Sorting',
+            'description': 'Sort products by price in descending order',
+            'starterCode': '-- Sort by price descending\n',
+            'solution': 'SELECT * FROM products ORDER BY price DESC;',
+            'hint': 'Use ORDER BY with DESC for descending order',
+            'testCases': ['SELECT', 'ORDER BY', 'DESC']
           },
           {
             'title': 'Multiple Column Sorting',
-            'description': 'Sort employees by department and then by salary descending',
-            'starterCode': '-- Sort by department and salary\nSELECT * FROM employees\n',
-            'hint': 'Use multiple columns in ORDER BY separated by commas',
-            'solution': 'SELECT * FROM employees ORDER BY department, salary DESC;',
-            'testCases': ['ORDER BY', 'department', 'salary', 'DESC']
+            'description': 'Sort employees by department ascending, then salary descending',
+            'starterCode': '-- Sort by multiple columns\n',
+            'solution': 'SELECT * FROM employees ORDER BY department ASC, salary DESC;',
+            'hint': 'List multiple columns separated by commas in ORDER BY',
+            'testCases': ['ORDER BY', 'ASC', 'DESC']
           },
           {
-            'title': 'NULL Values Sorting',
-            'description': 'Sort products with NULL prices at the end',
-            'starterCode': '-- Handle NULL values in sorting\nSELECT * FROM products\n',
-            'hint': 'Use ORDER BY with NULLS LAST (syntax varies by database)',
-            'solution': 'SELECT * FROM products ORDER BY price NULLS LAST;',
-            'testCases': ['NULLS LAST']
-          },
+            'title': 'Sort with Expressions',
+            'description': 'Sort products by discounted price (price * 0.9)',
+            'starterCode': '-- Sort by calculated expression\n',
+            'solution': 'SELECT name, price, price * 0.9 AS discounted_price FROM products ORDER BY discounted_price DESC;',
+            'hint': 'You can use column aliases in ORDER BY clause',
+            'testCases': ['SELECT', 'AS', 'ORDER BY']
+          }
         ];
         break;
 
       case 'SQL INSERT':
         _exercises = [
           {
-            'title': 'Insert Single Row',
-            'description': 'Add a new employee to the employees table',
-            'starterCode': '-- Insert a new employee\n',
-            'hint': 'Use INSERT INTO table_name (columns) VALUES (values)',
-            'solution': 'INSERT INTO employees (name, department, salary) VALUES ("John Doe", "IT", 75000);',
-            'testCases': ['INSERT INTO', 'VALUES', 'John Doe', 'IT', '75000']
+            'title': 'Basic Insert',
+            'description': 'Add a new customer to the customers table',
+            'starterCode': '-- Insert new customer\n',
+            'solution': 'INSERT INTO customers (name, email, phone) VALUES (\'John Doe\', \'john@example.com\', \'123-456-7890\');',
+            'hint': 'Specify column names and corresponding values',
+            'testCases': ['INSERT INTO', 'VALUES']
           },
           {
             'title': 'Insert Multiple Rows',
-            'description': 'Add multiple customers at once',
-            'starterCode': '-- Insert multiple customers\n',
-            'hint': 'Use multiple value sets: VALUES (val1), (val2), (val3)',
-            'solution': 'INSERT INTO customers (name, city) VALUES ("Alice", "London"), ("Bob", "Paris"), ("Charlie", "Berlin");',
-            'testCases': ['Alice', 'Bob', 'Charlie', 'London', 'Paris', 'Berlin']
+            'description': 'Add three new products in a single query',
+            'starterCode': '-- Insert multiple products\n',
+            'solution': 'INSERT INTO products (name, price, category) VALUES \n(\'Laptop\', 999.99, \'Electronics\'),\n(\'Mouse\', 29.99, \'Electronics\'),\n(\'Keyboard\', 79.99, \'Electronics\');',
+            'hint': 'Separate multiple value sets with commas',
+            'testCases': ['INSERT INTO', 'VALUES', '(', ')']
           },
           {
-            'title': 'Insert from SELECT',
-            'description': 'Copy data from one table to another',
-            'starterCode': '-- Copy data to archive table\n',
-            'hint': 'Use INSERT INTO table SELECT ... FROM source_table',
-            'solution': 'INSERT INTO employee_archive SELECT * FROM employees WHERE hire_date < "2020-01-01";',
-            'testCases': ['INSERT INTO', 'SELECT', 'FROM']
-          },
+            'title': 'Insert from Select',
+            'description': 'Copy active users to a premium_users table',
+            'starterCode': '-- Insert from select statement\n',
+            'solution': 'INSERT INTO premium_users (user_id, name, email) SELECT id, name, email FROM users WHERE active = 1;',
+            'hint': 'Use SELECT statement instead of VALUES to insert from another table',
+            'testCases': ['INSERT INTO', 'SELECT', 'FROM', 'WHERE']
+          }
         ];
         break;
 
       case 'SQL UPDATE':
         _exercises = [
           {
-            'title': 'Update Single Column',
+            'title': 'Basic Update',
             'description': 'Increase all product prices by 10%',
-            'starterCode': '-- Increase prices by 10%\n',
-            'hint': 'Use UPDATE table_name SET column = new_value',
+            'starterCode': '-- Update product prices\n',
             'solution': 'UPDATE products SET price = price * 1.10;',
-            'testCases': ['UPDATE', 'SET', 'price', '1.10']
+            'hint': 'Use SET to specify column updates',
+            'testCases': ['UPDATE', 'SET', '=']
           },
           {
-            'title': 'Update with WHERE Clause',
-            'description': 'Give a raise to IT department employees only',
-            'starterCode': '-- Give raise to IT department\n',
+            'title': 'Conditional Update',
+            'description': 'Give a 15% raise to employees in IT department',
+            'starterCode': '-- Update with condition\n',
+            'solution': 'UPDATE employees SET salary = salary * 1.15 WHERE department = \'IT\';',
             'hint': 'Use WHERE clause to specify which rows to update',
-            'solution': 'UPDATE employees SET salary = salary + 5000 WHERE department = "IT";',
-            'testCases': ['UPDATE', 'SET', 'WHERE', 'IT', '5000']
+            'testCases': ['UPDATE', 'SET', 'WHERE']
           },
           {
-            'title': 'Update Multiple Columns',
-            'description': 'Update both name and email of a customer',
-            'starterCode': '-- Update customer information\n',
-            'hint': 'Set multiple columns: SET col1 = val1, col2 = val2',
-            'solution': 'UPDATE customers SET name = "John Smith", email = "john.smith@email.com" WHERE customer_id = 101;',
-            'testCases': ['UPDATE', 'SET', 'name', 'email', 'WHERE']
-          },
+            'title': 'Multiple Column Update',
+            'description': 'Update both price and stock for a specific product',
+            'starterCode': '-- Update multiple columns\n',
+            'solution': 'UPDATE products SET price = 49.99, stock_quantity = 100 WHERE id = 5;',
+            'hint': 'Separate multiple column updates with commas',
+            'testCases': ['UPDATE', 'SET', 'WHERE']
+          }
         ];
         break;
 
       case 'SQL DELETE':
         _exercises = [
           {
-            'title': 'Delete Specific Rows',
-            'description': 'Delete inactive customers',
-            'starterCode': '-- Delete inactive customers\n',
-            'hint': 'Use DELETE FROM table_name WHERE condition',
-            'solution': 'DELETE FROM customers WHERE status = "inactive";',
-            'testCases': ['DELETE FROM', 'WHERE', 'inactive']
+            'title': 'Basic Delete',
+            'description': 'Remove a specific user by ID',
+            'starterCode': '-- Delete specific user\n',
+            'solution': 'DELETE FROM users WHERE id = 123;',
+            'hint': 'Always use WHERE clause to avoid deleting all rows',
+            'testCases': ['DELETE FROM', 'WHERE']
           },
           {
-            'title': 'Delete with Multiple Conditions',
-            'description': 'Delete old orders with low amount',
-            'starterCode': '-- Delete old small orders\n',
-            'hint': 'Combine conditions with AND operator',
-            'solution': 'DELETE FROM orders WHERE order_date < "2023-01-01" AND amount < 50;',
-            'testCases': ['DELETE FROM', 'WHERE', 'AND', '2023-01-01', '50']
+            'title': 'Conditional Delete',
+            'description': 'Delete all inactive users older than 1 year',
+            'starterCode': '-- Delete with multiple conditions\n',
+            'solution': 'DELETE FROM users WHERE active = 0 AND created_at < DATE_SUB(NOW(), INTERVAL 1 YEAR);',
+            'hint': 'Use AND to combine multiple conditions for deletion',
+            'testCases': ['DELETE FROM', 'WHERE', 'AND']
           },
           {
-            'title': 'TRUNCATE Table',
-            'description': 'Remove all data from a temporary table',
-            'starterCode': '-- Clear temporary table\n',
-            'hint': 'Use TRUNCATE TABLE for faster deletion of all rows',
-            'solution': 'TRUNCATE TABLE temp_data;',
-            'testCases': ['TRUNCATE TABLE']
-          },
+            'title': 'Delete with Join',
+            'description': 'Delete orders that have been cancelled for over 30 days',
+            'starterCode': '-- Delete using join\n',
+            'solution': 'DELETE o FROM orders o WHERE o.status = \'cancelled\' AND o.updated_at < DATE_SUB(NOW(), INTERVAL 30 DAY);',
+            'hint': 'You can use table aliases in DELETE statements',
+            'testCases': ['DELETE', 'FROM', 'WHERE']
+          }
         ];
         break;
 
@@ -282,28 +253,28 @@ class _SqlPracticeScreenState extends State<SqlPracticeScreen> {
         _exercises = [
           {
             'title': 'INNER JOIN',
-            'description': 'Combine orders with customer information',
-            'starterCode': '-- Join orders with customers\nSELECT ',
-            'hint': 'Use INNER JOIN with ON clause to specify join condition',
-            'solution': 'SELECT orders.order_id, customers.customer_name, orders.order_date FROM orders INNER JOIN customers ON orders.customer_id = customers.customer_id;',
-            'testCases': ['INNER JOIN', 'ON', 'customer_id']
+            'description': 'Get employee names with their department names',
+            'starterCode': '-- Inner join employees and departments\n',
+            'solution': 'SELECT e.name, d.department_name FROM employees e INNER JOIN departments d ON e.dept_id = d.id;',
+            'hint': 'INNER JOIN returns only matching rows from both tables',
+            'testCases': ['SELECT', 'INNER JOIN', 'ON']
           },
           {
             'title': 'LEFT JOIN',
-            'description': 'Get all customers and their orders (if any)',
-            'starterCode': '-- All customers with their orders\nSELECT ',
-            'hint': 'Use LEFT JOIN to include all rows from left table',
-            'solution': 'SELECT customers.customer_name, orders.order_id FROM customers LEFT JOIN orders ON customers.customer_id = orders.customer_id;',
-            'testCases': ['LEFT JOIN', 'customers', 'orders']
+            'description': 'Get all employees and their departments (include employees without departments)',
+            'starterCode': '-- Left join to include all employees\n',
+            'solution': 'SELECT e.name, d.department_name FROM employees e LEFT JOIN departments d ON e.dept_id = d.id;',
+            'hint': 'LEFT JOIN returns all rows from left table and matching rows from right table',
+            'testCases': ['SELECT', 'LEFT JOIN', 'ON']
           },
           {
-            'title': 'Self Join',
-            'description': 'Find employees and their managers',
-            'starterCode': '-- Employees and their managers\nSELECT ',
-            'hint': 'Join a table with itself using different aliases',
-            'solution': 'SELECT e1.name AS employee, e2.name AS manager FROM employees e1 LEFT JOIN employees e2 ON e1.manager_id = e2.employee_id;',
-            'testCases': ['employee', 'manager', 'manager_id']
-          },
+            'title': 'Multiple Table Join',
+            'description': 'Get order details with customer and product information',
+            'starterCode': '-- Join three tables\n',
+            'solution': 'SELECT o.order_date, c.name AS customer_name, p.name AS product_name, oi.quantity FROM orders o JOIN customers c ON o.customer_id = c.id JOIN order_items oi ON o.id = oi.order_id JOIN products p ON oi.product_id = p.id;',
+            'hint': 'Chain multiple JOIN clauses to connect several tables',
+            'testCases': ['JOIN', 'ON', 'AS']
+          }
         ];
         break;
 
@@ -311,115 +282,57 @@ class _SqlPracticeScreenState extends State<SqlPracticeScreen> {
         _exercises = [
           {
             'title': 'Aggregate Functions',
-            'description': 'Calculate average salary by department',
-            'starterCode': '-- Average salary per department\nSELECT ',
-            'hint': 'Use AVG() function with GROUP BY',
-            'solution': 'SELECT department, AVG(salary) AS avg_salary FROM employees GROUP BY department;',
-            'testCases': ['AVG', 'GROUP BY', 'department']
+            'description': 'Calculate total, average, max and min salary by department',
+            'starterCode': '-- Use aggregate functions\n',
+            'solution': 'SELECT department, COUNT(*) as employee_count, AVG(salary) as avg_salary, MAX(salary) as max_salary, MIN(salary) as min_salary FROM employees GROUP BY department;',
+            'hint': 'Use GROUP BY with aggregate functions to get results per group',
+            'testCases': ['SELECT', 'COUNT', 'AVG', 'MAX', 'MIN', 'GROUP BY']
           },
           {
             'title': 'String Functions',
-            'description': 'Display customer names in uppercase',
-            'starterCode': '-- Uppercase customer names\nSELECT ',
-            'hint': 'Use UPPER() function for string manipulation',
-            'solution': 'SELECT UPPER(customer_name) AS name_upper FROM customers;',
-            'testCases': ['UPPER', 'customer_name']
+            'description': 'Format customer names as "Last, First" and get email domains',
+            'starterCode': '-- Use string functions\n',
+            'solution': 'SELECT CONCAT(last_name, \', \', first_name) AS full_name, SUBSTRING_INDEX(email, \'@\', -1) AS domain FROM customers;',
+            'hint': 'CONCAT combines strings, SUBSTRING_INDEX extracts parts of strings',
+            'testCases': ['SELECT', 'CONCAT', 'AS', 'SUBSTRING_INDEX']
           },
           {
             'title': 'Date Functions',
-            'description': 'Calculate age from birth date',
-            'starterCode': '-- Calculate customer ages\nSELECT ',
-            'hint': 'Use date functions like DATEDIFF or AGE (varies by database)',
-            'solution': 'SELECT name, DATEDIFF(YEAR, birth_date, GETDATE()) AS age FROM customers;',
-            'testCases': ['DATEDIFF', 'birth_date', 'age']
-          },
+            'description': 'Find employees hired in the last 30 days and calculate tenure',
+            'starterCode': '-- Use date functions\n',
+            'solution': 'SELECT name, hire_date, DATEDIFF(CURDATE(), hire_date) AS days_employed FROM employees WHERE hire_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY);',
+            'hint': 'CURDATE() gets current date, DATEDIFF calculates difference between dates',
+            'testCases': ['SELECT', 'DATEDIFF', 'CURDATE', 'WHERE']
+          }
         ];
         break;
 
       case 'SQL Constraints':
         _exercises = [
           {
-            'title': 'NOT NULL Constraint',
-            'description': 'Create a table with required fields',
-            'starterCode': '-- Create table with NOT NULL constraints\nCREATE TABLE ',
-            'hint': 'Add NOT NULL after column definition',
-            'solution': 'CREATE TABLE users (user_id INT PRIMARY KEY, username VARCHAR(50) NOT NULL, email VARCHAR(100) NOT NULL);',
-            'testCases': ['NOT NULL', 'PRIMARY KEY']
+            'title': 'Create Table with Constraints',
+            'description': 'Create a users table with primary key, unique email, and check constraints',
+            'starterCode': '-- Create table with constraints\n',
+            'solution': 'CREATE TABLE users (\n    id INT PRIMARY KEY AUTO_INCREMENT,\n    username VARCHAR(50) NOT NULL UNIQUE,\n    email VARCHAR(255) NOT NULL UNIQUE,\n    age INT CHECK (age >= 18),\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);',
+            'hint': 'PRIMARY KEY, UNIQUE, NOT NULL, CHECK, and DEFAULT are common constraints',
+            'testCases': ['CREATE TABLE', 'PRIMARY KEY', 'UNIQUE', 'NOT NULL', 'CHECK']
           },
           {
-            'title': 'UNIQUE Constraint',
-            'description': 'Ensure email addresses are unique',
-            'starterCode': '-- Add unique constraint to email\nCREATE TABLE ',
-            'hint': 'Use UNIQUE keyword for unique constraint',
-            'solution': 'CREATE TABLE users (user_id INT PRIMARY KEY, email VARCHAR(100) UNIQUE);',
-            'testCases': ['UNIQUE', 'email']
+            'title': 'Add Foreign Key Constraint',
+            'description': 'Add foreign key constraint to orders table referencing customers',
+            'starterCode': '-- Add foreign key constraint\n',
+            'solution': 'ALTER TABLE orders ADD CONSTRAINT fk_orders_customers FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE;',
+            'hint': 'Use ALTER TABLE with ADD CONSTRAINT to add foreign keys to existing tables',
+            'testCases': ['ALTER TABLE', 'ADD CONSTRAINT', 'FOREIGN KEY', 'REFERENCES']
           },
           {
-            'title': 'CHECK Constraint',
-            'description': 'Ensure salary is positive',
-            'starterCode': '-- Add check constraint for salary\nCREATE TABLE ',
-            'hint': 'Use CHECK (condition) to validate data',
-            'solution': 'CREATE TABLE employees (employee_id INT PRIMARY KEY, salary DECIMAL(10,2) CHECK (salary > 0));',
-            'testCases': ['CHECK', 'salary', '>', '0']
-          },
-        ];
-        break;
-
-      case 'SQL Indexes':
-        _exercises = [
-          {
-            'title': 'Create Index',
-            'description': 'Create an index on email column for faster searches',
-            'starterCode': '-- Create index on email column\n',
-            'hint': 'Use CREATE INDEX index_name ON table_name (column)',
-            'solution': 'CREATE INDEX idx_customer_email ON customers (email);',
-            'testCases': ['CREATE INDEX', 'idx_customer_email', 'email']
-          },
-          {
-            'title': 'Composite Index',
-            'description': 'Create index on multiple columns',
-            'starterCode': '-- Create composite index\n',
-            'hint': 'Specify multiple columns in parentheses',
-            'solution': 'CREATE INDEX idx_employee_dept_salary ON employees (department, salary);',
-            'testCases': ['CREATE INDEX', 'department', 'salary']
-          },
-          {
-            'title': 'Drop Index',
-            'description': 'Remove an existing index',
-            'starterCode': '-- Drop the email index\n',
-            'hint': 'Use DROP INDEX index_name',
-            'solution': 'DROP INDEX idx_customer_email;',
-            'testCases': ['DROP INDEX']
-          },
-        ];
-        break;
-
-      case 'SQL Views':
-        _exercises = [
-          {
-            'title': 'Create View',
-            'description': 'Create a view for active customers only',
-            'starterCode': '-- Create view for active customers\n',
-            'hint': 'Use CREATE VIEW view_name AS SELECT ...',
-            'solution': 'CREATE VIEW active_customers AS SELECT * FROM customers WHERE status = "active";',
-            'testCases': ['CREATE VIEW', 'active_customers', 'WHERE']
-          },
-          {
-            'title': 'Query View',
-            'description': 'Use the view like a regular table',
-            'starterCode': '-- Query the active customers view\nSELECT ',
-            'hint': 'Select from view name instead of table name',
-            'solution': 'SELECT * FROM active_customers;',
-            'testCases': ['active_customers']
-          },
-          {
-            'title': 'Drop View',
-            'description': 'Remove the view',
-            'starterCode': '-- Drop the view\n',
-            'hint': 'Use DROP VIEW view_name',
-            'solution': 'DROP VIEW active_customers;',
-            'testCases': ['DROP VIEW']
-          },
+            'title': 'Add Check Constraint',
+            'description': 'Add constraint to ensure product price is positive',
+            'starterCode': '-- Add check constraint\n',
+            'solution': 'ALTER TABLE products ADD CONSTRAINT chk_positive_price CHECK (price > 0);',
+            'hint': 'CHECK constraints enforce domain integrity rules',
+            'testCases': ['ALTER TABLE', 'ADD CONSTRAINT', 'CHECK']
+          }
         ];
         break;
 
@@ -427,28 +340,86 @@ class _SqlPracticeScreenState extends State<SqlPracticeScreen> {
         _exercises = [
           {
             'title': 'Subquery in WHERE',
-            'description': 'Find employees with above average salary',
-            'starterCode': '-- Employees with above average salary\nSELECT * FROM employees\n',
-            'hint': 'Use subquery in WHERE clause: WHERE salary > (SELECT AVG(salary)...)',
-            'solution': 'SELECT * FROM employees WHERE salary > (SELECT AVG(salary) FROM employees);',
-            'testCases': ['WHERE', '>', 'SELECT', 'AVG']
+            'description': 'Find employees earning more than average salary',
+            'starterCode': '-- Use subquery in WHERE clause\n',
+            'solution': 'SELECT name, salary FROM employees WHERE salary > (SELECT AVG(salary) FROM employees);',
+            'hint': 'Subqueries in WHERE must return a single value for comparison',
+            'testCases': ['SELECT', 'WHERE', '>', 'SELECT', 'AVG', 'FROM']
           },
           {
             'title': 'Subquery in SELECT',
-            'description': 'Show employee count per department',
-            'starterCode': '-- Employee count per department\nSELECT ',
-            'hint': 'Use subquery in SELECT clause',
-            'solution': 'SELECT department, (SELECT COUNT(*) FROM employees e2 WHERE e2.department = e1.department) AS emp_count FROM employees e1 GROUP BY department;',
-            'testCases': ['SELECT', 'COUNT', 'GROUP BY']
+            'description': 'Show employee salary and department average salary',
+            'starterCode': '-- Use subquery in SELECT\n',
+            'solution': 'SELECT name, salary, (SELECT AVG(salary) FROM employees e2 WHERE e2.department = e1.department) AS dept_avg_salary FROM employees e1;',
+            'hint': 'Scalar subqueries in SELECT must return exactly one row and one column',
+            'testCases': ['SELECT', 'SELECT', 'AVG', 'FROM', 'WHERE', 'AS']
           },
           {
-            'title': 'EXISTS Operator',
-            'description': 'Find customers who have placed orders',
-            'starterCode': '-- Customers with orders\nSELECT * FROM customers\n',
-            'hint': 'Use EXISTS with correlated subquery',
-            'solution': 'SELECT * FROM customers c WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.customer_id);',
-            'testCases': ['EXISTS', 'SELECT 1', 'customer_id']
+            'title': 'Correlated Subquery',
+            'description': 'Find employees who earn more than their department average',
+            'starterCode': '-- Use correlated subquery\n',
+            'solution': 'SELECT name, salary, department FROM employees e1 WHERE salary > (SELECT AVG(salary) FROM employees e2 WHERE e2.department = e1.department);',
+            'hint': 'Correlated subqueries reference columns from the outer query',
+            'testCases': ['SELECT', 'WHERE', '>', 'SELECT', 'AVG', 'FROM', 'WHERE']
+          }
+        ];
+        break;
+
+      case 'SQL Views':
+        _exercises = [
+          {
+            'title': 'Create Simple View',
+            'description': 'Create a view showing active customers with their order counts',
+            'starterCode': '-- Create a view\n',
+            'solution': 'CREATE VIEW active_customer_orders AS\nSELECT c.id, c.name, c.email, COUNT(o.id) AS order_count\nFROM customers c\nLEFT JOIN orders o ON c.id = o.customer_id\nWHERE c.active = 1\nGROUP BY c.id, c.name, c.email;',
+            'hint': 'Views are virtual tables based on SQL query results',
+            'testCases': ['CREATE VIEW', 'SELECT', 'FROM', 'JOIN', 'WHERE', 'GROUP BY']
           },
+          {
+            'title': 'Create Complex View',
+            'description': 'Create a sales summary view with totals by month and product',
+            'starterCode': '-- Create sales summary view\n',
+            'solution': 'CREATE VIEW monthly_sales_summary AS\nSELECT \n    YEAR(order_date) AS year,\n    MONTH(order_date) AS month,\n    p.name AS product_name,\n    SUM(oi.quantity) AS total_quantity,\n    SUM(oi.quantity * oi.unit_price) AS total_revenue\nFROM orders o\nJOIN order_items oi ON o.id = oi.order_id\nJOIN products p ON oi.product_id = p.id\nGROUP BY YEAR(order_date), MONTH(order_date), p.name;',
+            'hint': 'Views can include calculations, aggregations, and multiple joins',
+            'testCases': ['CREATE VIEW', 'SELECT', 'SUM', 'GROUP BY', 'JOIN']
+          },
+          {
+            'title': 'Updateable View',
+            'description': 'Create a view for updating product prices',
+            'starterCode': '-- Create updateable view\n',
+            'solution': 'CREATE VIEW product_prices AS\nSELECT id, name, price, category\nFROM products\nWHERE discontinued = 0\nWITH CHECK OPTION;',
+            'hint': 'WITH CHECK OPTION ensures updates through view satisfy view definition',
+            'testCases': ['CREATE VIEW', 'SELECT', 'FROM', 'WHERE', 'WITH CHECK OPTION']
+          }
+        ];
+        break;
+
+      case 'SQL Indexes':
+        _exercises = [
+          {
+            'title': 'Create Single Column Index',
+            'description': 'Create index on customer email for faster searches',
+            'starterCode': '-- Create index on email\n',
+            'solution': 'CREATE INDEX idx_customers_email ON customers(email);',
+            'hint': 'Indexes improve query performance on frequently searched columns',
+            'testCases': ['CREATE INDEX', 'ON']
+          },
+          {
+            'title': 'Create Composite Index',
+            'description': 'Create index on product category and price for better filtering',
+            'starterCode': '-- Create composite index\n',
+            'solution': 'CREATE INDEX idx_products_category_price ON products(category, price);',
+            'hint': 'Composite indexes are useful for queries that filter on multiple columns',
+            'testCases': ['CREATE INDEX', 'ON', '(']
+          },
+          {
+            'title': 'Create Unique Index',
+            'description': 'Create unique index on username to enforce uniqueness',
+            'starterCode': '-- Create unique index\n',
+            'solution': 'CREATE UNIQUE INDEX idx_users_username ON users(username);',
+            'hint': 'Unique indexes enforce uniqueness and improve lookup performance',
+            'testCases': ['CREATE UNIQUE INDEX', 'ON']
+          }
         ];
         break;
 
@@ -456,28 +427,28 @@ class _SqlPracticeScreenState extends State<SqlPracticeScreen> {
         _exercises = [
           {
             'title': 'Basic Transaction',
-            'description': 'Wrap multiple operations in a transaction',
-            'starterCode': '-- Start a transaction\n',
-            'hint': 'Use BEGIN TRANSACTION, COMMIT, ROLLBACK',
-            'solution': 'BEGIN TRANSACTION;\nUPDATE accounts SET balance = balance - 100 WHERE account_id = 1;\nUPDATE accounts SET balance = balance + 100 WHERE account_id = 2;\nCOMMIT;',
-            'testCases': ['BEGIN TRANSACTION', 'UPDATE', 'COMMIT']
+            'description': 'Transfer money between two accounts atomically',
+            'starterCode': '-- Create money transfer transaction\n',
+            'solution': 'START TRANSACTION;\nUPDATE accounts SET balance = balance - 100 WHERE id = 1;\nUPDATE accounts SET balance = balance + 100 WHERE id = 2;\nCOMMIT;',
+            'hint': 'Use START TRANSACTION to begin and COMMIT to save changes',
+            'testCases': ['START TRANSACTION', 'UPDATE', 'COMMIT']
           },
           {
-            'title': 'Transaction Rollback',
-            'description': 'Rollback changes on error',
-            'starterCode': '-- Transaction with error handling\n',
-            'hint': 'Use ROLLBACK to undo changes',
-            'solution': 'BEGIN TRANSACTION;\nUPDATE products SET stock = stock - 5 WHERE product_id = 101;\n-- If error occurs:\nROLLBACK;',
-            'testCases': ['BEGIN TRANSACTION', 'ROLLBACK']
+            'title': 'Transaction with Rollback',
+            'description': 'Process order with rollback on error condition',
+            'starterCode': '-- Transaction with conditional rollback\n',
+            'solution': 'START TRANSACTION;\nINSERT INTO orders (customer_id, total_amount) VALUES (123, 199.99);\nSET @order_id = LAST_INSERT_ID();\nINSERT INTO order_items (order_id, product_id, quantity) VALUES (@order_id, 456, 2);\nUPDATE products SET stock_quantity = stock_quantity - 2 WHERE id = 456;\n-- Check if stock is sufficient\nIF (SELECT stock_quantity FROM products WHERE id = 456) < 0 THEN\n    ROLLBACK;\nELSE\n    COMMIT;\nEND IF;',
+            'hint': 'Use ROLLBACK to undo changes if conditions are not met',
+            'testCases': ['START TRANSACTION', 'INSERT', 'UPDATE', 'ROLLBACK', 'COMMIT']
           },
           {
             'title': 'Savepoints',
-            'description': 'Use savepoints for partial rollback',
+            'description': 'Use savepoints for partial rollbacks in complex transactions',
             'starterCode': '-- Transaction with savepoints\n',
-            'hint': 'Use SAVEPOINT and ROLLBACK TO SAVEPOINT',
-            'solution': 'BEGIN TRANSACTION;\nUPDATE table1 SET col1 = "value1";\nSAVEPOINT sp1;\nUPDATE table2 SET col2 = "value2";\nROLLBACK TO SAVEPOINT sp1;\nCOMMIT;',
-            'testCases': ['SAVEPOINT', 'ROLLBACK TO']
-          },
+            'solution': 'START TRANSACTION;\nINSERT INTO orders (customer_id, total_amount) VALUES (123, 299.99);\nSAVEPOINT order_created;\nINSERT INTO order_items (order_id, product_id, quantity) VALUES (LAST_INSERT_ID(), 456, 1);\nSAVEPOINT item_added;\n-- If something fails, rollback to specific savepoint\nROLLBACK TO SAVEPOINT order_created;\nCOMMIT;',
+            'hint': 'SAVEPOINT allows partial rollbacks within a transaction',
+            'testCases': ['START TRANSACTION', 'SAVEPOINT', 'ROLLBACK TO', 'COMMIT']
+          }
         ];
         break;
 
@@ -485,12 +456,12 @@ class _SqlPracticeScreenState extends State<SqlPracticeScreen> {
         _exercises = [
           {
             'title': 'Basic SQL Query',
-            'description': 'Write a simple SELECT query',
-            'starterCode': '-- Write your SQL query here\n',
-            'hint': 'Start with SELECT * FROM table_name',
+            'description': 'Write a simple SELECT query to get started',
+            'starterCode': 'SELECT * FROM employees;',
             'solution': 'SELECT * FROM employees;',
-            'testCases': ['SELECT', 'FROM', 'employees']
-          },
+            'hint': 'Start with SELECT * FROM table_name',
+            'testCases': ['SELECT', 'FROM']
+          }
         ];
     }
   }

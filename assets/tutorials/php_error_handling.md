@@ -1,13 +1,8 @@
 # PHP Error Handling
 
-**Description:** Handle errors and exceptions in PHP
-
-## Topics Covered:
-- Error Types
-- Try-Catch Block
-- Custom Error Handler
-- Error Logging
-- Exception Handling
-
----
-*Icon: ⚠️ | Color: Purple*
+## Error Handling Declaration
+```php
+$variable = "value";
+$result = 10 / 0
+if ($x = 5) {
+}

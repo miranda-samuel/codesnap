@@ -1,18 +1,11 @@
-
----
-
-### **5. cpp_math.md**
-```markdown
 # C++ Math
 
-## Basic Math Operations
+## Math Functions
 ```cpp
 #include <cmath>
 
-int x = 10, y = 3;
-
-int sum = x + y;
-int difference = x - y;
-int product = x * y;
-int quotient = x / y;
-int remainder = x % y;
+sqrt(25);       // Square root
+pow(2, 3);      // Power
+abs(-10);       // Absolute value
+ceil(4.2);      // Ceiling
+floor(4.7);     // Floor

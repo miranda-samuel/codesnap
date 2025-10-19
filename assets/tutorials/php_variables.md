@@ -1,13 +1,8 @@
 # PHP Variables
 
-**Description:** Understand variables in PHP
-
-## Topics Covered:
-- Variable Declaration
-- Variable Types
-- Variable Scope
-- Global Variables
-- Static Variables
-
----
-*Icon: 💾 | Color: Purple*
+## Variable Declaration
+```php
+$name = "John";
+$age = 25;
+$height = 5.8;
+$isStudent = true;

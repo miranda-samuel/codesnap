@@ -1,16 +1,9 @@
-
----
-
-### **12. cpp_pointers.md**
-```markdown
 # C++ Pointers
 
 ## Pointer Basics
 ```cpp
-int var = 5;
-int* ptr = &var;  // ptr stores address of var
+int number = 10;
+int* ptr = &number;
 
-cout << var << endl;   // Value of var (5)
-cout << &var << endl;  // Address of var
-cout << ptr << endl;   // Address stored in ptr
-cout << *ptr << endl;  // Value at address (5)
+cout << *ptr;    // Dereference
+cout << ptr;     // Memory address

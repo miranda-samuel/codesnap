@@ -1,0 +1,8 @@
+# SQL Syntax
+
+## Basic SQL Structure
+```sql
+SELECT column1, column2
+FROM table_name
+WHERE condition
+ORDER BY column1;

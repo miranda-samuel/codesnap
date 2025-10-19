@@ -283,7 +283,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.pushNamed(context, '/user_profile', arguments: user);
   }
 
-  // UPDATED METHOD: Show Leaderboard Dialog - Now shows Top 100
+  // UPDATED METHOD: Show Leaderboard Dialog - Fixed overflow
   void _showLeaderboardDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -295,13 +295,16 @@ class _HomeScreenState extends State<HomeScreen> {
             side: BorderSide(color: Colors.tealAccent, width: 2),
           ),
           child: Container(
-            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
+            width: MediaQuery.of(context).size.width * 0.95, // Added width constraint
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.75, // Reduced max height
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Header
+                // Header - Made more compact
                 Container(
-                  padding: EdgeInsets.all(20),
+                  padding: EdgeInsets.all(16), // Reduced padding
                   decoration: BoxDecoration(
                     color: Colors.tealAccent.withOpacity(0.1),
                     borderRadius: BorderRadius.only(
@@ -311,8 +314,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.leaderboard, color: Colors.tealAccent, size: 28),
-                      SizedBox(width: 12),
+                      Icon(Icons.leaderboard, color: Colors.tealAccent, size: 24), // Smaller icon
+                      SizedBox(width: 10), // Reduced spacing
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -320,16 +323,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               'Top 10 Coders - Season $_currentSeason',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: 16, // Reduced font size
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
                             ),
-                            SizedBox(height: 4),
+                            SizedBox(height: 2), // Minimal spacing
                             Text(
                               'Total Players: ${leaderboardData.length}',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 11, // Smaller font size
                                 color: Colors.white70,
                               ),
                             ),
@@ -340,51 +343,52 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                // Season Info
+                // Season Info - Made very compact
                 Container(
-                  padding: EdgeInsets.all(12),
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6), // Very compact padding
                   color: Colors.tealAccent.withOpacity(0.05),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Days remaining: $_daysRemaining',
+                        'Days: $_daysRemaining',
                         style: TextStyle(
                           color: Colors.tealAccent,
-                          fontSize: 14,
+                          fontSize: 12, // Smaller font
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                       Text(
-                        'Season ends in ${_daysRemaining} days',
+                        'Season $_currentSeason',
                         style: TextStyle(
                           color: Colors.white70,
-                          fontSize: 12,
+                          fontSize: 11, // Smaller font
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                // Leaderboard Content
+                // Leaderboard Content - Made scrollable and compact
                 Expanded(
                   child: _buildLeaderboardDialogContent(),
                 ),
 
-                // Close Button
+                // Close Button - Made compact
                 Container(
-                  padding: EdgeInsets.all(16),
+                  padding: EdgeInsets.all(8), // Minimal padding
                   child: ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.tealAccent,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10), // Smaller radius
                       ),
-                      minimumSize: Size(double.infinity, 50),
+                      minimumSize: Size(double.infinity, 45), // Smaller button
+                      padding: EdgeInsets.symmetric(vertical: 8), // Compact padding
                     ),
-                    child: Text('Close', style: TextStyle(fontSize: 16)),
+                    child: Text('Close', style: TextStyle(fontSize: 14)), // Smaller font
                   ),
                 ),
               ],
@@ -395,12 +399,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // UPDATED METHOD: Build Leaderboard Dialog Content - Shows Top 100
+// UPDATED METHOD: Build Leaderboard Dialog Content - Fixed overflow
   Widget _buildLeaderboardDialogContent() {
     if (_isLoading) {
       return Center(
         child: Padding(
-          padding: EdgeInsets.all(20),
+          padding: EdgeInsets.all(16), // Reduced padding
           child: CircularProgressIndicator(color: Colors.tealAccent),
         ),
       );
@@ -409,21 +413,24 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_errorMessage.isNotEmpty) {
       return Center(
         child: Padding(
-          padding: EdgeInsets.all(20),
+          padding: EdgeInsets.all(16), // Reduced padding
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min, // Added to prevent expansion
             children: [
-              Icon(Icons.error_outline, size: 50, color: Colors.tealAccent.withOpacity(0.5)),
-              SizedBox(height: 16),
+              Icon(Icons.error_outline, size: 40, color: Colors.tealAccent.withOpacity(0.5)), // Smaller icon
+              SizedBox(height: 12), // Reduced spacing
               Text(
                 'Error loading leaderboard',
-                style: TextStyle(color: Colors.white, fontSize: 16),
+                style: TextStyle(color: Colors.white, fontSize: 14), // Smaller font
               ),
-              SizedBox(height: 8),
+              SizedBox(height: 6), // Reduced spacing
               Text(
                 _errorMessage,
-                style: TextStyle(color: Colors.white70, fontSize: 14),
+                style: TextStyle(color: Colors.white70, fontSize: 12), // Smaller font
                 textAlign: TextAlign.center,
+                maxLines: 2, // Limit lines
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -434,21 +441,23 @@ class _HomeScreenState extends State<HomeScreen> {
     if (leaderboardData.isEmpty) {
       return Center(
         child: Padding(
-          padding: EdgeInsets.all(20),
+          padding: EdgeInsets.all(16), // Reduced padding
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min, // Added to prevent expansion
             children: [
-              Icon(Icons.leaderboard_outlined, size: 50, color: Colors.tealAccent.withOpacity(0.5)),
-              SizedBox(height: 16),
+              Icon(Icons.leaderboard_outlined, size: 40, color: Colors.tealAccent.withOpacity(0.5)), // Smaller icon
+              SizedBox(height: 12), // Reduced spacing
               Text(
                 'No active players yet',
-                style: TextStyle(color: Colors.white, fontSize: 16),
+                style: TextStyle(color: Colors.white, fontSize: 14), // Smaller font
               ),
-              SizedBox(height: 8),
+              SizedBox(height: 6), // Reduced spacing
               Text(
                 'Be the first to play and earn points!',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
+                style: TextStyle(color: Colors.white70, fontSize: 12), // Smaller font
                 textAlign: TextAlign.center,
+                maxLines: 2, // Limit lines
               ),
             ],
           ),
@@ -456,21 +465,23 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // Show up to top 100 players
-    final top100 = leaderboardData.take(100).toList();
+    // Show up to top 10 players only
+    final top10 = leaderboardData.take(10).toList();
 
     return ListView.builder(
-      padding: EdgeInsets.all(16),
-      itemCount: top100.length,
+      padding: EdgeInsets.all(8), // Minimal padding
+      shrinkWrap: true, // Added to prevent expansion
+      physics: AlwaysScrollableScrollPhysics(), // Ensure scrolling
+      itemCount: top10.length,
       itemBuilder: (context, index) {
-        final user = top100[index];
+        final user = top10[index];
         final rank = index + 1;
         return _buildLeaderboardDialogItem(user, rank);
       },
     );
   }
 
-  // NEW METHOD: Build Leaderboard Item for Dialog
+// UPDATED METHOD: Build Leaderboard Item for Dialog - Made ultra compact
   Widget _buildLeaderboardDialogItem(Map<String, dynamic> user, int rank) {
     final username = user['username']?.toString() ?? 'Unknown';
     final points = (user['points'] as num?)?.toInt() ?? 0;
@@ -478,22 +489,22 @@ class _HomeScreenState extends State<HomeScreen> {
     final isCurrentUser = currentUser?['username'] == user['username'];
 
     return Container(
-      margin: EdgeInsets.only(bottom: 8),
-      padding: EdgeInsets.all(12),
+      margin: EdgeInsets.only(bottom: 4), // Minimal margin
+      padding: EdgeInsets.all(8), // Minimal padding
       decoration: BoxDecoration(
         color: Color(0xFF415A77).withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8), // Smaller radius
         border: Border.all(
           color: isCurrentUser ? Colors.tealAccent : Colors.transparent,
-          width: 2,
+          width: 1, // Thinner border
         ),
       ),
       child: Row(
         children: [
-          // Rank Badge
+          // Rank Badge - Made very small
           Container(
-            width: 36,
-            height: 36,
+            width: 28, // Very small
+            height: 28, // Very small
             decoration: BoxDecoration(
               color: _getRankColor(rank),
               shape: BoxShape.circle,
@@ -504,12 +515,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: 10, // Very small font
                 ),
               ),
             ),
           ),
-          SizedBox(width: 12),
+          SizedBox(width: 8), // Minimal spacing
 
           // User Info
           Expanded(
@@ -520,9 +531,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Flexible(
                       child: Text(
-                        username,
+                        username.length > 12 ? '${username.substring(0, 12)}...' : username, // Truncate long names
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 12, // Small font
                           fontWeight: FontWeight.w600,
                           color: isCurrentUser ? Colors.tealAccent : Colors.white,
                         ),
@@ -531,16 +542,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     if (isCurrentUser)
                       Padding(
-                        padding: EdgeInsets.only(left: 6),
-                        child: Icon(Icons.person, size: 12, color: Colors.tealAccent),
+                        padding: EdgeInsets.only(left: 4),
+                        child: Icon(Icons.person, size: 10, color: Colors.tealAccent), // Very small icon
                       ),
                   ],
                 ),
-                SizedBox(height: 2),
+                SizedBox(height: 1), // Minimal spacing
                 Text(
-                  '$levelsCompleted levels completed',
+                  '$levelsCompleted levels',
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 9, // Very small font
                     color: Colors.white70,
                   ),
                 ),
@@ -554,23 +565,30 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Row(
                 children: [
-                  Icon(_getRankIcon(rank), size: 14, color: _getRankColor(rank)),
-                  SizedBox(width: 4),
+                  Icon(_getRankIcon(rank), size: 10, color: _getRankColor(rank)), // Very small icon
+                  SizedBox(width: 2), // Minimal spacing
                   Text(
-                    '$points pts',
+                    '$points',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 12, // Small font
                       color: Colors.tealAccent,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                  Text(
+                    ' pts',
+                    style: TextStyle(
+                      fontSize: 10, // Smaller font for "pts"
+                      color: Colors.tealAccent,
+                    ),
+                  ),
                 ],
               ),
-              SizedBox(height: 2),
+              SizedBox(height: 1), // Minimal spacing
               Text(
-                'Rank: $rank',
+                'Rank $rank',
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 9, // Very small font
                   color: Colors.white70,
                 ),
               ),
@@ -581,14 +599,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // NEW METHOD: Build Top 3 Season Display
+  // UPDATED METHOD: Build Top 3 Season Display - FIXED overflow
   Widget _buildTop3Season() {
     final top3 = leaderboardData.take(3).toList();
 
     if (top3.isEmpty) {
       return Container(
-        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        padding: EdgeInsets.all(20),
+        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8), // Reduced vertical margin
+        padding: EdgeInsets.all(16), // Reduced padding
         decoration: BoxDecoration(
           color: Color(0xFF1B263B).withOpacity(0.8),
           borderRadius: BorderRadius.circular(16),
@@ -596,22 +614,22 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Column(
           children: [
-            Icon(Icons.leaderboard_outlined, size: 50, color: Colors.tealAccent.withOpacity(0.5)),
-            SizedBox(height: 12),
+            Icon(Icons.leaderboard_outlined, size: 40, color: Colors.tealAccent.withOpacity(0.5)), // Reduced icon size
+            SizedBox(height: 8), // Reduced spacing
             Text(
               'No Top Coders Yet',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 16,
+                fontSize: 14, // Reduced font size
                 fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: 8),
+            SizedBox(height: 6), // Reduced spacing
             Text(
               'Be the first to earn points this season!',
               style: TextStyle(
                 color: Colors.white70,
-                fontSize: 14,
+                fontSize: 12, // Reduced font size
               ),
               textAlign: TextAlign.center,
             ),
@@ -621,27 +639,27 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8), // Reduced vertical margin
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Season Header
+          // Season Header - FIXED: Made more compact
           Padding(
-            padding: EdgeInsets.only(left: 8, bottom: 16),
+            padding: EdgeInsets.only(left: 8, bottom: 12), // Reduced bottom padding
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.emoji_events, color: Colors.tealAccent, size: 24),
-                    SizedBox(width: 8),
+                    Icon(Icons.emoji_events, color: Colors.tealAccent, size: 22), // Reduced icon size
+                    SizedBox(width: 6), // Reduced spacing
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Top 3 Coders',
                           style: TextStyle(
-                            fontSize: 20,
+                            fontSize: 18, // Reduced font size
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                             fontFamily: 'monospace',
@@ -650,7 +668,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Text(
                           'Season $_currentSeason',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 12, // Reduced font size
                             color: Colors.tealAccent,
                             fontWeight: FontWeight.w500,
                           ),
@@ -660,16 +678,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4), // Reduced padding
                   decoration: BoxDecoration(
                     color: Colors.tealAccent.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10), // Reduced border radius
                     border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
                   ),
                   child: Text(
                     '$_daysRemaining days left',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11, // Reduced font size
                       color: Colors.tealAccent,
                       fontWeight: FontWeight.w500,
                     ),
@@ -679,7 +697,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // Top 3 Cards
+          // Top 3 Cards - FIXED: Made more compact
           Column(
             children: top3.asMap().entries.map((entry) {
               final index = entry.key;
@@ -693,15 +711,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // NEW METHOD: Build Top 3 Card
+  // UPDATED METHOD: Build Top 3 Card - FIXED overflow
   Widget _buildTop3Card(Map<String, dynamic> user, int rank) {
     final username = user['username']?.toString() ?? 'Unknown';
     final points = (user['points'] as num?)?.toInt() ?? 0;
     final isCurrentUser = currentUser?['username'] == user['username'];
 
     return Container(
-      margin: EdgeInsets.only(bottom: 12),
-      padding: EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: 8), // Reduced margin
+      padding: EdgeInsets.all(12), // Reduced padding
       decoration: BoxDecoration(
         gradient: rank == 1
             ? LinearGradient(
@@ -719,40 +737,40 @@ class _HomeScreenState extends State<HomeScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14), // Slightly reduced border radius
         border: Border.all(
           color: rank == 1
               ? Colors.amber
               : (isCurrentUser ? Colors.tealAccent : Colors.tealAccent.withOpacity(0.3)),
-          width: rank == 1 ? 3 : 2,
+          width: rank == 1 ? 2 : 1, // Reduced border width
         ),
         boxShadow: rank == 1
             ? [
           BoxShadow(
             color: Colors.amber.withOpacity(0.6),
-            blurRadius: _isTop1Shining ? 20 : 15,
-            spreadRadius: _isTop1Shining ? 3 : 2,
-            offset: const Offset(0, 4),
+            blurRadius: _isTop1Shining ? 15 : 12, // Reduced blur radius
+            spreadRadius: _isTop1Shining ? 2 : 1, // Reduced spread radius
+            offset: const Offset(0, 3), // Reduced offset
           ),
         ]
             : [
           BoxShadow(
             color: Colors.black.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            blurRadius: 6, // Reduced blur radius
+            offset: const Offset(0, 3), // Reduced offset
           ),
         ],
       ),
       child: Row(
         children: [
-          // Rank Badge
+          // Rank Badge - Made smaller
           Container(
-            width: 50,
-            height: 50,
+            width: 40, // Reduced size
+            height: 40, // Reduced size
             decoration: BoxDecoration(
               color: _getRankColor(rank),
               shape: BoxShape.circle,
-              border: rank == 1 ? Border.all(color: Colors.white, width: 3) : null,
+              border: rank == 1 ? Border.all(color: Colors.white, width: 2) : null,
             ),
             child: Center(
               child: Text(
@@ -760,12 +778,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: rank == 1 ? 20 : 16,
+                  fontSize: rank == 1 ? 16 : 14, // Reduced font size
                 ),
               ),
             ),
           ),
-          SizedBox(width: 16),
+          SizedBox(width: 12), // Reduced spacing
 
           // User Info
           Expanded(
@@ -774,26 +792,29 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Row(
                   children: [
-                    Text(
-                      username,
-                      style: TextStyle(
-                        fontSize: rank == 1 ? 18 : 16,
-                        fontWeight: rank == 1 ? FontWeight.bold : FontWeight.w600,
-                        color: rank == 1 ? Colors.white : Colors.white,
+                    Flexible(
+                      child: Text(
+                        username,
+                        style: TextStyle(
+                          fontSize: rank == 1 ? 16 : 14, // Reduced font size
+                          fontWeight: rank == 1 ? FontWeight.bold : FontWeight.w600,
+                          color: rank == 1 ? Colors.white : Colors.white,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (isCurrentUser)
                       Padding(
-                        padding: const EdgeInsets.only(left: 8),
-                        child: Icon(Icons.person, size: 16, color: rank == 1 ? Colors.white : Colors.tealAccent),
+                        padding: const EdgeInsets.only(left: 6),
+                        child: Icon(Icons.person, size: 14, color: rank == 1 ? Colors.white : Colors.tealAccent), // Reduced icon size
                       ),
                   ],
                 ),
-                SizedBox(height: 4),
+                SizedBox(height: 2), // Reduced spacing
                 Text(
                   'Season $_currentSeason',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 10, // Reduced font size
                     color: rank == 1 ? Colors.white.withOpacity(0.9) : Colors.white70,
                   ),
                 ),
@@ -807,23 +828,23 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Row(
                 children: [
-                  Icon(_getRankIcon(rank), size: rank == 1 ? 20 : 16, color: rank == 1 ? Colors.white : _getRankColor(rank)),
-                  SizedBox(width: 6),
+                  Icon(_getRankIcon(rank), size: rank == 1 ? 16 : 14, color: rank == 1 ? Colors.white : _getRankColor(rank)), // Reduced icon size
+                  SizedBox(width: 4), // Reduced spacing
                   Text(
                     '$points pts',
                     style: TextStyle(
-                      fontSize: rank == 1 ? 18 : 16,
+                      fontSize: rank == 1 ? 16 : 14, // Reduced font size
                       color: rank == 1 ? Colors.white : Colors.tealAccent,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
-              SizedBox(height: 4),
+              SizedBox(height: 2), // Reduced spacing
               Text(
                 'Rank: $rank',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 10, // Reduced font size
                   color: rank == 1 ? Colors.white.withOpacity(0.9) : Colors.white70,
                 ),
               ),
@@ -834,31 +855,31 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // NEW METHOD: Build Programming Modules Button
+  // UPDATED METHOD: Build Programming Modules Button
   Widget _buildProgrammingModulesButton() {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      margin: EdgeInsets.symmetric(horizontal: 24, vertical: 8), // Reduced vertical margin
       child: ElevatedButton.icon(
-        icon: Icon(Icons.language, color: Colors.white, size: 24),
+        icon: Icon(Icons.language, color: Colors.white, size: 22), // Reduced icon size
         label: Text(
           'Programming Modules',
-          style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold), // Reduced font size
         ),
         onPressed: () {
           _showProgrammingModulesDialog(context);
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.tealAccent,
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14), // Reduced padding
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)), // Slightly reduced border radius
           shadowColor: Colors.tealAccent.withOpacity(0.5),
-          elevation: 8,
+          elevation: 6, // Reduced elevation
         ),
       ),
     );
   }
 
-  // NEW METHOD: Show Programming Modules Dialog
+  // UPDATED METHOD: Show Programming Modules Dialog - FIXED overflow
   void _showProgrammingModulesDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -870,13 +891,13 @@ class _HomeScreenState extends State<HomeScreen> {
             side: BorderSide(color: Colors.tealAccent, width: 2),
           ),
           child: Container(
-            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7), // Reduced max height
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Header
+                // Header - FIXED: Made more compact
                 Container(
-                  padding: EdgeInsets.all(20),
+                  padding: EdgeInsets.all(16), // Reduced padding
                   decoration: BoxDecoration(
                     color: Colors.tealAccent.withOpacity(0.1),
                     borderRadius: BorderRadius.only(
@@ -886,12 +907,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.language, color: Colors.tealAccent, size: 28),
-                      SizedBox(width: 12),
+                      Icon(Icons.language, color: Colors.tealAccent, size: 24), // Reduced icon size
+                      SizedBox(width: 10), // Reduced spacing
                       Text(
                         'Programming Modules',
                         style: TextStyle(
-                          fontSize: 20,
+                          fontSize: 18, // Reduced font size
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
@@ -900,14 +921,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                // Modules Content
+                // Modules Content - FIXED: Made more compact
                 Expanded(
                   child: _buildProgrammingModulesDialogContent(),
                 ),
 
-                // Close Button
+                // Close Button - FIXED: Reduced padding
                 Container(
-                  padding: EdgeInsets.all(16),
+                  padding: EdgeInsets.all(12), // Reduced padding
                   child: ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: ElevatedButton.styleFrom(
@@ -916,7 +937,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      minimumSize: Size(double.infinity, 50),
+                      minimumSize: Size(double.infinity, 48), // Slightly reduced height
                     ),
                     child: Text('Close', style: TextStyle(fontSize: 16)),
                   ),
@@ -929,15 +950,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // NEW METHOD: Build Programming Modules Dialog Content
+  // UPDATED METHOD: Build Programming Modules Dialog Content - FIXED overflow
   Widget _buildProgrammingModulesDialogContent() {
     return GridView.builder(
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(12), // Reduced padding
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.9,
+        crossAxisSpacing: 10, // Reduced spacing
+        mainAxisSpacing: 10, // Reduced spacing
+        childAspectRatio: 0.85, // Slightly reduced aspect ratio
       ),
       itemCount: _programmingLanguages.length,
       itemBuilder: (context, index) {
@@ -947,13 +968,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // UPDATED METHOD: Build Language Card
+  // UPDATED METHOD: Build Language Card - FIXED overflow
   Widget _buildLanguageCard(Map<String, dynamic> language) {
     return Card(
       elevation: 4,
       color: Color(0xFF1B263B),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10), // Reduced border radius
         side: BorderSide(color: Colors.tealAccent.withOpacity(0.3), width: 1),
       ),
       child: InkWell(
@@ -961,14 +982,14 @@ class _HomeScreenState extends State<HomeScreen> {
           Navigator.of(context).pop(); // Close dialog first
           Navigator.pushNamed(context, language['route']);
         },
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10), // Reduced border radius
         child: Container(
-          padding: EdgeInsets.all(16),
+          padding: EdgeInsets.all(12), // Reduced padding
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: EdgeInsets.all(12),
+                padding: EdgeInsets.all(10), // Reduced padding
                 decoration: BoxDecoration(
                   color: language['color'].withOpacity(0.2),
                   shape: BoxShape.circle,
@@ -976,24 +997,24 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Icon(
                   language['icon'],
                   color: language['color'],
-                  size: 32,
+                  size: 28, // Reduced icon size
                 ),
               ),
-              SizedBox(height: 12),
+              SizedBox(height: 8), // Reduced spacing
               Text(
                 language['name'],
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 14, // Reduced font size
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
                 textAlign: TextAlign.center,
               ),
-              SizedBox(height: 6),
+              SizedBox(height: 4), // Reduced spacing
               Text(
                 language['description'],
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 10, // Reduced font size
                   color: Colors.white70,
                 ),
                 textAlign: TextAlign.center,
@@ -1081,159 +1102,163 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
+          child: SingleChildScrollView( // ADDED: Wrap in SingleChildScrollView to prevent overflow
+            child: Column(
+              children: [
+                const SizedBox(height: 16), // Reduced spacing
 
-              // Profile View Section
-              GestureDetector(
-                onTap: () {
-                  if (currentUser != null) {
-                    _navigateToUserProfile(currentUser!);
-                  }
-                },
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 24),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Color(0xFF1B263B).withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                      BoxShadow(
-                        color: Colors.tealAccent.withOpacity(0.1),
-                        blurRadius: 10,
-                        spreadRadius: 1,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.tealAccent, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 6,
-                              offset: const Offset(0, 3),
-                            ),
-                            BoxShadow(
-                              color: Colors.tealAccent.withOpacity(0.2),
-                              blurRadius: 8,
-                              spreadRadius: 1,
-                            ),
-                          ],
+                // Profile View Section
+                GestureDetector(
+                  onTap: () {
+                    if (currentUser != null) {
+                      _navigateToUserProfile(currentUser!);
+                    }
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20), // Reduced margin
+                    padding: const EdgeInsets.all(14), // Reduced padding
+                    decoration: BoxDecoration(
+                      color: Color(0xFF1B263B).withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(14), // Reduced border radius
+                      border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 6, // Reduced blur radius
+                          offset: const Offset(0, 3), // Reduced offset
                         ),
-                        child: ClipOval(
-                          child: currentUser?['profile_photo'] != null
-                              ? Image.network(
-                            currentUser!['profile_photo'],
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return _buildDefaultAvatar();
-                            },
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Container(
-                                color: Colors.grey[300],
-                                child: const Center(
-                                  child: CircularProgressIndicator(),
+                        BoxShadow(
+                          color: Colors.tealAccent.withOpacity(0.1),
+                          blurRadius: 8, // Reduced blur radius
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 50, // Reduced size
+                          height: 50, // Reduced size
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.tealAccent, width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.3),
+                                blurRadius: 4, // Reduced blur radius
+                                offset: const Offset(0, 2), // Reduced offset
+                              ),
+                              BoxShadow(
+                                color: Colors.tealAccent.withOpacity(0.2),
+                                blurRadius: 6, // Reduced blur radius
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: ClipOval(
+                            child: currentUser?['profile_photo'] != null
+                                ? Image.network(
+                              currentUser!['profile_photo'],
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return _buildDefaultAvatar();
+                              },
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Container(
+                                  color: Colors.grey[300],
+                                  child: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              },
+                            )
+                                : _buildDefaultAvatar(),
+                          ),
+                        ),
+                        const SizedBox(width: 14), // Reduced spacing
+
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    currentUser?['fullName'] ?? 'Guest User',
+                                    style: const TextStyle(
+                                      fontSize: 16, // Reduced font size
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6), // Reduced spacing
+                                  Icon(Icons.open_in_new, size: 14, color: Colors.tealAccent), // Reduced icon size
+                                ],
+                              ),
+                              const SizedBox(height: 3), // Reduced spacing
+                              Text(
+                                '@${currentUser?['username'] ?? 'guest'}',
+                                style: TextStyle(
+                                  fontSize: 12, // Reduced font size
+                                  color: Colors.white70,
                                 ),
-                              );
-                            },
-                          )
-                              : _buildDefaultAvatar(),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  currentUser?['fullName'] ?? 'Guest User',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                              ),
+                              const SizedBox(height: 5), // Reduced spacing
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3), // Reduced padding
+                                decoration: BoxDecoration(
+                                  color: Colors.tealAccent.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(10), // Reduced border radius
+                                  border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
+                                ),
+                                child: Text(
+                                  '$_userPoints Points',
+                                  style: TextStyle(
+                                    fontSize: 11, // Reduced font size
+                                    color: Colors.tealAccent,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Icon(Icons.open_in_new, size: 16, color: Colors.tealAccent),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '@${currentUser?['username'] ?? 'guest'}',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.white70,
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.tealAccent.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
-                              ),
-                              child: Text(
-                                '$_userPoints Points',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.tealAccent,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 25),
+                const SizedBox(height: 20), // Reduced spacing
 
-              // Start Coding Button
-              ElevatedButton.icon(
-                icon: Icon(Icons.code, color: Colors.white),
-                label: Text('Start Coding', style: TextStyle(fontSize: 18, color: Colors.white)),
-                onPressed: () {
-                  Navigator.pushNamed(context, '/select_language').then((_) {
-                    _loadData();
-                  });
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.tealAccent,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                  shadowColor: Colors.tealAccent.withOpacity(0.5),
-                  elevation: 8,
+                // Start Coding Button
+                ElevatedButton.icon(
+                  icon: Icon(Icons.code, color: Colors.white, size: 20), // Reduced icon size
+                  label: Text('Start Coding', style: TextStyle(fontSize: 16, color: Colors.white)), // Reduced font size
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/select_language').then((_) {
+                      _loadData();
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.tealAccent,
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12), // Reduced padding
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)), // Reduced border radius
+                    shadowColor: Colors.tealAccent.withOpacity(0.5),
+                    elevation: 6, // Reduced elevation
+                  ),
                 ),
-              ),
 
-              // NEW: Programming Modules Button - Below Start Coding
-              _buildProgrammingModulesButton(),
+                // NEW: Programming Modules Button - Below Start Coding
+                _buildProgrammingModulesButton(),
 
-              const SizedBox(height: 20),
+                const SizedBox(height: 16), // Reduced spacing
 
-              // Top 3 Season Section
-              _buildTop3Season(),
-            ],
+                // Top 3 Season Section
+                _buildTop3Season(),
+
+                const SizedBox(height: 16), // Added bottom spacing
+              ],
+            ),
           ),
         ),
       ),

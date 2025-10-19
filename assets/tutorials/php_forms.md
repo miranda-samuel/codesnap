@@ -1,13 +1,10 @@
 # PHP Forms
 
-**Description:** Handle form data in PHP
-
-## Topics Covered:
-- Form Handling
-- GET Method
-- POST Method
-- Form Validation
-- File Upload
-
----
-*Icon: 📥 | Color: Purple*
+## Forms Creation
+```php
+<form method="POST" action="process.php">
+    <input type="text" name="username" placeholder="Username">
+    <input type="email" name="email" placeholder="Email">
+    <input type="password" name="password" placeholder="Password">
+    <input type="submit" name="submit" value="Register">
+</form>

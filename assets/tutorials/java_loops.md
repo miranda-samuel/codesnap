@@ -1,14 +1,7 @@
-
----
-
-### **8. java_loops.md**
-```markdown
 # Java Loops
 
-## while Loop
+## For Loop
 ```java
-int i = 1;
-while (i <= 5) {
+for (int i = 0; i < 5; i++) {
     System.out.println(i);
-    i++;
 }

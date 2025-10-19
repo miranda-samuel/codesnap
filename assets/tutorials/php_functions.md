@@ -1,13 +1,11 @@
 # PHP Functions
 
-**Description:** Create and use functions in PHP
+## Function Definition
+```php
+function greet($name) {
+    return "Hello, " . $name;
+}
 
-## Topics Covered:
-- Function Declaration
-- Function Parameters
-- Function Return
-- Built-in Functions
-- Recursive Functions
-
----
-*Icon: 📊 | Color: Purple*
+function add($a, $b) {
+    return $a + $b;
+}

@@ -1,17 +1,14 @@
-
----
-
-### **14. java_file_handling.md**
-```markdown
 # Java File Handling
 
-## File Class
+## Reading Files
 ```java
-import java.io.File;
+File file = new File("file.txt");
+Scanner scanner = new Scanner(file);
 
-File file = new File("filename.txt");
+while (scanner.hasNextLine()) {
+    String data = scanner.nextLine();
+}
 
-// Check file properties
 boolean exists = file.exists();
 boolean isFile = file.isFile();
 boolean isDirectory = file.isDirectory();

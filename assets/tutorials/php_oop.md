@@ -1,13 +1,11 @@
-# PHP OOP
+# PHP Oop
 
-**Description:** Object-oriented programming in PHP
+## Object Creation
+```php
+<?php
+$car1 = new Car("Toyota", "Camry", 2022);
+$car2 = new Car("Honda", "Civic", 2023);
 
-## Topics Covered:
-- Classes and Objects
-- Constructors
-- Destructors
-- Access Modifiers
-- Inheritance
-
----
-*Icon: 🌳 | Color: Purple*
+echo $car1->getInfo(); // Toyota Camry (2022)
+echo $car1->startEngine(); // Engine started!
+?>

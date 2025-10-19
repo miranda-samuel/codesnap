@@ -1,28 +1,7 @@
----
-
-### **13. java_collections.md**
-```markdown
 # Java Collections
 
-## ArrayList
+## Collection Types
 ```java
-import java.util.ArrayList;
-
-ArrayList<String> cars = new ArrayList<>();
-cars.add("Volvo");
-cars.add("BMW");
-cars.add("Ford");
-
-// Access elements
-String firstCar = cars.get(0);
-
-// Remove elements
-cars.remove(1);
-
-// Size
-int size = cars.size();
-
-// Iteration
-for (String car : cars) {
-System.out.println(car);
-}
+List<String> list = new ArrayList<>();
+Set<Integer> set = new HashSet<>();
+Map<String, Integer> map = new HashMap<>();

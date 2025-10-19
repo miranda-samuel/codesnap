@@ -1,11 +1,6 @@
-
----
-
-### **2. java_syntax.md**
-```markdown
 # Java Syntax
 
-## Basic Structure
+## Basic Syntax
 ```java
 public class Main {
     public static void main(String[] args) {

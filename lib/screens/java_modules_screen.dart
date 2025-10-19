@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'learning_screen.dart';
+import 'java_learning_screen.dart';
 
 class JavaModulesScreen extends StatefulWidget {
   const JavaModulesScreen({super.key});
@@ -293,7 +292,7 @@ class _JavaModulesScreenState extends State<JavaModulesScreen> {
       'Java Introduction': 'java_introduction.md',
       'Java Syntax': 'java_syntax.md',
       'Java Variables': 'java_variables.md',
-      'Java Data Types': 'java_datatypes.md',
+      'Java Data Types': 'java_data_types.md',
       'Java Strings': 'java_strings.md',
       'Java Operators': 'java_operators.md',
       'Java Conditions': 'java_conditions.md',
@@ -312,7 +311,7 @@ class _JavaModulesScreenState extends State<JavaModulesScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => LearningScreen(
+        builder: (context) => JavaLearningScreen(
           moduleTitle: module['title'],
           fileName: fileName,
           primaryColor: module['color'],

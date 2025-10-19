@@ -1,12 +1,13 @@
-
----
-
-### **7. java_conditions.md**
-```markdown
 # Java Conditions
 
-## if Statement
+## If Statements
 ```java
-if (condition) {
-    // code to execute if condition is true
+int age = 18;
+
+if (age >= 18) {
+    System.out.println("Adult");
+} else if (age >= 13) {
+    System.out.println("Teenager");
+} else {
+    System.out.println("Child");
 }

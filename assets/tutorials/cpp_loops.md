@@ -1,12 +1,7 @@
-
----
-
-### **7. cpp_loops.md**
-```markdown
 # C++ Loops
 
-## while Loop
+## For Loop
 ```cpp
-while (condition) {
-    // code to execute
+for (int i = 0; i < 5; i++) {
+    cout << i << endl;
 }

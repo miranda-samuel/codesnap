@@ -1,13 +1,7 @@
 # PHP Arrays
 
-**Description:** Learn array manipulation in PHP
-
-## Topics Covered:
-- Array Basics
-- Indexed Arrays
-- Associative Arrays
-- Multidimensional Arrays
-- Array Functions
-
----
-*Icon: 🗃️ | Color: Purple*
+## Array Declaration
+```php
+int numbers[5] = {1, 2, 3, 4, 5};
+string names[3] = {"John", "Jane", "Doe"};
+int matrix[2][3] = {{1,2,3}, {4,5,6}};

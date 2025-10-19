@@ -1,13 +1,13 @@
 # PHP Conditions
 
-**Description:** Control program flow with conditions
+## If Statements
+```php
+$age = 18;
 
-## Topics Covered:
-- If Statement
-- Else Statement
-- Else If Statement
-- Switch Statement
-- Ternary Operator
-
----
-*Icon: ⚙️ | Color: Purple*
+if ($age >= 18) {
+    echo "Adult";
+} elseif ($age >= 13) {
+    echo "Teenager";
+} else {
+    echo "Child";
+}

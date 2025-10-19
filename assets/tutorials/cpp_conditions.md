@@ -1,12 +1,13 @@
-
----
-
-### **6. cpp_conditions.md**
-```markdown
 # C++ Conditions
 
-## if Statement
+## If Statements
 ```cpp
-if (condition) {
-    // code to execute if condition is true
+int age = 18;
+
+if (age >= 18) {
+    cout << "Adult";
+} else if (age >= 13) {
+    cout << "Teenager";
+} else {
+    cout << "Child";
 }

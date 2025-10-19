@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'learning_screen.dart';
-import 'sql_practice_screen.dart';
+import 'sql_learning_screen.dart';
 
 class SqlModulesScreen extends StatefulWidget {
   const SqlModulesScreen({super.key});
@@ -293,20 +292,8 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
               ),
               child: Text('Start Learning'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _startPractice(module);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.tealAccent,
-                foregroundColor: Colors.black,
-              ),
-              child: Text('Practice'),
             ),
           ],
         );
@@ -315,26 +302,34 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
   }
 
   void _startLearning(Map<String, dynamic> module) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => LearningScreen(
-          moduleTitle: module['title'],
-          fileName: module['fileName'],
-          primaryColor: module['color'],
-        ),
-      ),
-    );
-  }
+    // Map module titles to file names
+    final fileMap = {
+      'SQL Introduction': 'sql_introduction.md',
+      'SQL Syntax': 'sql_syntax.md',
+      'SQL SELECT': 'sql_select.md',
+      'SQL WHERE': 'sql_where.md',
+      'SQL ORDER BY': 'sql_order_by.md',
+      'SQL INSERT': 'sql_insert.md',
+      'SQL UPDATE': 'sql_update.md',
+      'SQL DELETE': 'sql_delete.md',
+      'SQL Joins': 'sql_joins.md',
+      'SQL Functions': 'sql_functions.md',
+      'SQL Constraints': 'sql_constraints.md',
+      'SQL Indexes': 'sql_indexes.md',
+      'SQL Views': 'sql_views.md',
+      'SQL Subqueries': 'sql_subqueries.md',
+      'SQL Transactions': 'sql_transactions.md',
+    };
 
-  void _startPractice(Map<String, dynamic> module) {
+    final fileName = fileMap[module['title']] ?? 'sql_introduction.md';
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SqlPracticeScreen(
+        builder: (context) => SqlLearningScreen(
           moduleTitle: module['title'],
+          fileName: fileName,
           primaryColor: module['color'],
-          language: 'SQL',
         ),
       ),
     );
@@ -444,24 +439,6 @@ class _SqlModulesScreenState extends State<SqlModulesScreen> {
           icon: Icon(Icons.arrow_back, color: Colors.tealAccent),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.quiz, color: Colors.green),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SqlPracticeScreen(
-                    moduleTitle: 'All SQL Exercises',
-                    primaryColor: Colors.green,
-                    language: 'SQL',
-                  ),
-                ),
-              );
-            },
-            tooltip: 'All Practice Exercises',
-          ),
-        ],
       ),
       body: Container(
         decoration: BoxDecoration(

@@ -1,10 +1,8 @@
-
----
-
-### **3. java_variables.md**
-```markdown
 # Java Variables
 
 ## Variable Declaration
 ```java
-type variableName = value;
+int number = 10;
+String name = "John";
+double salary = 50000.0;
+boolean isActive = true;

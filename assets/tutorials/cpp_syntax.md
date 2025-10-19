@@ -1,16 +1,12 @@
-# C++ Basic Syntax
+# C++ Syntax
 
-Learn the basic building blocks of C++ programming language.
-
-## Basic Structure
-
-Every C++ program has a basic structure:
-
+## Basic Syntax
 ```cpp
 #include <iostream>
 using namespace std;
 
 int main() {
-    // Your code here
+    int number = 10;
+    cout << "Number: " << number;
     return 0;
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'learning_screen.dart';
+import 'cpp_learning_screen.dart';
 
 class CppModulesScreen extends StatefulWidget {
   const CppModulesScreen({super.key});
@@ -181,7 +180,7 @@ class _CppModulesScreenState extends State<CppModulesScreen> {
       'description': 'Understand pointers in C++',
     },
     {
-      'title': 'C++ Files',
+      'title': 'C++ Files Handling',
       'icon': Icons.insert_drive_file,
       'color': Colors.blue,
       'topics': [
@@ -194,7 +193,7 @@ class _CppModulesScreenState extends State<CppModulesScreen> {
       'description': 'Work with files in C++',
     },
     {
-      'title': 'C++ Exceptions',
+      'title': 'C++ Exceptions Handling',
       'icon': Icons.warning,
       'color': Colors.blue,
       'topics': [
@@ -295,7 +294,7 @@ class _CppModulesScreenState extends State<CppModulesScreen> {
     final fileMap = {
       'C++ Introduction': 'cpp_introduction.md',
       'C++ Syntax': 'cpp_syntax.md',
-      'C++ Data Types': 'cpp_datatypes.md',
+      'C++ Data Types': 'cpp_data_types.md',
       'C++ Operators': 'cpp_operators.md',
       'C++ Strings': 'cpp_strings.md',
       'C++ Math': 'cpp_math.md',
@@ -306,8 +305,8 @@ class _CppModulesScreenState extends State<CppModulesScreen> {
       'C++ Classes/Objects': 'cpp_classes.md',
       'C++ Inheritance': 'cpp_inheritance.md',
       'C++ Pointers': 'cpp_pointers.md',
-      'C++ Files': 'cpp_files.md',
-      'C++ Exceptions': 'cpp_exceptions.md',
+      'C++ Files Handling': 'cpp_files_handling.md',
+      'C++ Exceptions Handling': 'cpp_exceptions_handling.md',
     };
 
     final fileName = fileMap[module['title']] ?? 'cpp_introduction.md';
@@ -315,7 +314,7 @@ class _CppModulesScreenState extends State<CppModulesScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => LearningScreen(
+        builder: (context) => CppLearningScreen(
           moduleTitle: module['title'],
           fileName: fileName,
           primaryColor: module['color'],

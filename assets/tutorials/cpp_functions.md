@@ -1,13 +1,11 @@
-
----
-
-### **9. cpp_functions.md**
-```markdown
 # C++ Functions
 
 ## Function Definition
 ```cpp
-returnType functionName(parameters) {
-    // function body
-    return value;
+int add(int a, int b) {
+    return a + b;
+}
+
+void greet(string name) {
+    cout << "Hello, " << name;
 }

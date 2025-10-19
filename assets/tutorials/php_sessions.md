@@ -1,13 +1,13 @@
 # PHP Sessions
 
-**Description:** Manage user sessions in PHP
+## Session Start
+```php
+<?php
+session_start();
 
-## Topics Covered:
-- Session Basics
-- Start Session
-- Session Variables
-- Destroy Session
-- Cookies
+$_SESSION["username"] = "john_doe";
+$_SESSION["email"] = "john@example.com";
+$_SESSION["loggedin"] = true;
 
----
-*Icon: 🔒 | Color: Purple*
+echo "Session started and variables set";
+?>

@@ -1,20 +1,16 @@
-
----
-
-### **10. cpp_classes.md**
-```markdown
-# C++ Classes and Objects
+# C++ Classes
 
 ## Class Definition
 ```cpp
-class Car {
-  public:
-    string brand;
-    string model;
-    int year;
+class Person {
+private:
+    string name;
+    int age;
     
-    // Method
-    void displayInfo() {
-        cout << brand << " " << model << " " << year << endl;
+public:
+    Person(string n, int a) : name(n), age(a) {}
+    
+    void display() {
+        cout << "Name: " << name << ", Age: " << age;
     }
 };
