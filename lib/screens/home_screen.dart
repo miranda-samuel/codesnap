@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/user_preferences.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import 'dart:async';
 import 'profile_screen.dart';
 
@@ -288,7 +289,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildTopUserBadge(Map<String, dynamic> user, int rank) {
+  Widget _buildTopUserBadge(dynamic user, int rank) {
+    // Safely extract user data with null checks
+    final userMap = user is Map<String, dynamic> ? user : <String, dynamic>{};
+    final username = _getString(userMap['username']);
+    final points = _getInt(userMap['points']);
+
     Color badgeColor;
     IconData badgeIcon;
     String badgeText;
@@ -340,7 +346,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  user['username']?.toString() ?? 'Unknown',
+                  username,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -358,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${user['points'] ?? 0} points',
+                  '$points points',
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 11,
@@ -370,6 +376,20 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  // Helper methods for safe type conversion
+  String _getString(dynamic value) {
+    if (value == null) return 'Unknown';
+    return value.toString();
+  }
+
+  int _getInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
   }
 
   void _startShiningAnimation() {
@@ -398,7 +418,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() => currentUser = user);
 
       if (user['id'] != null) {
-        await _loadUserPoints(user['id']!);
+        await _loadUserPoints(_getInt(user['id']));
       }
 
       final response = await ApiService.getLeaderboard();
@@ -423,7 +443,7 @@ class _HomeScreenState extends State<HomeScreen> {
       } else {
         setState(() {
           leaderboardData = [];
-          _errorMessage = response['message'] ?? 'Failed to load leaderboard';
+          _errorMessage = _getString(response['message']) ?? 'Failed to load leaderboard';
         });
       }
     } catch (e) {
@@ -446,7 +466,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final response = await ApiService.getUserStats(userId);
       if (response['success'] == true && response['stats'] != null && mounted) {
         final stats = response['stats'];
-        final totalPoints = (stats['totalPoints'] as num?)?.toInt() ?? 0;
+        final totalPoints = _getInt(stats['totalPoints']);
         setState(() {
           _userPoints = totalPoints;
         });
@@ -487,7 +507,7 @@ class _HomeScreenState extends State<HomeScreen> {
       color: Colors.tealAccent,
       child: Center(
         child: Text(
-          currentUser?['fullName']?.toString().substring(0, 1).toUpperCase() ?? 'U',
+          _getString(currentUser?['fullName']).substring(0, 1).toUpperCase(),
           style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -515,21 +535,176 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // FIXED: Navigation to user profile - SAME AS SEARCH FUNCTIONALITY
-  void _navigateToUserProfile(Map<String, dynamic> user) {
-    print('Navigating to user profile: ${user['username']}');
-    print('User data for navigation: $user');
+  // Show language progress when user is tapped
+  void _showLanguageProgress(Map<String, dynamic> user) {
+    final username = _getString(user['username']);
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const ProfileScreen(),
-        settings: RouteSettings(arguments: {
-          'id': user['user_id'] ?? user['id'], // Handle both field names
-          'username': user['username'],
-          'full_name': user['full_name'] ?? user['fullName'] ?? 'Unknown User',
-        }),
-      ),
+    // Sample data - in real app, get this from API
+    final languageProgress = [
+      {'language': 'PHP', 'progress': 75, 'color': Colors.purple},
+      {'language': 'C++', 'progress': 50, 'color': Colors.blue},
+      {'language': 'Python', 'progress': 90, 'color': Colors.yellow},
+      {'language': 'Java', 'progress': 30, 'color': Colors.orange},
+      {'language': 'SQL', 'progress': 60, 'color': Colors.green},
+    ];
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              backgroundColor: const Color(0xFF1B263B),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: const BorderSide(color: Colors.tealAccent, width: 2),
+              ),
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.9,
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header with countdown
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '$username - Language Progress',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Season $_currentSeason',
+                                style: const TextStyle(
+                                  color: Colors.tealAccent,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.tealAccent.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.tealAccent),
+                          ),
+                          child: StreamBuilder<int>(
+                            stream: Stream.periodic(const Duration(seconds: 1), (i) => _secondsRemaining - i),
+                            initialData: _secondsRemaining,
+                            builder: (context, snapshot) {
+                              final remaining = snapshot.data ?? _secondsRemaining;
+                              return Text(
+                                'Time: ${_formatTime(remaining)}',
+                                style: const TextStyle(
+                                  color: Colors.tealAccent,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Language Progress
+                    const Text(
+                      'Language Completion Progress:',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    // Progress bars
+                    ...languageProgress.map((lang) {
+                      final progress = lang['progress'] as int;
+                      final color = lang['color'] as Color;
+                      return Column(
+                        children: [
+                          Row(
+                            children: [
+                              SizedBox(
+                                width: 60,
+                                child: Text(
+                                  _getString(lang['language']),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: LinearProgressIndicator(
+                                  value: progress / 100,
+                                  backgroundColor: Colors.grey[800],
+                                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                                  minHeight: 8,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                '$progress%',
+                                style: TextStyle(
+                                  color: color,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      );
+                    }).toList(),
+
+                    const SizedBox(height: 20),
+
+                    // Close button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.tealAccent,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Text('Close'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -615,9 +790,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 child: ClipOval(
-                  child: currentUser?['profile_photo'] != null
+                  child: _getString(currentUser?['profile_photo']).isNotEmpty
                       ? Image.network(
-                    currentUser!['profile_photo'],
+                    _getString(currentUser?['profile_photo']),
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
                       return _buildDefaultAvatar();
@@ -635,7 +810,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       children: [
                         Text(
-                          currentUser?['fullName'] ?? 'Guest User',
+                          _getString(currentUser?['fullName']),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -648,7 +823,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '@${currentUser?['username'] ?? 'guest'}',
+                      '@${_getString(currentUser?['username'])}',
                       style: const TextStyle(
                         fontSize: 12,
                         color: Colors.white70,
@@ -681,19 +856,17 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // FIXED: Leaderboard Card with proper navigation
+  // Leaderboard Card with language progress on tap
   Widget _buildTop10Card(Map<String, dynamic> user, int rank) {
-    final username = user['username']?.toString() ?? 'Unknown';
-    final points = (user['points'] as num?)?.toInt() ?? 0;
-    final isCurrentUser = currentUser?['username'] == user['username'];
+    final username = _getString(user['username']);
+    final points = _getInt(user['points']);
+    final isCurrentUser = _getString(currentUser?['username']) == _getString(user['username']);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
-          print('Top10 Card tapped: $username');
-          print('User data: $user');
-          _navigateToUserProfile(user);
+          _showLanguageProgress(user);
         },
         borderRadius: BorderRadius.circular(14),
         child: Container(
@@ -929,15 +1102,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _formatTime(int seconds) {
     if (seconds >= 86400) {
-      // More than 1 day - show days, hours
+      // More than 1 day - show days, hours, minutes, seconds
       int days = seconds ~/ 86400;
       int hours = (seconds % 86400) ~/ 3600;
-      return '${days}d ${hours}h';
+      int minutes = (seconds % 3600) ~/ 60;
+      int remainingSeconds = seconds % 60;
+      return '${days}d ${hours}h ${minutes}m ${remainingSeconds}s';
     } else if (seconds >= 3600) {
-      // More than 1 hour - show hours and minutes
+      // More than 1 hour - show hours, minutes, seconds
       int hours = seconds ~/ 3600;
       int minutes = (seconds % 3600) ~/ 60;
-      return '${hours}h ${minutes}m';
+      int remainingSeconds = seconds % 60;
+      return '${hours}h ${minutes}m ${remainingSeconds}s';
     } else if (seconds >= 60) {
       // More than 1 minute - show minutes and seconds
       int minutes = seconds ~/ 60;
@@ -1011,11 +1187,77 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-
                 Expanded(
-                  child: _buildProgrammingModulesDialogContent(),
+                  child: GridView.builder(
+                    padding: const EdgeInsets.all(12),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 0.85,
+                    ),
+                    itemCount: _programmingLanguages.length,
+                    itemBuilder: (context, index) {
+                      final language = _programmingLanguages[index];
+                      return Card(
+                        elevation: 4,
+                        color: const Color(0xFF1B263B),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: BorderSide(color: Colors.tealAccent.withOpacity(0.3), width: 1),
+                        ),
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            Navigator.pushNamed(context, _getString(language['route']));
+                          },
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: (language['color'] as Color).withOpacity(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    language['icon'] as IconData,
+                                    color: language['color'] as Color,
+                                    size: 28,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _getString(language['name']),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _getString(language['description']),
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.white70,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
-
                 Container(
                   padding: const EdgeInsets.all(12),
                   child: ElevatedButton(
@@ -1036,82 +1278,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildProgrammingModulesDialogContent() {
-    return GridView.builder(
-      padding: const EdgeInsets.all(12),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 0.85,
-      ),
-      itemCount: _programmingLanguages.length,
-      itemBuilder: (context, index) {
-        final language = _programmingLanguages[index];
-        return _buildLanguageCard(language);
-      },
-    );
-  }
-
-  Widget _buildLanguageCard(Map<String, dynamic> language) {
-    return Card(
-      elevation: 4,
-      color: const Color(0xFF1B263B),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: Colors.tealAccent.withOpacity(0.3), width: 1),
-      ),
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context).pop();
-          Navigator.pushNamed(context, language['route']);
-        },
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: language['color'].withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  language['icon'],
-                  color: language['color'],
-                  size: 28,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                language['name'],
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                language['description'],
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: Colors.white70,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -1172,20 +1338,26 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   color: Colors.tealAccent.withOpacity(0.05),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Time: ${_formatTime(_secondsRemaining)}',
-                        style: const TextStyle(
-                          color: Colors.tealAccent,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      StreamBuilder<int>(
+                        stream: Stream.periodic(const Duration(seconds: 1), (i) => _secondsRemaining - i),
+                        initialData: _secondsRemaining,
+                        builder: (context, snapshot) {
+                          final remaining = snapshot.data ?? _secondsRemaining;
+                          return Text(
+                            'Time: ${_formatTime(remaining)}',
+                            style: const TextStyle(
+                              color: Colors.tealAccent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          );
+                        },
                       ),
                       Text(
                         'Season $_currentSeason',
@@ -1197,11 +1369,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-
                 Expanded(
                   child: _buildLeaderboardDialogContent(),
                 ),
-
                 Container(
                   padding: const EdgeInsets.all(8),
                   child: ElevatedButton(
@@ -1291,7 +1461,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // SHOW TOP 100 USERS
     final top100 = leaderboardData.take(100).toList();
 
     return ListView.builder(
@@ -1307,19 +1476,17 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // FIXED: Leaderboard Dialog Item with same navigation
   Widget _buildLeaderboardDialogItem(Map<String, dynamic> user, int rank) {
-    final username = user['username']?.toString() ?? 'Unknown';
-    final points = (user['points'] as num?)?.toInt() ?? 0;
-    final levelsCompleted = (user['levels_completed'] as num?)?.toInt() ?? 0;
-    final isCurrentUser = currentUser?['username'] == user['username'];
+    final username = _getString(user['username']);
+    final points = _getInt(user['points']);
+    final levelsCompleted = _getInt(user['levels_completed']);
+    final isCurrentUser = _getString(currentUser?['username']) == _getString(user['username']);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
-          print('Leaderboard Dialog Item tapped: $username');
-          _navigateToUserProfile(user);
+          _showLanguageProgress(user);
         },
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -1354,7 +1521,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1390,7 +1556,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -1520,7 +1685,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 value: 'Profile',
                 child: ListTile(
                   leading: const Icon(Icons.person, color: Colors.tealAccent),
-                  title: Text('Profile: ${currentUser?['username'] ?? 'Guest'}'),
+                  title: Text('Profile: ${_getString(currentUser?['username'])}'),
                 ),
               ),
               PopupMenuItem(
