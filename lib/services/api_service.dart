@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = "http://192.168.56.1/codesnap";
+  static const String baseUrl = "http://codesnap.fun";
 
   // Helper methods for safe type conversion
   static int _safeIntConversion(dynamic value) {
@@ -86,7 +86,7 @@ class ApiService {
     }
   }
 
-  // Score methods
+  // Score methods - UPDATED to preserve level progress
   static Future<Map<String, dynamic>> saveScore(int userId, String language, int level, int score, bool completed) async {
     try {
       final response = await http.post(
@@ -170,7 +170,7 @@ class ApiService {
     }
   }
 
-  // UPDATED METHOD: Reset season scores with season parameter for badges
+  // UPDATED METHOD: Reset season scores - PRESERVES LEVEL PROGRESS
   static Future<Map<String, dynamic>> resetSeasonScores(int season) async {
     try {
       final response = await http.get(
@@ -470,7 +470,7 @@ class ApiService {
             try {
               seasonInfo['season_end'] = DateTime.parse(seasonInfo['season_end']);
             } catch (e) {
-              seasonInfo['season_end'] = DateTime.now().add(Duration(days: 60));
+              seasonInfo['season_end'] = DateTime.now().add(Duration(minutes: 5));
             }
           }
         }
@@ -777,5 +777,111 @@ class ApiService {
       'success': false,
       'message': 'All retry attempts failed'
     };
+  }
+
+  // NEW METHOD: Get user progress summary
+  static Future<Map<String, dynamic>> getUserProgressSummary(int userId) async {
+    try {
+      final statsResponse = await getUserStats(userId);
+      final badgesResponse = await getUserBadges(userId);
+      final rankingResponse = await getUserRanking(userId);
+
+      return {
+        'success': true,
+        'user_id': userId,
+        'stats': statsResponse['success'] == true ? statsResponse['stats'] : {},
+        'badges': badgesResponse['success'] == true ? badgesResponse['badges'] : [],
+        'ranking': rankingResponse['success'] == true ? rankingResponse : {},
+        'season': await getSeasonInfo(),
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error getting user progress summary: $e'
+      };
+    }
+  }
+
+  // NEW METHOD: Get language-specific stats
+  static Future<Map<String, dynamic>> getLanguageStats(int userId, String language) async {
+    try {
+      final response = await getScores(userId, language);
+
+      if (response['success'] == true && response['scores'] != null) {
+        final scores = response['scores'] as Map<String, dynamic>;
+        int totalScore = 0;
+        int levelsCompleted = 0;
+        int levelsAttempted = 0;
+
+        scores.forEach((level, data) {
+          final score = _safeIntConversion(data['score']);
+          final completed = _safeBoolConversion(data['completed']);
+
+          if (score > 0) {
+            levelsAttempted++;
+            totalScore += score;
+            if (completed) {
+              levelsCompleted++;
+            }
+          }
+        });
+
+        return {
+          'success': true,
+          'language': language,
+          'total_score': totalScore,
+          'levels_completed': levelsCompleted,
+          'levels_attempted': levelsAttempted,
+          'total_points': totalScore * 10, // 1 score = 10 points
+          'completion_rate': levelsAttempted > 0 ? (levelsCompleted / levelsAttempted) * 100 : 0,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': response['message'] ?? 'Failed to get language stats'
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error getting language stats: $e'
+      };
+    }
+  }
+
+  // NEW METHOD: Get all languages progress for user
+  static Future<Map<String, dynamic>> getAllLanguagesProgress(int userId) async {
+    try {
+      final languages = ['Python', 'Java', 'C++', 'PHP', 'SQL'];
+      final Map<String, dynamic> progress = {};
+
+      for (final language in languages) {
+        final stats = await getLanguageStats(userId, language);
+        if (stats['success'] == true) {
+          progress[language] = stats;
+        } else {
+          progress[language] = {
+            'success': false,
+            'message': stats['message'],
+            'total_score': 0,
+            'levels_completed': 0,
+            'levels_attempted': 0,
+            'total_points': 0,
+            'completion_rate': 0,
+          };
+        }
+      }
+
+      return {
+        'success': true,
+        'user_id': userId,
+        'languages_progress': progress,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error getting all languages progress: $e'
+      };
+    }
   }
 }

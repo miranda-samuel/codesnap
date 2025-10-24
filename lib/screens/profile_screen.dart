@@ -536,23 +536,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
 
-          // Search Button (always show for all users)
-          Positioned(
-            top: 20,
-            right: 70,
-            child: IconButton(
-              icon: const Icon(Icons.search, color: Colors.white, size: 24),
-              onPressed: () {
-                setState(() {
-                  _isSearching = true;
-                });
-                Future.delayed(const Duration(milliseconds: 100), () {
-                  _searchFocusNode.requestFocus();
-                });
-              },
-              tooltip: 'Search Users',
+          // Search Button (only show for current user's profile)
+          if (!isViewingOtherUser)
+            Positioned(
+              top: 20,
+              right: 70,
+              child: IconButton(
+                icon: const Icon(Icons.search, color: Colors.white, size: 24),
+                onPressed: () {
+                  setState(() {
+                    _isSearching = true;
+                  });
+                  Future.delayed(const Duration(milliseconds: 100), () {
+                    _searchFocusNode.requestFocus();
+                  });
+                },
+                tooltip: 'Search Users',
+              ),
             ),
-          ),
 
           // Menu Button (only show for current user's profile)
           if (!isViewingOtherUser)
@@ -669,26 +670,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Edit Profile'),
+        backgroundColor: const Color(0xFF1B263B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Colors.tealAccent, width: 2),
+        ),
+        title: const Text('Edit Profile', style: TextStyle(color: Colors.white)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextFormField(
                 controller: _fullNameController,
+                style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
                   labelText: 'Full Name',
-                  prefixIcon: Icon(Icons.person),
+                  labelStyle: TextStyle(color: Colors.tealAccent),
+                  prefixIcon: Icon(Icons.person, color: Colors.tealAccent),
                   border: OutlineInputBorder(),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.tealAccent),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.tealAccent),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _usernameController,
+                style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
                   labelText: 'Username',
-                  prefixIcon: Icon(Icons.alternate_email),
+                  labelStyle: TextStyle(color: Colors.tealAccent),
+                  prefixIcon: Icon(Icons.alternate_email, color: Colors.tealAccent),
                   border: OutlineInputBorder(),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.tealAccent),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.tealAccent),
+                  ),
                 ),
               ),
             ],
@@ -697,14 +719,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: Colors.tealAccent)),
           ),
           TextButton(
             onPressed: () {
               _updateProfile();
               Navigator.pop(context);
             },
-            child: const Text('Save'),
+            child: const Text('Save', style: TextStyle(color: Colors.tealAccent)),
           ),
         ],
       ),
@@ -715,7 +737,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Change Password'),
+        backgroundColor: const Color(0xFF1B263B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Colors.tealAccent, width: 2),
+        ),
+        title: const Text('Change Password', style: TextStyle(color: Colors.white)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -723,20 +750,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
               TextFormField(
                 controller: _currentPasswordController,
                 obscureText: true,
+                style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
                   labelText: 'Current Password',
-                  prefixIcon: Icon(Icons.lock),
+                  labelStyle: TextStyle(color: Colors.tealAccent),
+                  prefixIcon: Icon(Icons.lock, color: Colors.tealAccent),
                   border: OutlineInputBorder(),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.tealAccent),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.tealAccent),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _newPasswordController,
                 obscureText: true,
+                style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
                   labelText: 'New Password',
-                  prefixIcon: Icon(Icons.lock_outline),
+                  labelStyle: TextStyle(color: Colors.tealAccent),
+                  prefixIcon: Icon(Icons.lock_outline, color: Colors.tealAccent),
                   border: OutlineInputBorder(),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.tealAccent),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.tealAccent),
+                  ),
                 ),
               ),
             ],
@@ -745,14 +788,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: Colors.tealAccent)),
           ),
           TextButton(
             onPressed: () {
               _changePassword();
               Navigator.pop(context);
             },
-            child: const Text('Change Password'),
+            child: const Text('Change Password', style: TextStyle(color: Colors.tealAccent)),
           ),
         ],
       ),
@@ -763,20 +806,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Send Feedback'),
+        backgroundColor: const Color(0xFF1B263B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Colors.tealAccent, width: 2),
+        ),
+        title: const Text('Send Feedback', style: TextStyle(color: Colors.white)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('We\'d love to hear your thoughts and suggestions!'),
+              const Text(
+                'We\'d love to hear your thoughts and suggestions!',
+                style: TextStyle(color: Colors.white70),
+              ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _feedbackController,
                 maxLines: 5,
+                style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
                   labelText: 'Your Feedback',
+                  labelStyle: TextStyle(color: Colors.tealAccent),
                   border: OutlineInputBorder(),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.tealAccent),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.tealAccent),
+                  ),
                   hintText: 'Tell us what you think...',
+                  hintStyle: TextStyle(color: Colors.white54),
                 ),
               ),
             ],
@@ -785,14 +845,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: Colors.tealAccent)),
           ),
           TextButton(
             onPressed: () {
               _sendFeedback();
               Navigator.pop(context);
             },
-            child: const Text('Send Feedback'),
+            child: const Text('Send Feedback', style: TextStyle(color: Colors.tealAccent)),
           ),
         ],
       ),
@@ -802,7 +862,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _updateProfile() async {
     if (_fullNameController.text.isEmpty || _usernameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
+        const SnackBar(
+          content: Text('Please fill in all fields'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -832,17 +895,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
           });
 
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile updated successfully')),
+            const SnackBar(
+              content: Text('Profile updated successfully'),
+              backgroundColor: Colors.green,
+            ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(response['message'] ?? 'Update failed')),
+            SnackBar(
+              content: Text(response['message'] ?? 'Update failed'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating profile: $e')),
+        SnackBar(
+          content: Text('Error updating profile: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       setState(() => _isLoading = false);
@@ -853,7 +925,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_currentPasswordController.text.isEmpty ||
         _newPasswordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all password fields')),
+        const SnackBar(
+          content: Text('Please fill in all password fields'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -873,17 +948,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _newPasswordController.clear();
 
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Password changed successfully')),
+            const SnackBar(
+              content: Text('Password changed successfully'),
+              backgroundColor: Colors.green,
+            ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(response['message'] ?? 'Password change failed')),
+            SnackBar(
+              content: Text(response['message'] ?? 'Password change failed'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error changing password: $e')),
+        SnackBar(
+          content: Text('Error changing password: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       setState(() => _isLoading = false);
@@ -893,7 +977,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _sendFeedback() async {
     if (_feedbackController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your feedback')),
+        const SnackBar(
+          content: Text('Please enter your feedback'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -910,17 +997,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (response['success'] == true) {
           _feedbackController.clear();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Thank you for your feedback!')),
+            const SnackBar(
+              content: Text('Thank you for your feedback!'),
+              backgroundColor: Colors.green,
+            ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(response['message'] ?? 'Failed to send feedback')),
+            SnackBar(
+              content: Text(response['message'] ?? 'Failed to send feedback'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error sending feedback: $e')),
+        SnackBar(
+          content: Text('Error sending feedback: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       setState(() => _isLoading = false);
@@ -932,12 +1028,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Logout'),
-          content: const Text('Are you sure you want to logout?'),
+          backgroundColor: const Color(0xFF1B263B),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Colors.tealAccent, width: 2),
+          ),
+          title: const Text('Logout', style: TextStyle(color: Colors.white)),
+          content: const Text('Are you sure you want to logout?', style: TextStyle(color: Colors.white70)),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: const Text('Cancel', style: TextStyle(color: Colors.tealAccent)),
             ),
             TextButton(
               onPressed: () async {
@@ -969,15 +1070,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF1B263B),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.3),
             blurRadius: 6,
             offset: const Offset(0, 3),
           ),
         ],
+        border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
       ),
       child: Column(
         children: [
@@ -988,7 +1090,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: 4),
@@ -996,7 +1098,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey.shade600,
+              color: Colors.white.withOpacity(0.7),
             ),
           ),
         ],
@@ -1014,15 +1116,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF1B263B),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.3),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
         ],
+        border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
       ),
       child: Row(
         children: [
@@ -1030,8 +1133,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: Colors.teal.shade100,
+              color: Colors.tealAccent.withOpacity(0.2),
               borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.tealAccent),
             ),
             child: Center(
               child: Text(
@@ -1039,7 +1143,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.teal.shade800,
+                  color: Colors.tealAccent,
                 ),
               ),
             ),
@@ -1054,13 +1158,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 8),
                 LinearProgressIndicator(
                   value: progress,
-                  backgroundColor: Colors.grey.shade200,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.teal.shade700),
+                  backgroundColor: Colors.grey.shade800,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.tealAccent),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 const SizedBox(height: 4),
@@ -1071,7 +1176,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       '$completed/$attempted levels',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color: Colors.white.withOpacity(0.7),
                       ),
                     ),
                     Text(
@@ -1079,7 +1184,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: Colors.teal.shade700,
+                        color: Colors.tealAccent,
                       ),
                     ),
                   ],
@@ -1136,7 +1241,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: 16),
@@ -1161,7 +1266,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: Colors.white,
               ),
             ),
             const SizedBox(height: 16),
@@ -1175,7 +1280,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.all(40),
               child: Column(
                 children: [
-                  Icon(Icons.bar_chart, size: 60, color: Colors.grey.shade300),
+                  Icon(Icons.bar_chart, size: 60, color: Colors.grey.shade600),
                   const SizedBox(height: 16),
                   Text(
                     isViewingOtherUser ? 'No Games Played Yet' : 'No Games Played Yet',
@@ -1210,10 +1315,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF1B263B),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.3),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -1222,7 +1327,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(Icons.arrow_back, color: Colors.tealAccent),
             onPressed: _exitSearchMode,
           ),
           const SizedBox(width: 8),
@@ -1230,22 +1335,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: TextField(
               controller: _searchController,
               focusNode: _searchFocusNode,
+              style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: 'Search users...',
-                prefixIcon: const Icon(Icons.search),
+                hintStyle: const TextStyle(color: Colors.white54),
+                prefixIcon: const Icon(Icons.search, color: Colors.tealAccent),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(25),
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor: Colors.grey.shade100,
+                fillColor: Colors.grey.shade800,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               ),
             ),
           ),
           const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.clear),
+            icon: const Icon(Icons.clear, color: Colors.tealAccent),
             onPressed: () {
               _searchController.clear();
               _searchResults.clear();
@@ -1259,9 +1366,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: const Color(0xFF0D1B2A),
       body: _isLoading && !_isSearching
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+        child: CircularProgressIndicator(
+          color: Colors.tealAccent,
+        ),
+      )
           : Column(
         children: [
           if (!_isSearching) _buildHeader(),

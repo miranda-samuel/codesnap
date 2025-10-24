@@ -12,6 +12,7 @@ import 'screens/profile_screen.dart';
 import 'screens/game_screen.dart';
 import 'screens/forgot_password_page.dart';
 import 'screens/settings_screen.dart';
+import 'screens/training_mode_screen.dart';
 
 // Import per-language level screens
 import 'levels/python/level1.dart';
@@ -157,7 +158,7 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           primarySwatch: Colors.teal,
           useMaterial3: true,
         ),
-        initialRoute: '/home',
+        initialRoute: '/',
         routes: {
           '/splash': (context) => const SplashScreen(),
           '/': (context) => const LoginPage(),
@@ -169,6 +170,7 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           '/game': (context) => const GameScreen(),
           '/forgot_password': (context) => const ForgotPasswordPage(),
           '/settings': (context) => const SettingsScreen(),
+          '/training_mode': (context) => const TrainingModeScreen(),
 
           // NEW: Programming Modules Screens
           '/php_modules': (context) => const PhpModulesScreen(),

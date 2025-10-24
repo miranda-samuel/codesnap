@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'profile_screen.dart';
+import 'training_mode_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,9 +25,17 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime? _seasonStartDate;
   DateTime? _seasonEndDate;
   Timer? _seasonTimer;
-  int _secondsRemaining = 86400; // 1 day in seconds
+  // CHANGED: 2 hours instead of 3 hours (7200 seconds)
+  int _secondsRemaining = 7200;
 
-  // Programming languages data with correct icons
+  // SEARCH FUNCTIONALITY
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  List<Map<String, dynamic>> _searchResults = [];
+  List<Map<String, dynamic>> _allUsers = [];
+
+  // Programming languages data
   final List<Map<String, dynamic>> _programmingLanguages = [
     {
       'name': 'PHP',
@@ -72,12 +81,98 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadData();
     _startShiningAnimation();
     _startSeasonTimer();
+    _loadAllUsers();
+    _setupSearchListener();
   }
 
   @override
   void dispose() {
     _seasonTimer?.cancel();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  void _setupSearchListener() {
+    _searchController.addListener(() {
+      final query = _searchController.text.trim();
+      if (query.length >= 2) {
+        _searchUsers(query);
+      } else {
+        setState(() {
+          _searchResults.clear();
+        });
+      }
+    });
+  }
+
+  Future<void> _loadAllUsers() async {
+    try {
+      final response = await ApiService.getAllUsers();
+      if (response['success'] == true && response['users'] != null) {
+        setState(() {
+          _allUsers = List<Map<String, dynamic>>.from(response['users']);
+        });
+      }
+    } catch (e) {
+      print('Error loading all users: $e');
+    }
+  }
+
+  Future<void> _searchUsers(String query) async {
+    if (query.isEmpty) {
+      setState(() {
+        _searchResults.clear();
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final filteredUsers = _allUsers.where((user) {
+        final username = user['username']?.toString().toLowerCase() ?? '';
+        final fullName = user['full_name']?.toString().toLowerCase() ?? '';
+        final searchTerm = query.toLowerCase();
+
+        return username.contains(searchTerm) || fullName.contains(searchTerm);
+      }).toList();
+
+      setState(() {
+        _searchResults = filteredUsers;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error searching users: $e');
+      setState(() {
+        _searchResults = [];
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _exitSearchMode() {
+    setState(() {
+      _isSearching = false;
+      _searchController.clear();
+      _searchResults.clear();
+    });
+  }
+
+  void _viewUserProfile(Map<String, dynamic> user) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ProfileScreen(),
+        settings: RouteSettings(arguments: {
+          'id': user['id'],
+          'username': user['username'],
+          'full_name': user['full_name'] ?? user['fullName'],
+        }),
+      ),
+    );
   }
 
   void _startSeasonTimer() {
@@ -87,8 +182,8 @@ class _HomeScreenState extends State<HomeScreen> {
           if (_secondsRemaining > 0) {
             _secondsRemaining--;
           } else {
-            // Season reset time reached
-            _secondsRemaining = 86400;
+            // CHANGED: Reset to 2 hours
+            _secondsRemaining = 7200;
             _resetSeason();
           }
         });
@@ -98,53 +193,49 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _initializeSeason() async {
     final prefs = await SharedPreferences.getInstance();
+    _currentSeason = 1;
+    // CHANGED: 2 hours instead of 3 hours
+    _secondsRemaining = 7200;
 
-    // RESET TO SEASON 1 ALWAYS
-    _currentSeason = 1; // Always start with season 1
-    _secondsRemaining = 86400; // 1 day
-
-    // Clear any existing season data to force reset
     await prefs.remove('currentSeason');
     await prefs.remove('seasonStartDate');
     await prefs.remove('secondsRemaining');
 
-    // Set new season data
     final now = DateTime.now();
     _seasonStartDate = now;
-    _seasonEndDate = now.add(const Duration(days: 1));
+    // CHANGED: Season ends in 2 hours
+    _seasonEndDate = now.add(const Duration(hours: 2));
 
-    // Save to shared preferences
     await prefs.setInt('currentSeason', _currentSeason);
     await prefs.setString('seasonStartDate', _seasonStartDate!.toIso8601String());
     await prefs.setInt('secondsRemaining', _secondsRemaining);
-
-    print('Season initialized: Season $_currentSeason, $_secondsRemaining seconds remaining');
   }
 
+  // UPDATED: Season reset preserves level progress
   Future<void> _resetSeason() async {
     try {
       final response = await ApiService.resetSeasonScores(_currentSeason);
       if (response['success'] == true) {
-        // Update season data
         final prefs = await SharedPreferences.getInstance();
         final now = DateTime.now();
 
         setState(() {
           _currentSeason++;
           _seasonStartDate = now;
-          _seasonEndDate = now.add(const Duration(days: 1));
-          _secondsRemaining = 86400;
+          // CHANGED: Season ends in 2 hours
+          _seasonEndDate = now.add(const Duration(hours: 2));
+          // CHANGED: Reset to 2 hours
+          _secondsRemaining = 7200;
         });
 
-        // Save new season data
         await prefs.setInt('currentSeason', _currentSeason);
         await prefs.setString('seasonStartDate', _seasonStartDate!.toIso8601String());
         await prefs.setInt('secondsRemaining', _secondsRemaining);
 
-        // Reload data
-        _loadData();
+        // DON'T reload all data - preserve level progress display
+        // Only reload leaderboard data
+        _loadLeaderboardData();
 
-        // Show reset notification with badge awards
         final awardedBadges = response['awarded_badges'] ?? [];
         final topUsers = response['top_users'] ?? [];
 
@@ -154,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('🎉 New season has started! All scores have been reset.'),
+                content: Text('🎉 New season started! Level progress preserved.'),
                 backgroundColor: Colors.green,
                 duration: Duration(seconds: 5),
               ),
@@ -162,7 +253,6 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         }
       } else {
-        print('Failed to reset season: ${response['message']}');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -174,7 +264,6 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     } catch (e) {
-      print('Error resetting season: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -183,6 +272,47 @@ class _HomeScreenState extends State<HomeScreen> {
             duration: const Duration(seconds: 3),
           ),
         );
+      }
+    }
+  }
+
+  // NEW: Load only leaderboard data (preserves level progress)
+  Future<void> _loadLeaderboardData() async {
+    if (!mounted) return;
+
+    try {
+      final response = await ApiService.getLeaderboard();
+
+      if (!mounted) return;
+
+      if (response['success'] == true) {
+        if (response['leaderboard'] != null && response['leaderboard'] is List) {
+          final rawData = List<Map<String, dynamic>>.from(response['leaderboard']);
+
+          // FILTER: Only show users with points > 0
+          final filteredData = rawData.where((user) {
+            final points = _getInt(user['points']);
+            return points > 0;
+          }).toList();
+
+          setState(() {
+            leaderboardData = filteredData;
+          });
+        } else {
+          setState(() {
+            leaderboardData = [];
+          });
+        }
+      } else {
+        setState(() {
+          leaderboardData = [];
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          leaderboardData = [];
+        });
       }
     }
   }
@@ -225,7 +355,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Top users
                 if (topUsers.isNotEmpty) _buildTopUserBadge(topUsers[0], 1),
                 if (topUsers.length > 1) _buildTopUserBadge(topUsers[1], 2),
                 if (topUsers.length > 2) _buildTopUserBadge(topUsers[2], 3),
@@ -249,12 +378,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
+                // CHANGED: Updated text to reflect 2 hours
                 const Text(
-                  'This season lasts 1 day',
+                  'This season lasts 2 hours',
                   style: TextStyle(
                     color: Colors.tealAccent,
                     fontSize: 12,
                     fontStyle: FontStyle.italic,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  '✅ Your level progress is preserved!',
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
@@ -290,7 +429,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTopUserBadge(dynamic user, int rank) {
-    // Safely extract user data with null checks
     final userMap = user is Map<String, dynamic> ? user : <String, dynamic>{};
     final username = _getString(userMap['username']);
     final points = _getInt(userMap['points']);
@@ -378,7 +516,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Helper methods for safe type conversion
   String _getString(dynamic value) {
     if (value == null) return 'Unknown';
     return value.toString();
@@ -390,6 +527,14 @@ class _HomeScreenState extends State<HomeScreen> {
     if (value is double) return value.toInt();
     if (value is String) return int.tryParse(value) ?? 0;
     return 0;
+  }
+
+  double _getDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
   }
 
   void _startShiningAnimation() {
@@ -422,7 +567,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       final response = await ApiService.getLeaderboard();
-      print('Leaderboard response: $response');
 
       if (!mounted) return;
 
@@ -430,8 +574,14 @@ class _HomeScreenState extends State<HomeScreen> {
         if (response['leaderboard'] != null && response['leaderboard'] is List) {
           final rawData = List<Map<String, dynamic>>.from(response['leaderboard']);
 
+          // FILTER: Only show users with points > 0
+          final filteredData = rawData.where((user) {
+            final points = _getInt(user['points']);
+            return points > 0;
+          }).toList();
+
           setState(() {
-            leaderboardData = rawData;
+            leaderboardData = filteredData;
             _errorMessage = '';
           });
         } else {
@@ -447,7 +597,6 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
-      print('Error loading data: $e');
       if (mounted) {
         setState(() {
           leaderboardData = [];
@@ -529,183 +678,13 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'Settings':
         Navigator.pushNamed(context, '/settings');
         break;
+      case 'TrainingMode':
+        Navigator.pushNamed(context, '/training_mode');
+        break;
       case 'Logout':
         _logout(context);
         break;
     }
-  }
-
-  // Show language progress when user is tapped
-  void _showLanguageProgress(Map<String, dynamic> user) {
-    final username = _getString(user['username']);
-
-    // Sample data - in real app, get this from API
-    final languageProgress = [
-      {'language': 'PHP', 'progress': 75, 'color': Colors.purple},
-      {'language': 'C++', 'progress': 50, 'color': Colors.blue},
-      {'language': 'Python', 'progress': 90, 'color': Colors.yellow},
-      {'language': 'Java', 'progress': 30, 'color': Colors.orange},
-      {'language': 'SQL', 'progress': 60, 'color': Colors.green},
-    ];
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return Dialog(
-              backgroundColor: const Color(0xFF1B263B),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: const BorderSide(color: Colors.tealAccent, width: 2),
-              ),
-              child: Container(
-                width: MediaQuery.of(context).size.width * 0.9,
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header with countdown
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '$username - Language Progress',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Season $_currentSeason',
-                                style: const TextStyle(
-                                  color: Colors.tealAccent,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.tealAccent.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.tealAccent),
-                          ),
-                          child: StreamBuilder<int>(
-                            stream: Stream.periodic(const Duration(seconds: 1), (i) => _secondsRemaining - i),
-                            initialData: _secondsRemaining,
-                            builder: (context, snapshot) {
-                              final remaining = snapshot.data ?? _secondsRemaining;
-                              return Text(
-                                'Time: ${_formatTime(remaining)}',
-                                style: const TextStyle(
-                                  color: Colors.tealAccent,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Language Progress
-                    const Text(
-                      'Language Completion Progress:',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(height: 15),
-
-                    // Progress bars
-                    ...languageProgress.map((lang) {
-                      final progress = lang['progress'] as int;
-                      final color = lang['color'] as Color;
-                      return Column(
-                        children: [
-                          Row(
-                            children: [
-                              SizedBox(
-                                width: 60,
-                                child: Text(
-                                  _getString(lang['language']),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: LinearProgressIndicator(
-                                  value: progress / 100,
-                                  backgroundColor: Colors.grey[800],
-                                  valueColor: AlwaysStoppedAnimation<Color>(color),
-                                  minHeight: 8,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                '$progress%',
-                                style: TextStyle(
-                                  color: color,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-                      );
-                    }).toList(),
-
-                    const SizedBox(height: 20),
-
-                    // Close button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.tealAccent,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        child: const Text('Close'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
   }
 
   void _logout(BuildContext context) async {
@@ -739,7 +718,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // User Card with BUTTON EFFECT
   Widget _buildUserCard() {
     return Material(
       color: Colors.transparent,
@@ -856,167 +834,161 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Leaderboard Card with language progress on tap
+  // FIXED: Top 10 card is no longer clickable
   Widget _buildTop10Card(Map<String, dynamic> user, int rank) {
     final username = _getString(user['username']);
     final points = _getInt(user['points']);
     final isCurrentUser = _getString(currentUser?['username']) == _getString(user['username']);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          _showLanguageProgress(user);
-        },
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: rank == 1
+            ? LinearGradient(
+          colors: _isTop1Shining
+              ? [Colors.amber.shade300, Colors.orange.shade200, Colors.amber.shade300]
+              : [Colors.amber.shade400, Colors.orange.shade300, Colors.amber.shade400],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        )
+            : LinearGradient(
+          colors: [
+            const Color(0xFF415A77).withOpacity(0.8),
+            const Color(0xFF1B263B).withOpacity(0.8),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(14),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            gradient: rank == 1
-                ? LinearGradient(
-              colors: _isTop1Shining
-                  ? [Colors.amber.shade300, Colors.orange.shade200, Colors.amber.shade300]
-                  : [Colors.amber.shade400, Colors.orange.shade300, Colors.amber.shade400],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            )
-                : LinearGradient(
-              colors: [
-                const Color(0xFF415A77).withOpacity(0.8),
-                const Color(0xFF1B263B).withOpacity(0.8),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: rank <= 3 ? _getRankColor(rank) : (isCurrentUser ? Colors.tealAccent : Colors.tealAccent.withOpacity(0.3)),
-              width: rank <= 3 ? 2 : 1,
-            ),
-            boxShadow: rank == 1
-                ? [
-              BoxShadow(
-                color: Colors.amber.withOpacity(0.6),
-                blurRadius: _isTop1Shining ? 15 : 12,
-                spreadRadius: _isTop1Shining ? 2 : 1,
-                offset: const Offset(0, 3),
-              ),
-            ]
-                : rank <= 3
-                ? [
-              BoxShadow(
-                color: _getRankColor(rank).withOpacity(0.4),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ]
-                : [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 6,
-                offset: const Offset(0, 3),
-              ),
-            ],
+        border: Border.all(
+          color: rank <= 3 ? _getRankColor(rank) : (isCurrentUser ? Colors.tealAccent : Colors.tealAccent.withOpacity(0.3)),
+          width: rank <= 3 ? 2 : 1,
+        ),
+        boxShadow: rank == 1
+            ? [
+          BoxShadow(
+            color: Colors.amber.withOpacity(0.6),
+            blurRadius: _isTop1Shining ? 15 : 12,
+            spreadRadius: _isTop1Shining ? 2 : 1,
+            offset: const Offset(0, 3),
           ),
-          child: Row(
-            children: [
-              // Rank Badge
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: _getRankColor(rank),
-                  shape: BoxShape.circle,
-                  border: rank <= 3 ? Border.all(color: Colors.white, width: 2) : null,
-                ),
-                child: Center(
-                  child: Text(
-                    rank.toString(),
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: rank <= 3 ? 16 : 14,
-                    ),
-                  ),
+        ]
+            : rank <= 3
+            ? [
+          BoxShadow(
+            color: _getRankColor(rank).withOpacity(0.4),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ]
+            : [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: _getRankColor(rank),
+              shape: BoxShape.circle,
+              border: rank <= 3 ? Border.all(color: Colors.white, width: 2) : null,
+            ),
+            child: Center(
+              child: Text(
+                rank.toString(),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: rank <= 3 ? 16 : 14,
                 ),
               ),
-              const SizedBox(width: 12),
+            ),
+          ),
+          const SizedBox(width: 12),
 
-              // User Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            username,
-                            style: TextStyle(
-                              fontSize: rank <= 3 ? 16 : 14,
-                              fontWeight: rank <= 3 ? FontWeight.bold : FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (isCurrentUser)
-                          const Padding(
-                            padding: EdgeInsets.only(left: 6),
-                            child: Icon(Icons.person, size: 14, color: Colors.tealAccent),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Season $_currentSeason',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: rank <= 3 ? Colors.white.withOpacity(0.9) : Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Points
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Row(
-                    children: [
-                      Icon(_getRankIcon(rank), size: rank <= 3 ? 16 : 14, color: rank <= 3 ? Colors.white : _getRankColor(rank)),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$points pts',
+                    Flexible(
+                      child: Text(
+                        username,
                         style: TextStyle(
                           fontSize: rank <= 3 ? 16 : 14,
-                          color: rank <= 3 ? Colors.white : Colors.tealAccent,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: rank <= 3 ? FontWeight.bold : FontWeight.w600,
+                          color: Colors.white,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
+                    ),
+                    if (isCurrentUser)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 6),
+                        child: Icon(Icons.person, size: 14, color: Colors.tealAccent),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Season $_currentSeason',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: rank <= 3 ? Colors.white.withOpacity(0.9) : Colors.white70,
                   ),
-                  const SizedBox(height: 2),
+                ),
+              ],
+            ),
+          ),
+
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(
+                children: [
+                  Icon(_getRankIcon(rank), size: rank <= 3 ? 16 : 14, color: rank <= 3 ? Colors.white : _getRankColor(rank)),
+                  const SizedBox(width: 4),
                   Text(
-                    'Rank: $rank',
+                    '$points pts',
                     style: TextStyle(
-                      fontSize: 10,
-                      color: rank <= 3 ? Colors.white.withOpacity(0.9) : Colors.white70,
+                      fontSize: rank <= 3 ? 16 : 14,
+                      color: rank <= 3 ? Colors.white : Colors.tealAccent,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 2),
+              Text(
+                'Rank: $rank',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: rank <= 3 ? Colors.white.withOpacity(0.9) : Colors.white70,
+                ),
+              ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
 
   Widget _buildTop10Season() {
-    final top10 = leaderboardData.take(10).toList();
+    // Only show users with points > 0
+    final usersWithPoints = leaderboardData.where((user) {
+      final points = _getInt(user['points']);
+      return points > 0;
+    }).toList();
+
+    final top10 = usersWithPoints.take(10).toList();
 
     if (top10.isEmpty) {
       return Container(
@@ -1041,7 +1013,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 6),
             const Text(
-              'Be the first to earn points this season!',
+              'Play games to earn points and appear on the leaderboard!',
               style: TextStyle(
                 color: Colors.white70,
                 fontSize: 12,
@@ -1101,26 +1073,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _formatTime(int seconds) {
-    if (seconds >= 86400) {
-      // More than 1 day - show days, hours, minutes, seconds
-      int days = seconds ~/ 86400;
-      int hours = (seconds % 86400) ~/ 3600;
-      int minutes = (seconds % 3600) ~/ 60;
-      int remainingSeconds = seconds % 60;
-      return '${days}d ${hours}h ${minutes}m ${remainingSeconds}s';
-    } else if (seconds >= 3600) {
-      // More than 1 hour - show hours, minutes, seconds
+    if (seconds >= 3600) {
       int hours = seconds ~/ 3600;
       int minutes = (seconds % 3600) ~/ 60;
       int remainingSeconds = seconds % 60;
       return '${hours}h ${minutes}m ${remainingSeconds}s';
     } else if (seconds >= 60) {
-      // More than 1 minute - show minutes and seconds
       int minutes = seconds ~/ 60;
       int remainingSeconds = seconds % 60;
       return '${minutes}m ${remainingSeconds}s';
     } else {
-      // Less than 1 minute - show seconds only
       return '${seconds}s';
     }
   }
@@ -1136,6 +1098,29 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         onPressed: () {
           _showProgrammingModulesDialog(context);
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.tealAccent,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+          shadowColor: Colors.tealAccent.withOpacity(0.5),
+          elevation: 6,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrainingModeButton() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.school, color: Colors.white, size: 22),
+        label: const Text(
+          'Training Mode',
+          style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        onPressed: () {
+          Navigator.pushNamed(context, '/training_mode');
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.tealAccent,
@@ -1326,7 +1311,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Total Players: ${leaderboardData.length}',
+                              'Top Players: ${leaderboardData.length}',
                               style: const TextStyle(
                                 fontSize: 11,
                                 color: Colors.white70,
@@ -1434,7 +1419,13 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    if (leaderboardData.isEmpty) {
+    // Only show users with points > 0
+    final usersWithPoints = leaderboardData.where((user) {
+      final points = _getInt(user['points']);
+      return points > 0;
+    }).toList();
+
+    if (usersWithPoints.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -1450,7 +1441,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Be the first to play and earn points!',
+                'Play games to earn points and appear on the leaderboard!',
                 style: TextStyle(color: Colors.white70, fontSize: 12),
                 textAlign: TextAlign.center,
                 maxLines: 2,
@@ -1461,7 +1452,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    final top100 = leaderboardData.take(100).toList();
+    final top100 = usersWithPoints.take(100).toList();
 
     return ListView.builder(
       padding: const EdgeInsets.all(8),
@@ -1476,123 +1467,115 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // FIXED: Leaderboard dialog items are no longer clickable
   Widget _buildLeaderboardDialogItem(Map<String, dynamic> user, int rank) {
     final username = _getString(user['username']);
     final points = _getInt(user['points']);
     final levelsCompleted = _getInt(user['levels_completed']);
     final isCurrentUser = _getString(currentUser?['username']) == _getString(user['username']);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          _showLanguageProgress(user);
-        },
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF415A77).withOpacity(0.3),
         borderRadius: BorderRadius.circular(8),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 4),
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF415A77).withOpacity(0.3),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isCurrentUser ? Colors.tealAccent : Colors.transparent,
-              width: 1,
+        border: Border.all(
+          color: isCurrentUser ? Colors.tealAccent : Colors.transparent,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: _getRankColor(rank),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                rank.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                ),
+              ),
             ),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: _getRankColor(rank),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    rank.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 10,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            username.length > 12 ? '${username.substring(0, 12)}...' : username,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: isCurrentUser ? Colors.tealAccent : Colors.white,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                    Flexible(
+                      child: Text(
+                        username.length > 12 ? '${username.substring(0, 12)}...' : username,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isCurrentUser ? Colors.tealAccent : Colors.white,
                         ),
-                        if (isCurrentUser)
-                          const Padding(
-                            padding: EdgeInsets.only(left: 4),
-                            child: Icon(Icons.person, size: 10, color: Colors.tealAccent),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      '$levelsCompleted levels',
-                      style: const TextStyle(
-                        fontSize: 9,
-                        color: Colors.white70,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    if (isCurrentUser)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 4),
+                        child: Icon(Icons.person, size: 10, color: Colors.tealAccent),
+                      ),
                   ],
                 ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Row(
-                    children: [
-                      Icon(_getRankIcon(rank), size: 10, color: _getRankColor(rank)),
-                      const SizedBox(width: 2),
-                      Text(
-                        '$points',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.tealAccent,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const Text(
-                        ' pts',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.tealAccent,
-                        ),
-                      ),
-                    ],
+                const SizedBox(height: 1),
+                Text(
+                  '$levelsCompleted levels',
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: Colors.white70,
                   ),
-                  const SizedBox(height: 1),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(
+                children: [
+                  Icon(_getRankIcon(rank), size: 10, color: _getRankColor(rank)),
+                  const SizedBox(width: 2),
                   Text(
-                    'Rank $rank',
+                    '$points',
                     style: const TextStyle(
-                      fontSize: 9,
-                      color: Colors.white70,
+                      fontSize: 12,
+                      color: Colors.tealAccent,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Text(
+                    ' pts',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.tealAccent,
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 1),
+              Text(
+                'Rank $rank',
+                style: const TextStyle(
+                  fontSize: 9,
+                  color: Colors.white70,
+                ),
+              ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
@@ -1621,11 +1604,14 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 10),
             const Text("💡 Tip: Get perfect scores to climb the leaderboard faster!", style: TextStyle(color: Colors.white70)),
             const SizedBox(height: 10),
-            const Text("Season Reset: All scores reset every 1 day", style: TextStyle(color: Colors.tealAccent, fontWeight: FontWeight.bold)),
+            // CHANGED: Updated text to reflect 2 hours
+            const Text("Season Reset: Leaderboard resets every 2 hours", style: TextStyle(color: Colors.tealAccent, fontWeight: FontWeight.bold)),
             const SizedBox(height: 5),
             Text("Current Season: $_currentSeason (${_formatTime(_secondsRemaining)} remaining)", style: const TextStyle(color: Colors.white70)),
             const SizedBox(height: 10),
             const Text("🏅 Top 3 players earn special badges each season!", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            const Text("✅ Your level progress is always preserved!", style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
           ],
         ),
         actions: [
@@ -1653,6 +1639,195 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Build search bar for search mode
+  Widget _buildSearchBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: _exitSearchMode,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              decoration: InputDecoration(
+                hintText: 'Search users by username or name...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.clear),
+            onPressed: () {
+              _searchController.clear();
+              _searchResults.clear();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Build search results
+  Widget _buildSearchResults() {
+    if (_isLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_searchController.text.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.search, size: 60, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                'Search for Users',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Type username or full name to find other players',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_searchResults.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.person_search, size: 60, color: Colors.grey.shade400),
+              const SizedBox(height: 16),
+              const Text(
+                'No users found',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'No users found for "${_searchController.text}"',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _searchResults.length,
+      itemBuilder: (context, index) {
+        final user = _searchResults[index];
+        final isCurrentUser = currentUser?['username'] == user['username'];
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: Colors.teal.shade100,
+              child: Text(
+                user['full_name']?.toString().substring(0, 1).toUpperCase() ?? 'U',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.teal.shade800,
+                ),
+              ),
+            ),
+            title: Text(
+              user['full_name'] ?? 'Unknown User',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text('@${user['username'] ?? 'unknown'}'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isCurrentUser)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'You',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.teal,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 8),
+                const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+              ],
+            ),
+            onTap: () {
+              if (!isCurrentUser) {
+                _viewUserProfile({
+                  'id': user['id'],
+                  'username': user['username'],
+                  'full_name': user['full_name'],
+                });
+              } else {
+                _exitSearchMode();
+              }
+            },
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1671,7 +1846,19 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         centerTitle: true,
         actions: [
-
+          // SEARCH BUTTON
+          IconButton(
+            icon: const Icon(Icons.search, color: Colors.tealAccent),
+            onPressed: () {
+              setState(() {
+                _isSearching = true;
+              });
+              Future.delayed(const Duration(milliseconds: 100), () {
+                _searchFocusNode.requestFocus();
+              });
+            },
+            tooltip: 'Search Users',
+          ),
           IconButton(
             icon: const Icon(Icons.leaderboard, color: Colors.tealAccent),
             onPressed: () => _showLeaderboardDialog(context),
@@ -1727,7 +1914,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         child: SafeArea(
-          child: SingleChildScrollView(
+          child: _isSearching
+              ? Column(
+            children: [
+              _buildSearchBar(),
+              Expanded(child: _buildSearchResults()),
+            ],
+          )
+              : SingleChildScrollView(
             child: Column(
               children: [
                 const SizedBox(height: 16),
@@ -1754,6 +1948,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     elevation: 6,
                   ),
                 ),
+
+                // Training Mode Button
+                _buildTrainingModeButton(),
 
                 // Programming Modules Button
                 _buildProgrammingModulesButton(),
