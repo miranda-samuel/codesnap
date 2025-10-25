@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = "http://codesnap.fun";
+  static const String baseUrl = "https://codesnap.fun";
 
   // Helper methods for safe type conversion
   static int _safeIntConversion(dynamic value) {
@@ -65,24 +65,83 @@ class ApiService {
     }
   }
 
-  // NEW METHOD: Get all users from database
+  // NEW METHOD: Get all users from database - FIXED VERSION
   static Future<Map<String, dynamic>> getAllUsers() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/auth.php?action=get_all_users'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('Get All Users Response: $data'); // Debug logging
+
+        if (data['success'] == true && data['users'] != null) {
+          return {
+            'success': true,
+            'users': List<Map<String, dynamic>>.from(data['users'])
+          };
+        } else {
+          return {
+            'success': false,
+            'message': data['message'] ?? 'Failed to load users'
+          };
+        }
+      } else {
+        return {
+          'success': false,
+          'message': 'Server error: ${response.statusCode}'
+        };
+      }
+    } catch (e) {
+      print('Error getting all users: $e');
+      return {
+        'success': false,
+        'message': 'Connection error: $e'
+      };
+    }
+  }
+
+  // NEW METHOD: Search users
+  static Future<Map<String, dynamic>> searchUsers(String searchTerm) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth.php'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'action': 'get_all_users',
+          'action': 'search_users',
+          'search_term': searchTerm,
         }),
       );
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        final data = jsonDecode(response.body);
+        print('Search Users Response: $data'); // Debug logging
+
+        if (data['success'] == true && data['users'] != null) {
+          return {
+            'success': true,
+            'users': List<Map<String, dynamic>>.from(data['users'])
+          };
+        } else {
+          return {
+            'success': false,
+            'message': data['message'] ?? 'No users found'
+          };
+        }
       } else {
-        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
+        return {
+          'success': false,
+          'message': 'Server error: ${response.statusCode}'
+        };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Connection error: $e'};
+      print('Error searching users: $e');
+      return {
+        'success': false,
+        'message': 'Connection error: $e'
+      };
     }
   }
 
@@ -170,7 +229,7 @@ class ApiService {
     }
   }
 
-  // UPDATED METHOD: Reset season scores - PRESERVES LEVEL PROGRESS
+  // UPDATE: Reset season scores method
   static Future<Map<String, dynamic>> resetSeasonScores(int season) async {
     try {
       final response = await http.get(
@@ -179,7 +238,7 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('Season reset response: $data');
+        print('Season $season reset response: $data');
         return data;
       } else {
         return {'success': false, 'message': 'Server error: ${response.statusCode}'};
@@ -599,6 +658,36 @@ class ApiService {
     }
   }
 
+  // NEW METHOD: Get user profile by ID or username
+  static Future<Map<String, dynamic>> getUserProfile({int? userId, String? username}) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'get_user_profile',
+          if (userId != null) 'user_id': userId,
+          if (username != null) 'username': username,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data;
+      } else {
+        return {
+          'success': false,
+          'message': 'Server error: ${response.statusCode}'
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: $e'
+      };
+    }
+  }
+
   // NEW METHOD: Validate user session
   static Future<Map<String, dynamic>> validateSession(int userId) async {
     try {
@@ -881,6 +970,86 @@ class ApiService {
       return {
         'success': false,
         'message': 'Error getting all languages progress: $e'
+      };
+    }
+  }
+
+  // NEW METHOD: Test database connection specifically
+  static Future<Map<String, dynamic>> testDatabaseConnection() async {
+    try {
+      final response = await getAllUsers();
+      if (response['success'] == true) {
+        return {
+          'success': true,
+          'message': 'Database connection successful',
+          'user_count': response['users']?.length ?? 0
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Database connection failed: ${response['message']}'
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Database connection error: $e'
+      };
+    }
+  }
+
+  // NEW METHOD: Get server information
+  static Future<Map<String, dynamic>> getServerInfo() async {
+    try {
+      final response = await debugEndpoint();
+      if (response['success'] == true) {
+        return {
+          'success': true,
+          'server_info': response
+        };
+      } else {
+        return response;
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error getting server info: $e'
+      };
+    }
+  }
+
+  // NEW METHOD: Validate all API endpoints
+  static Future<Map<String, dynamic>> validateAllEndpoints() async {
+    try {
+      final results = <String, dynamic>{};
+
+      // Test auth endpoint
+      final authTest = await testConnection();
+      results['auth_endpoint'] = authTest;
+
+      // Test database connection
+      final dbTest = await testDatabaseConnection();
+      results['database'] = dbTest;
+
+      // Test scores endpoint
+      final scoresTest = await getLeaderboard();
+      results['scores_endpoint'] = scoresTest;
+
+      // Test profile endpoint
+      final profileTest = await debugEndpoint();
+      results['profile_endpoint'] = profileTest;
+
+      return {
+        'success': true,
+        'validation_results': results,
+        'all_endpoints_working': authTest['success'] == true &&
+            dbTest['success'] == true &&
+            scoresTest['success'] == true
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Validation error: $e'
       };
     }
   }

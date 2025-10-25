@@ -21,12 +21,13 @@ class _HomeScreenState extends State<HomeScreen> {
   String _errorMessage = '';
   int _userPoints = 0;
   bool _isTop1Shining = true;
+
+  // FIXED: Season timer - 24 hours (86400 seconds)
   int _currentSeason = 1;
   DateTime? _seasonStartDate;
   DateTime? _seasonEndDate;
   Timer? _seasonTimer;
-  // CHANGED: 2 hours instead of 3 hours (7200 seconds)
-  int _secondsRemaining = 7200;
+  int _secondsRemaining = 86400; // 24 hours in seconds
 
   // SEARCH FUNCTIONALITY
   bool _isSearching = false;
@@ -34,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final FocusNode _searchFocusNode = FocusNode();
   List<Map<String, dynamic>> _searchResults = [];
   List<Map<String, dynamic>> _allUsers = [];
+  bool _searchLoading = false;
 
   // Programming languages data
   final List<Map<String, dynamic>> _programmingLanguages = [
@@ -106,32 +108,95 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  // FIXED: Load all users with proper error handling
   Future<void> _loadAllUsers() async {
     try {
+      print('Loading all users from database...');
       final response = await ApiService.getAllUsers();
+      print('Load All Users Response: $response');
+
       if (response['success'] == true && response['users'] != null) {
         setState(() {
           _allUsers = List<Map<String, dynamic>>.from(response['users']);
         });
+        print('Successfully loaded ${_allUsers.length} users from database');
+
+        // Debug: Print first few users
+        if (_allUsers.isNotEmpty) {
+          for (int i = 0; i < (_allUsers.length > 3 ? 3 : _allUsers.length); i++) {
+            print('User ${i + 1}: ${_allUsers[i]}');
+          }
+        }
+      } else {
+        print('Failed to load users: ${response['message']}');
+        // Fallback: Try alternative method
+        _loadUsersFallback();
       }
     } catch (e) {
       print('Error loading all users: $e');
+      _loadUsersFallback();
     }
   }
 
+  // FALLBACK METHOD if main method fails
+  Future<void> _loadUsersFallback() async {
+    try {
+      print('Trying fallback method to load users...');
+      // Try to get users from leaderboard data
+      final response = await ApiService.getLeaderboard();
+      if (response['success'] == true && response['leaderboard'] != null) {
+        final leaderboard = List<Map<String, dynamic>>.from(response['leaderboard']);
+        final users = leaderboard.map((user) {
+          return {
+            'id': user['user_id'] ?? 0,
+            'username': user['username'] ?? 'unknown',
+            'full_name': user['full_name'] ?? 'Unknown User'
+          };
+        }).toList();
+
+        setState(() {
+          _allUsers = users;
+        });
+        print('Fallback loaded ${_allUsers.length} users from leaderboard');
+      }
+    } catch (e) {
+      print('Fallback also failed: $e');
+    }
+  }
+
+  // FIXED: Search users with multiple fallback methods
   Future<void> _searchUsers(String query) async {
     if (query.isEmpty) {
       setState(() {
         _searchResults.clear();
+        _searchLoading = false;
       });
       return;
     }
 
     setState(() {
-      _isLoading = true;
+      _searchLoading = true;
     });
 
     try {
+      print('Searching for: $query');
+
+      // Method 1: Use API search
+      final response = await ApiService.searchUsers(query);
+      print('API Search Response: $response');
+
+      if (response['success'] == true && response['users'] != null) {
+        final apiResults = List<Map<String, dynamic>>.from(response['users']);
+        setState(() {
+          _searchResults = apiResults;
+          _searchLoading = false;
+        });
+        print('API search found ${apiResults.length} users');
+        return;
+      }
+
+      // Method 2: Fallback to local search from loaded users
+      print('API search failed, using local search...');
       final filteredUsers = _allUsers.where((user) {
         final username = user['username']?.toString().toLowerCase() ?? '';
         final fullName = user['full_name']?.toString().toLowerCase() ?? '';
@@ -142,13 +207,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
       setState(() {
         _searchResults = filteredUsers;
-        _isLoading = false;
+        _searchLoading = false;
       });
+      print('Local search found ${filteredUsers.length} users');
+
     } catch (e) {
       print('Error searching users: $e');
+
+      // Final fallback: local search only
+      final filteredUsers = _allUsers.where((user) {
+        final username = user['username']?.toString().toLowerCase() ?? '';
+        final fullName = user['full_name']?.toString().toLowerCase() ?? '';
+        final searchTerm = query.toLowerCase();
+
+        return username.contains(searchTerm) || fullName.contains(searchTerm);
+      }).toList();
+
       setState(() {
-        _searchResults = [];
-        _isLoading = false;
+        _searchResults = filteredUsers;
+        _searchLoading = false;
       });
     }
   }
@@ -158,6 +235,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _isSearching = false;
       _searchController.clear();
       _searchResults.clear();
+      _searchLoading = false;
     });
   }
 
@@ -172,18 +250,74 @@ class _HomeScreenState extends State<HomeScreen> {
           'full_name': user['full_name'] ?? user['fullName'],
         }),
       ),
-    );
+    ).then((_) {
+      // Reload data when returning from profile
+      _loadData();
+    });
   }
 
+  // FIXED: Initialize season with proper persistence
+  void _initializeSeason() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Load saved season data
+    _currentSeason = prefs.getInt('currentSeason') ?? 1;
+    final savedStartDate = prefs.getString('seasonStartDate');
+    final savedEndDate = prefs.getString('seasonEndDate');
+
+    if (savedStartDate != null && savedEndDate != null) {
+      // Continue existing season
+      _seasonStartDate = DateTime.parse(savedStartDate);
+      _seasonEndDate = DateTime.parse(savedEndDate);
+
+      // Calculate remaining time
+      final now = DateTime.now();
+      if (now.isBefore(_seasonEndDate!)) {
+        // Season is still ongoing
+        _secondsRemaining = _seasonEndDate!.difference(now).inSeconds;
+        print('Continuing existing season $_currentSeason');
+        print('Season ends in: ${_formatTime(_secondsRemaining)}');
+      } else {
+        // Season has ended, start new one
+        _startNewSeason(prefs);
+      }
+    } else {
+      // No saved season, start new one
+      _startNewSeason(prefs);
+    }
+  }
+
+  // NEW: Start new season properly
+  void _startNewSeason(SharedPreferences prefs) {
+    final now = DateTime.now();
+    _seasonStartDate = now;
+    _seasonEndDate = now.add(const Duration(days: 1)); // 24 hours
+    _secondsRemaining = 86400; // 24 hours in seconds
+
+    // Save to shared preferences
+    prefs.setInt('currentSeason', _currentSeason);
+    prefs.setString('seasonStartDate', _seasonStartDate!.toIso8601String());
+    prefs.setString('seasonEndDate', _seasonEndDate!.toIso8601String());
+    prefs.setInt('secondsRemaining', _secondsRemaining);
+
+    print('Started new season $_currentSeason');
+    print('Season ends at: $_seasonEndDate');
+  }
+
+  // FIXED: Season timer that continues properly
   void _startSeasonTimer() {
     _seasonTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) {
         setState(() {
           if (_secondsRemaining > 0) {
             _secondsRemaining--;
+
+            // Save progress every minute to prevent data loss
+            if (_secondsRemaining % 60 == 0) {
+              _saveSeasonProgress();
+            }
           } else {
-            // CHANGED: Reset to 2 hours
-            _secondsRemaining = 7200;
+            // Season ended, reset and start new one
             _resetSeason();
           }
         });
@@ -191,46 +325,25 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _initializeSeason() async {
+  // NEW: Save season progress to shared preferences
+  Future<void> _saveSeasonProgress() async {
     final prefs = await SharedPreferences.getInstance();
-    _currentSeason = 1;
-    // CHANGED: 2 hours instead of 3 hours
-    _secondsRemaining = 7200;
-
-    await prefs.remove('currentSeason');
-    await prefs.remove('seasonStartDate');
-    await prefs.remove('secondsRemaining');
-
-    final now = DateTime.now();
-    _seasonStartDate = now;
-    // CHANGED: Season ends in 2 hours
-    _seasonEndDate = now.add(const Duration(hours: 2));
-
-    await prefs.setInt('currentSeason', _currentSeason);
-    await prefs.setString('seasonStartDate', _seasonStartDate!.toIso8601String());
     await prefs.setInt('secondsRemaining', _secondsRemaining);
   }
 
-  // UPDATED: Season reset preserves level progress
+  // UPDATED: Season reset with proper persistence
   Future<void> _resetSeason() async {
     try {
       final response = await ApiService.resetSeasonScores(_currentSeason);
       if (response['success'] == true) {
         final prefs = await SharedPreferences.getInstance();
-        final now = DateTime.now();
 
+        // Increment season and start new one
         setState(() {
           _currentSeason++;
-          _seasonStartDate = now;
-          // CHANGED: Season ends in 2 hours
-          _seasonEndDate = now.add(const Duration(hours: 2));
-          // CHANGED: Reset to 2 hours
-          _secondsRemaining = 7200;
         });
 
-        await prefs.setInt('currentSeason', _currentSeason);
-        await prefs.setString('seasonStartDate', _seasonStartDate!.toIso8601String());
-        await prefs.setInt('secondsRemaining', _secondsRemaining);
+        _startNewSeason(prefs);
 
         // DON'T reload all data - preserve level progress display
         // Only reload leaderboard data
@@ -274,267 +387,6 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     }
-  }
-
-  // NEW: Load only leaderboard data (preserves level progress)
-  Future<void> _loadLeaderboardData() async {
-    if (!mounted) return;
-
-    try {
-      final response = await ApiService.getLeaderboard();
-
-      if (!mounted) return;
-
-      if (response['success'] == true) {
-        if (response['leaderboard'] != null && response['leaderboard'] is List) {
-          final rawData = List<Map<String, dynamic>>.from(response['leaderboard']);
-
-          // FILTER: Only show users with points > 0
-          final filteredData = rawData.where((user) {
-            final points = _getInt(user['points']);
-            return points > 0;
-          }).toList();
-
-          setState(() {
-            leaderboardData = filteredData;
-          });
-        } else {
-          setState(() {
-            leaderboardData = [];
-          });
-        }
-      } else {
-        setState(() {
-          leaderboardData = [];
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          leaderboardData = [];
-        });
-      }
-    }
-  }
-
-  void _showBadgeAwardDialog(List<dynamic> awardedBadges, List<dynamic> topUsers) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1B263B),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: const BorderSide(color: Colors.tealAccent, width: 2),
-          ),
-          title: Row(
-            children: [
-              const Icon(Icons.emoji_events, color: Colors.amber, size: 30),
-              const SizedBox(width: 10),
-              Text(
-                'Season ${_currentSeason - 1} Results!',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Congratulations to the top players!',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                if (topUsers.isNotEmpty) _buildTopUserBadge(topUsers[0], 1),
-                if (topUsers.length > 1) _buildTopUserBadge(topUsers[1], 2),
-                if (topUsers.length > 2) _buildTopUserBadge(topUsers[2], 3),
-
-                const SizedBox(height: 20),
-                const Text(
-                  '🏆 New season started! 🏆',
-                  style: TextStyle(
-                    color: Colors.tealAccent,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Season $_currentSeason',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                // CHANGED: Updated text to reflect 2 hours
-                const Text(
-                  'This season lasts 2 hours',
-                  style: TextStyle(
-                    color: Colors.tealAccent,
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  '✅ Your level progress is preserved!',
-                  style: TextStyle(
-                    color: Colors.green,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('🎉 Season $_currentSeason has started!'),
-                      backgroundColor: Colors.green,
-                      duration: const Duration(seconds: 3),
-                    ),
-                  );
-                }
-              },
-              child: const Text(
-                'Start New Season',
-                style: TextStyle(
-                  color: Colors.tealAccent,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildTopUserBadge(dynamic user, int rank) {
-    final userMap = user is Map<String, dynamic> ? user : <String, dynamic>{};
-    final username = _getString(userMap['username']);
-    final points = _getInt(userMap['points']);
-
-    Color badgeColor;
-    IconData badgeIcon;
-    String badgeText;
-
-    switch (rank) {
-      case 1:
-        badgeColor = Colors.amber;
-        badgeIcon = Icons.emoji_events;
-        badgeText = 'CHAMPION';
-        break;
-      case 2:
-        badgeColor = const Color(0xFFC0C0C0);
-        badgeIcon = Icons.workspace_premium;
-        badgeText = 'RUNNER-UP';
-        break;
-      case 3:
-        badgeColor = const Color(0xFFCD7F32);
-        badgeIcon = Icons.star;
-        badgeText = 'TOP 3';
-        break;
-      default:
-        badgeColor = Colors.tealAccent;
-        badgeIcon = Icons.person;
-        badgeText = 'TOP $rank';
-    }
-
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: badgeColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: badgeColor, width: 2),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: badgeColor,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(badgeIcon, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  username,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  badgeText,
-                  style: TextStyle(
-                    color: badgeColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$points points',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getString(dynamic value) {
-    if (value == null) return 'Unknown';
-    return value.toString();
-  }
-
-  int _getInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) return int.tryParse(value) ?? 0;
-    return 0;
-  }
-
-  double _getDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0.0;
-    return 0.0;
   }
 
   void _startShiningAnimation() {
@@ -622,6 +474,66 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       print('Error loading user points: $e');
+    }
+  }
+
+  // NEW: Load only leaderboard data (preserves level progress)
+  Future<void> _loadLeaderboardData() async {
+    if (!mounted) return;
+
+    try {
+      final response = await ApiService.getLeaderboard();
+
+      if (!mounted) return;
+
+      if (response['success'] == true) {
+        if (response['leaderboard'] != null && response['leaderboard'] is List) {
+          final rawData = List<Map<String, dynamic>>.from(response['leaderboard']);
+
+          // FILTER: Only show users with points > 0
+          final filteredData = rawData.where((user) {
+            final points = _getInt(user['points']);
+            return points > 0;
+          }).toList();
+
+          setState(() {
+            leaderboardData = filteredData;
+          });
+        } else {
+          setState(() {
+            leaderboardData = [];
+          });
+        }
+      } else {
+        setState(() {
+          leaderboardData = [];
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          leaderboardData = [];
+        });
+      }
+    }
+  }
+
+  // FIXED: Time format with seconds always included
+  String _formatTime(int seconds) {
+    // Always show hours, minutes, and seconds
+    int days = seconds ~/ 86400;
+    int hours = (seconds % 86400) ~/ 3600;
+    int minutes = (seconds % 3600) ~/ 60;
+    int remainingSeconds = seconds % 60;
+
+    if (days > 0) {
+      return '${days}d ${hours}h ${minutes}m ${remainingSeconds}s';
+    } else if (hours > 0) {
+      return '${hours}h ${minutes}m ${remainingSeconds}s';
+    } else if (minutes > 0) {
+      return '${minutes}m ${remainingSeconds}s';
+    } else {
+      return '${remainingSeconds}s';
     }
   }
 
@@ -1072,21 +984,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  String _formatTime(int seconds) {
-    if (seconds >= 3600) {
-      int hours = seconds ~/ 3600;
-      int minutes = (seconds % 3600) ~/ 60;
-      int remainingSeconds = seconds % 60;
-      return '${hours}h ${minutes}m ${remainingSeconds}s';
-    } else if (seconds >= 60) {
-      int minutes = seconds ~/ 60;
-      int remainingSeconds = seconds % 60;
-      return '${minutes}m ${remainingSeconds}s';
-    } else {
-      return '${seconds}s';
-    }
-  }
-
   Widget _buildProgrammingModulesButton() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
@@ -1345,7 +1242,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       ),
                       Text(
-                        'Season $_currentSeason',
+                        '24h Season $_currentSeason',
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 11,
@@ -1604,8 +1501,8 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 10),
             const Text("💡 Tip: Get perfect scores to climb the leaderboard faster!", style: TextStyle(color: Colors.white70)),
             const SizedBox(height: 10),
-            // CHANGED: Updated text to reflect 2 hours
-            const Text("Season Reset: Leaderboard resets every 2 hours", style: TextStyle(color: Colors.tealAccent, fontWeight: FontWeight.bold)),
+            // UPDATED: 24 hours season
+            const Text("Season Reset: Leaderboard resets every 24 hours", style: TextStyle(color: Colors.tealAccent, fontWeight: FontWeight.bold)),
             const SizedBox(height: 5),
             Text("Current Season: $_currentSeason (${_formatTime(_secondsRemaining)} remaining)", style: const TextStyle(color: Colors.white70)),
             const SizedBox(height: 10),
@@ -1639,15 +1536,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Build search bar for search mode
+  // FIXED: Build search bar for search mode
   Widget _buildSearchBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF1B263B),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.3),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -1656,7 +1553,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(Icons.arrow_back, color: Colors.tealAccent),
             onPressed: _exitSearchMode,
           ),
           const SizedBox(width: 8),
@@ -1664,22 +1561,24 @@ class _HomeScreenState extends State<HomeScreen> {
             child: TextField(
               controller: _searchController,
               focusNode: _searchFocusNode,
+              style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: 'Search users by username or name...',
-                prefixIcon: const Icon(Icons.search),
+                hintStyle: const TextStyle(color: Colors.white54),
+                prefixIcon: const Icon(Icons.search, color: Colors.tealAccent),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(25),
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor: Colors.grey.shade100,
+                fillColor: Colors.grey.shade800,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               ),
             ),
           ),
           const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.clear),
+            icon: const Icon(Icons.clear, color: Colors.tealAccent),
             onPressed: () {
               _searchController.clear();
               _searchResults.clear();
@@ -1690,13 +1589,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Build search results
+  // FIXED: Build search results with proper styling
   Widget _buildSearchResults() {
-    if (_isLoading) {
+    if (_searchLoading) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(16),
-          child: CircularProgressIndicator(),
+          child: CircularProgressIndicator(
+            color: Colors.tealAccent,
+          ),
         ),
       );
     }
@@ -1772,6 +1673,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
+          color: const Color(0xFF1B263B),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.tealAccent.withOpacity(0.3)),
+          ),
           child: ListTile(
             leading: CircleAvatar(
               backgroundColor: Colors.teal.shade100,
@@ -1785,9 +1691,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             title: Text(
               user['full_name'] ?? 'Unknown User',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
             ),
-            subtitle: Text('@${user['username'] ?? 'unknown'}'),
+            subtitle: Text(
+              '@${user['username'] ?? 'unknown'}',
+              style: const TextStyle(color: Colors.white70),
+            ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1798,11 +1707,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: Colors.teal.shade100,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
+                    child: Text(
                       'You',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.teal,
+                        color: Colors.teal.shade800,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -1825,6 +1734,225 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       },
+    );
+  }
+
+  String _getString(dynamic value) {
+    if (value == null) return 'Unknown';
+    return value.toString();
+  }
+
+  int _getInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  double _getDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  void _showBadgeAwardDialog(List<dynamic> awardedBadges, List<dynamic> topUsers) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1B263B),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Colors.tealAccent, width: 2),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.emoji_events, color: Colors.amber, size: 30),
+              const SizedBox(width: 10),
+              Text(
+                'Season ${_currentSeason - 1} Results!',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Congratulations to the top players!',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                if (topUsers.isNotEmpty) _buildTopUserBadge(topUsers[0], 1),
+                if (topUsers.length > 1) _buildTopUserBadge(topUsers[1], 2),
+                if (topUsers.length > 2) _buildTopUserBadge(topUsers[2], 3),
+
+                const SizedBox(height: 20),
+                const Text(
+                  '🏆 New season started! 🏆',
+                  style: TextStyle(
+                    color: Colors.tealAccent,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  '24h Season $_currentSeason',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'This season lasts 24 hours',
+                  style: TextStyle(
+                    color: Colors.tealAccent,
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  '✅ Your level progress is preserved!',
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('🎉 24h Season $_currentSeason has started!'),
+                      backgroundColor: Colors.green,
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                }
+              },
+              child: const Text(
+                'Start New Season',
+                style: TextStyle(
+                  color: Colors.tealAccent,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTopUserBadge(dynamic user, int rank) {
+    final userMap = user is Map<String, dynamic> ? user : <String, dynamic>{};
+    final username = _getString(userMap['username']);
+    final points = _getInt(userMap['points']);
+
+    Color badgeColor;
+    IconData badgeIcon;
+    String badgeText;
+
+    switch (rank) {
+      case 1:
+        badgeColor = Colors.amber;
+        badgeIcon = Icons.emoji_events;
+        badgeText = 'CHAMPION';
+        break;
+      case 2:
+        badgeColor = const Color(0xFFC0C0C0);
+        badgeIcon = Icons.workspace_premium;
+        badgeText = 'RUNNER-UP';
+        break;
+      case 3:
+        badgeColor = const Color(0xFFCD7F32);
+        badgeIcon = Icons.star;
+        badgeText = 'TOP 3';
+        break;
+      default:
+        badgeColor = Colors.tealAccent;
+        badgeIcon = Icons.person;
+        badgeText = 'TOP $rank';
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: badgeColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: badgeColor, width: 2),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: badgeColor,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(badgeIcon, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  username,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  badgeText,
+                  style: TextStyle(
+                    color: badgeColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$points points',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1872,21 +2000,24 @@ class _HomeScreenState extends State<HomeScreen> {
                 value: 'Profile',
                 child: ListTile(
                   leading: const Icon(Icons.person, color: Colors.tealAccent),
-                  title: Text('Profile: ${_getString(currentUser?['username'])}'),
+                  title: Text(
+                    'Profile: ${_getString(currentUser?['username'])}',
+                    style: const TextStyle(color: Colors.white),
+                  ),
                 ),
               ),
               PopupMenuItem(
                 value: 'PointsInfo',
                 child: const ListTile(
                   leading: Icon(Icons.emoji_events, color: Colors.tealAccent),
-                  title: Text('Points System'),
+                  title: Text('Points System', style: TextStyle(color: Colors.white)),
                 ),
               ),
               PopupMenuItem(
                 value: 'Settings',
                 child: const ListTile(
                   leading: Icon(Icons.settings, color: Colors.tealAccent),
-                  title: Text('Settings'),
+                  title: Text('Settings', style: TextStyle(color: Colors.white)),
                 ),
               ),
               const PopupMenuDivider(),
