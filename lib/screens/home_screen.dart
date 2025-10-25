@@ -331,9 +331,12 @@ class _HomeScreenState extends State<HomeScreen> {
     await prefs.setInt('secondsRemaining', _secondsRemaining);
   }
 
-  // UPDATED: Season reset with proper persistence
+  // UPDATED: Season reset with 50% points reduction
   Future<void> _resetSeason() async {
     try {
+      // Apply 50% points reduction to all users
+      await _applyPointsReduction();
+
       final response = await ApiService.resetSeasonScores(_currentSeason);
       if (response['success'] == true) {
         final prefs = await SharedPreferences.getInstance();
@@ -345,8 +348,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         _startNewSeason(prefs);
 
-        // DON'T reload all data - preserve level progress display
-        // Only reload leaderboard data
+        // Reload leaderboard data to show updated points
         _loadLeaderboardData();
 
         final awardedBadges = response['awarded_badges'] ?? [];
@@ -358,7 +360,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('🎉 New season started! Level progress preserved.'),
+                content: Text('🎉 New season started! Points reduced by 50%'),
                 backgroundColor: Colors.green,
                 duration: Duration(seconds: 5),
               ),
@@ -386,6 +388,62 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       }
+    }
+  }
+
+  // NEW: Apply 50% points reduction to all users
+  Future<void> _applyPointsReduction() async {
+    try {
+      print('Applying 50% points reduction for new season...');
+
+      // Get all users from database
+      final usersResponse = await ApiService.getAllUsers();
+      if (usersResponse['success'] == true && usersResponse['users'] != null) {
+        final users = List<Map<String, dynamic>>.from(usersResponse['users']);
+
+        for (final user in users) {
+          final userId = user['id'];
+          if (userId != null) {
+            // Get user's current scores
+            final languages = ['Python', 'Java', 'C++', 'PHP', 'SQL'];
+
+            for (final language in languages) {
+              final scoresResponse = await ApiService.getScores(userId, language);
+              if (scoresResponse['success'] == true && scoresResponse['scores'] != null) {
+                final scores = Map<String, dynamic>.from(scoresResponse['scores']);
+
+                // Apply 50% reduction to each score
+                for (final entry in scores.entries) {
+                  final level = int.parse(entry.key);
+                  final scoreData = Map<String, dynamic>.from(entry.value);
+                  final currentScore = _getInt(scoreData['score']);
+
+                  if (currentScore > 0) {
+                    // Calculate new score (50% reduction, minimum 1)
+                    final newScore = (currentScore * 0.5).ceil();
+                    final reducedScore = newScore > 0 ? newScore : 1;
+
+                    // Update the score in database
+                    await ApiService.saveScore(
+                        userId,
+                        language,
+                        level,
+                        reducedScore,
+                        scoreData['completed'] == true
+                    );
+
+                    print('Reduced $language Level $level score from $currentScore to $reducedScore for user $userId');
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        print('50% points reduction applied successfully for all users');
+      }
+    } catch (e) {
+      print('Error applying points reduction: $e');
     }
   }
 
@@ -1242,7 +1300,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       ),
                       Text(
-                        '24h Season $_currentSeason',
+                        'Season $_currentSeason',
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 11,
@@ -1477,6 +1535,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // UPDATED: Points info to show 50% reduction
   void _showPointsInfo(BuildContext context) {
     showDialog(
       context: context,
@@ -1501,10 +1560,36 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 10),
             const Text("💡 Tip: Get perfect scores to climb the leaderboard faster!", style: TextStyle(color: Colors.white70)),
             const SizedBox(height: 10),
-            // UPDATED: 24 hours season
-            const Text("Season Reset: Leaderboard resets every 24 hours", style: TextStyle(color: Colors.tealAccent, fontWeight: FontWeight.bold)),
+            // UPDATED: 24 hours season with 50% reduction
+            const Text("Season Reset: Every 24 hours", style: TextStyle(color: Colors.tealAccent, fontWeight: FontWeight.bold)),
             const SizedBox(height: 5),
             Text("Current Season: $_currentSeason (${_formatTime(_secondsRemaining)} remaining)", style: const TextStyle(color: Colors.white70)),
+            const SizedBox(height: 10),
+            // NEW: Points reduction info
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.trending_down, color: Colors.orange, size: 16),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "50% points reduction each season",
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 10),
             const Text("🏅 Top 3 players earn special badges each season!", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
@@ -1737,27 +1822,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  String _getString(dynamic value) {
-    if (value == null) return 'Unknown';
-    return value.toString();
-  }
-
-  int _getInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) return int.tryParse(value) ?? 0;
-    return 0;
-  }
-
-  double _getDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0.0;
-    return 0.0;
-  }
-
+  // UPDATED: Show badge award dialog with 50% points reduction info
   void _showBadgeAwardDialog(List<dynamic> awardedBadges, List<dynamic> topUsers) {
     showDialog(
       context: context,
@@ -1801,6 +1866,50 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (topUsers.length > 2) _buildTopUserBadge(topUsers[2], 3),
 
                 const SizedBox(height: 20),
+
+                // NEW: Points reduction information
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.orange, width: 1),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.trending_down, color: Colors.orange, size: 30),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Scores Reduced by 50%',
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'All player scores halved for new season',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Level progress preserved',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
                 const Text(
                   '🏆 New season started! 🏆',
                   style: TextStyle(
@@ -1827,15 +1936,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontStyle: FontStyle.italic,
                   ),
                 ),
-                const SizedBox(height: 10),
-                const Text(
-                  '✅ Your level progress is preserved!',
-                  style: TextStyle(
-                    color: Colors.green,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
               ],
             ),
           ),
@@ -1845,10 +1945,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.of(context).pop();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('🎉 24h Season $_currentSeason has started!'),
+                    const SnackBar(
+                      content: Text('🎉 24h Season started! Points reduced by 50%'),
                       backgroundColor: Colors.green,
-                      duration: const Duration(seconds: 3),
+                      duration: Duration(seconds: 5),
                     ),
                   );
                 }
@@ -1954,6 +2054,20 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  // Helper methods
+  String _getString(dynamic value) {
+    if (value == null) return 'Unknown';
+    return value.toString();
+  }
+
+  int _getInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
   }
 
   @override
