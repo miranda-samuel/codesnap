@@ -13,27 +13,24 @@ class LevelSelectionScreen extends StatefulWidget {
 
 class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
   late String selectedLanguage;
+  late String selectedDifficulty;
   Map<int, Map<String, dynamic>> scores = {};
   Map<String, dynamic>? currentUser;
   bool _isLoading = true;
 
   final levels = [
-    'Level 1',
-    'Level 2',
-    'Level 3',
-    'Level 4',
-    'Level 5',
-    'Level 6',
-    'Level 7',
-    'Level 8',
-    'Level 9',
-    'Level 10',
+    'Level 1', 'Level 2', 'Level 3', 'Level 4', 'Level 5',
+    'Level 6', 'Level 7', 'Level 8', 'Level 9', 'Level 10',
   ];
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    selectedLanguage = ModalRoute.of(context)!.settings.arguments as String;
+
+    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+    selectedLanguage = args?['language'] ?? 'C++';
+    selectedDifficulty = args?['difficulty'] ?? 'Easy';
+
     _loadUserAndScores();
   }
 
@@ -50,37 +47,128 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
 
   Future<void> _loadScores(int userId) async {
     try {
-      final response = await ApiService.getScores(userId, selectedLanguage);
-
-      if (response['success'] == true) {
-        setState(() {
-          scores = {};
-          if (response['scores'] != null) {
-            // Handle the scores data properly
-            Map<String, dynamic> scoresData = response['scores'];
-            scoresData.forEach((level, data) {
-              int levelNum = int.tryParse(level) ?? 0;
-              int scoreValue = data['score'] ?? 0;
-              bool completed = data['completed'] ?? false;
-
-              // Only show levels that have been completed (score > 0)
-              if (levelNum > 0 && scoreValue > 0) {
-                scores[levelNum] = {
-                  'score': scoreValue,
-                  'completed': completed
-                };
-              }
-            });
-          }
-          _isLoading = false;
-        });
+      // USE DIFFICULTY-BASED SCORES
+      if (selectedDifficulty == 'Easy') {
+        // For Easy, use original method (backward compatibility)
+        final response = await ApiService.getScores(userId, selectedLanguage);
+        _processScoresResponse(response);
       } else {
-        setState(() => _isLoading = false);
-        print('Failed to load scores: ${response['message']}');
+        // For Medium/Hard, use difficulty-based method
+        final response = await ApiService.getScoresWithDifficulty(userId, selectedLanguage, selectedDifficulty);
+        _processScoresResponse(response);
       }
     } catch (e) {
-      setState(() => _isLoading = false);
       print('Error loading scores: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _processScoresResponse(Map<String, dynamic> response) {
+    if (response['success'] == true) {
+      setState(() {
+        scores = {};
+        if (response['scores'] != null) {
+          Map<String, dynamic> scoresData = response['scores'];
+          scoresData.forEach((level, data) {
+            int levelNum = int.tryParse(level) ?? 0;
+            int scoreValue = data['score'] ?? 0;
+            bool completed = data['completed'] ?? false;
+
+            if (levelNum > 0 && levelNum <= 30) {
+              scores[levelNum] = {
+                'score': scoreValue,
+                'completed': completed
+              };
+            }
+          });
+        }
+        _isLoading = false;
+      });
+    } else {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  bool _isLevelUnlocked(int levelNumber) {
+    if (levelNumber == 1) return true;
+
+    final previousLevelData = scores[levelNumber - 1];
+    if (previousLevelData != null) {
+      final previousScore = previousLevelData['score'] ?? 0;
+      final previousCompleted = previousLevelData['completed'] ?? false;
+      return previousCompleted && previousScore == 3;
+    }
+
+    return false;
+  }
+
+  void _navigateToLevel(int levelNumber) {
+    final musicService = Provider.of<MusicService>(context, listen: false);
+    musicService.playSoundEffect('click.mp3');
+
+    String route = '';
+
+    // ROUTES BASED ON LANGUAGE AND DIFFICULTY
+    switch (selectedLanguage) {
+      case 'C++':
+        if (selectedDifficulty == 'Easy') {
+          route = '/cpp_level$levelNumber';
+        } else if (selectedDifficulty == 'Medium') {
+          route = '/cpp_level${levelNumber}_medium';
+        } else if (selectedDifficulty == 'Hard') {
+          route = '/cpp_level${levelNumber}_hard';
+        }
+        break;
+      case 'Python':
+        if (selectedDifficulty == 'Easy') {
+          route = '/python_level$levelNumber';
+        } else if (selectedDifficulty == 'Medium') {
+          route = '/python_level${levelNumber}_medium';
+        } else if (selectedDifficulty == 'Hard') {
+          route = '/python_level${levelNumber}_hard';
+        }
+        break;
+      case 'Java':
+        if (selectedDifficulty == 'Easy') {
+          route = '/java_level$levelNumber';
+        } else if (selectedDifficulty == 'Medium') {
+          route = '/java_level${levelNumber}_medium';
+        } else if (selectedDifficulty == 'Hard') {
+          route = '/java_level${levelNumber}_hard';
+        }
+        break;
+      case 'PHP':
+        if (selectedDifficulty == 'Easy') {
+          route = '/php_level$levelNumber';
+        } else if (selectedDifficulty == 'Medium') {
+          route = '/php_level${levelNumber}_medium';
+        } else if (selectedDifficulty == 'Hard') {
+          route = '/php_level${levelNumber}_hard';
+        }
+        break;
+      case 'SQL':
+        if (selectedDifficulty == 'Easy') {
+          route = '/sql_level$levelNumber';
+        } else if (selectedDifficulty == 'Medium') {
+          route = '/sql_level${levelNumber}_medium';
+        } else if (selectedDifficulty == 'Hard') {
+          route = '/sql_level${levelNumber}_hard';
+        }
+        break;
+    }
+
+    if (route.isNotEmpty) {
+      Navigator.pushNamed(context, route).then((_) {
+        if (currentUser?['id'] != null) {
+          _loadScores(currentUser!['id']);
+        }
+      });
+    } else {
+      // Fallback to easy level if route doesn't exist
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Level for $selectedDifficulty is coming soon! Using Easy level.')),
+      );
+      Navigator.pushNamed(context, '/${selectedLanguage.toLowerCase()}_level$levelNumber');
     }
   }
 
@@ -91,12 +179,18 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
       final musicService = Provider.of<MusicService>(context, listen: false);
       musicService.playSoundEffect('click.mp3');
 
-      final response = await ApiService.resetScores(currentUser!['id'], selectedLanguage);
+      Map<String, dynamic> response;
+
+      // USE DIFFICULTY-BASED RESET
+      if (selectedDifficulty == 'Easy') {
+        response = await ApiService.resetScores(currentUser!['id'], selectedLanguage);
+      } else {
+        response = await ApiService.resetScoresWithDifficulty(currentUser!['id'], selectedLanguage, selectedDifficulty);
+      }
 
       if (response['success'] == true) {
-        // Clear local scores and update UI immediately
         setState(() {
-          scores = {}; // Clear local scores
+          scores = {};
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -114,39 +208,13 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
     }
   }
 
-  void _navigateToLevel(int levelNumber) {
-    final musicService = Provider.of<MusicService>(context, listen: false);
-    musicService.playSoundEffect('click.mp3');
-
-    String route = '';
-    switch (selectedLanguage) {
-      case 'Python':
-        route = '/python_level$levelNumber';
-        break;
-      case 'Java':
-        route = '/java_level$levelNumber';
-        break;
-      case 'C++':
-        route = '/cpp_level$levelNumber';
-        break;
-      case 'PHP':
-        route = '/php_level$levelNumber';
-        break;
-      case 'SQL':
-        route = '/sql_level$levelNumber';
-        break;
-    }
-
-    Navigator.pushNamed(context, route);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Color(0xFF0D1B2A),
       appBar: AppBar(
         title: Text(
-          '$selectedLanguage - SELECT LEVEL',
+          '$selectedLanguage $selectedDifficulty - Levels',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -207,7 +275,7 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'CODE QUEST',
+                            '$selectedDifficulty LEVELS',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 20,
@@ -216,7 +284,7 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                             ),
                           ),
                           Text(
-                            'Complete levels to master $selectedLanguage',
+                            'Complete with 3/3 perfect score to unlock next level',
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 14,
@@ -259,9 +327,7 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                     final levelData = scores[levelNumber] ?? {'score': 0, 'completed': false};
                     final score = levelData['score'];
                     final isCompleted = levelData['completed'];
-
-                    // UPDATED UNLOCKING LOGIC
-                    bool isUnlocked = _isLevelUnlocked(levelNumber);
+                    final bool isUnlocked = _isLevelUnlocked(levelNumber);
 
                     return _buildLevelCard(
                       levelNumber: levelNumber,
@@ -273,6 +339,32 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                   },
                 ),
               ),
+
+              // Level Locking Info
+              Container(
+                padding: EdgeInsets.all(12),
+                margin: EdgeInsets.only(top: 10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.withOpacity(0.5)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info, color: Colors.blue, size: 16),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Get 3/3 perfect score to unlock next level',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -280,51 +372,12 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
     );
   }
 
-  // NEW METHOD: Check if level is unlocked
-  bool _isLevelUnlocked(int levelNumber) {
-    switch (levelNumber) {
-      case 1:
-        return true; // Level 1 is always unlocked
-
-      case 2:
-      // Level 2 unlocked if Level 1 completed with perfect score
-        return scores[1]?['completed'] == true && scores[1]?['score'] == 3;
-
-      case 3:
-      // Level 3 unlocked if Level 2 completed with perfect score
-        return scores[2]?['completed'] == true && scores[2]?['score'] == 3;
-
-      case 4:
-      // Level 4 unlocked if Level 3 completed with perfect score
-        return scores[3]?['completed'] == true && scores[3]?['score'] == 3;
-
-      case 5:
-      // Level 5 unlocked if Level 4 completed with perfect score
-        return scores[4]?['completed'] == true && scores[4]?['score'] == 3;
-
-      case 6:
-      // LEVEL 6: ONLY unlocked through Bonus Game (Level 99) with perfect score
-      // Check if Bonus Game (Level 99) was completed with perfect score
-        return scores[99]?['completed'] == true && scores[99]?['score'] == 3;
-
-      case 7:
-      // Level 7 unlocked if Level 6 completed with perfect score
-        return scores[6]?['completed'] == true && scores[6]?['score'] == 3;
-
-      case 8:
-      // Level 8 unlocked if Level 7 completed with perfect score
-        return scores[7]?['completed'] == true && scores[7]?['score'] == 3;
-
-      case 9:
-      // Level 9 unlocked if Level 8 completed with perfect score
-        return scores[8]?['completed'] == true && scores[8]?['score'] == 3;
-
-      case 10:
-      // Level 10 unlocked if Level 9 completed with perfect score
-        return scores[9]?['completed'] == true && scores[9]?['score'] == 3;
-
-      default:
-        return false;
+  String _getDifficultyMultiplier() {
+    switch (selectedDifficulty) {
+      case 'Easy': return '1';
+      case 'Medium': return '2';
+      case 'Hard': return '3';
+      default: return '1';
     }
   }
 
@@ -335,36 +388,30 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
     required bool isCompleted,
     required bool isUnlocked,
   }) {
+    final bool isLocked = !isUnlocked;
+
     return GestureDetector(
-      onTap: () {
-        if (!isUnlocked) {
-          _showLockedDialog(levelNumber);
-          return;
-        }
-        _navigateToLevel(levelNumber);
-      },
+      onTap: isLocked ? null : () => _navigateToLevel(levelNumber),
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: isUnlocked
-                ? [
-              Color(0xFF415A77).withOpacity(0.8),
+            colors: isLocked ? [
+              Colors.grey.withOpacity(0.6),
               Color(0xFF1B263B).withOpacity(0.8),
-            ]
-                : [
-              Colors.grey.withOpacity(0.3),
-              Colors.grey.withOpacity(0.1),
+            ] : [
+              _getDifficultyColor().withOpacity(0.8),
+              Color(0xFF1B263B).withOpacity(0.8),
             ],
           ),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isCompleted
+            color: isLocked
+                ? Colors.grey.withOpacity(0.6)
+                : (isCompleted
                 ? Colors.greenAccent.withOpacity(0.6)
-                : isUnlocked
-                ? Colors.tealAccent.withOpacity(0.4)
-                : Colors.grey.withOpacity(0.3),
+                : _getDifficultyColor().withOpacity(0.4)),
             width: 2,
           ),
           boxShadow: [
@@ -373,9 +420,9 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
               blurRadius: 10,
               offset: Offset(0, 4),
             ),
-            if (isUnlocked)
+            if (!isLocked)
               BoxShadow(
-                color: Colors.tealAccent.withOpacity(0.2),
+                color: _getDifficultyColor().withOpacity(0.2),
                 blurRadius: 15,
                 spreadRadius: 1,
               ),
@@ -383,32 +430,33 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
         ),
         child: Stack(
           children: [
-            // Background Pattern
-            Positioned(
-              right: 8,
-              top: 8,
-              child: Icon(
-                Icons.code,
-                size: 30,
-                color: Colors.white.withOpacity(0.1),
+            if (isLocked)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.lock,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
               ),
-            ),
 
-            // Content
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Level Number
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Container(
                         padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: isUnlocked ? Colors.tealAccent : Colors.grey,
+                          color: isLocked ? Colors.grey : _getDifficultyColor(),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -421,66 +469,89 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                           ),
                         ),
                       ),
-                      if (!isUnlocked)
-                        Icon(Icons.lock, color: Colors.white54, size: 16),
-                      if (isCompleted)
+                      if (isCompleted && !isLocked)
                         Icon(Icons.verified, color: Colors.greenAccent, size: 16),
                     ],
                   ),
 
-                  // Level Title
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: isUnlocked ? Colors.white : Colors.white54,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'monospace',
+                  SizedBox(
+                    height: 20,
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        color: isLocked ? Colors.white60 : Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'monospace',
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
 
-                  // Score and Status
-                  Row(
-                    children: [
-                      if (score > 0) ...[
-                        Icon(Icons.star, color: Colors.amber, size: 14),
-                        SizedBox(width: 2),
-                        Text(
-                          '$score/3',
-                          style: TextStyle(
-                            color: Colors.amber,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Spacer(),
-                      ],
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: isCompleted
-                              ? Colors.green.withOpacity(0.3)
-                              : isUnlocked
-                              ? Colors.tealAccent.withOpacity(0.3)
-                              : Colors.grey.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
+                  if (isLocked)
+                    Container(
+                      height: 24,
+                      child: Center(
                         child: Text(
-                          isCompleted ? 'DONE' : isUnlocked ? 'PLAY' : 'LOCKED',
+                          'LOCKED',
                           style: TextStyle(
-                            color: isCompleted
-                                ? Colors.greenAccent
-                                : isUnlocked
-                                ? Colors.tealAccent
-                                : Colors.grey,
-                            fontSize: 8,
+                            color: Colors.white60,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                             fontFamily: 'monospace',
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    )
+                  else
+                    Container(
+                      height: 24,
+                      child: Row(
+                        children: [
+                          // ✅ FIXED: Always show score (0/3, 1/3, 2/3, or 3/3)
+                          Icon(
+                            score > 0 ? Icons.star : Icons.star_border,
+                            color: score > 0 ? Colors.amber : Colors.grey,
+                            size: 14,
+                          ),
+                          SizedBox(width: 2),
+                          Flexible(
+                            child: Text(
+                              '$score/3', // ✅ LAGING IPAPAKITA ANG ACTUAL SCORE (0/3, 1/3, etc.)
+                              style: TextStyle(
+                                color: score > 0 ? Colors.amber : Colors.grey,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Spacer(),
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isCompleted
+                                  ? Colors.green.withOpacity(0.3)
+                                  : _getDifficultyColor().withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              isCompleted ? 'DONE' : 'PLAY',
+                              style: TextStyle(
+                                color: isCompleted
+                                    ? Colors.greenAccent
+                                    : _getDifficultyColor(),
+                                fontSize: 8,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -490,89 +561,12 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
     );
   }
 
-  void _showLockedDialog(int levelNumber) {
-    final musicService = Provider.of<MusicService>(context, listen: false);
-    musicService.playSoundEffect('error.mp3');
-
-    String message = "";
-
-    // UPDATED MESSAGES FOR EACH LEVEL
-    switch (levelNumber) {
-      case 2:
-        message = "Complete Level 1 with a perfect score (3/3) to unlock this level.";
-        break;
-      case 3:
-        message = "Complete Level 2 with a perfect score (3/3) to unlock this level.";
-        break;
-      case 4:
-        message = "Complete Level 3 with a perfect score (3/3) to unlock this level.";
-        break;
-      case 5:
-        message = "Complete Level 4 with a perfect score (3/3) to unlock this level.";
-        break;
-      case 6:
-      // UPDATED: Level 6 is ONLY unlocked through Bonus Game
-        message = "Complete the C++ Bonus Game with a perfect score (3/3) to unlock Level 6!";
-        break;
-      case 7:
-        message = "Complete Level 6 with a perfect score (3/3) to unlock this level.";
-        break;
-      case 8:
-        message = "Complete Level 7 with a perfect score (3/3) to unlock this level.";
-        break;
-      case 9:
-        message = "Complete Level 8 with a perfect score (3/3) to unlock this level.";
-        break;
-      case 10:
-        message = "Complete Level 9 with a perfect score (3/3) to unlock this level.";
-        break;
-      default:
-        message = "Complete the previous level with a perfect score (3/3) to unlock this level.";
+  Color _getDifficultyColor() {
+    switch (selectedDifficulty) {
+      case 'Easy': return Colors.green;
+      case 'Medium': return Colors.orange;
+      case 'Hard': return Colors.red;
+      default: return Colors.tealAccent;
     }
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: Color(0xFF1B263B),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.tealAccent.withOpacity(0.3)),
-        ),
-        title: Row(
-          children: [
-            Icon(Icons.lock, color: Colors.orange),
-            SizedBox(width: 10),
-            Text(
-              "LEVEL LOCKED",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'monospace',
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          message,
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              musicService.playSoundEffect('click.mp3');
-              Navigator.pop(context);
-            },
-            child: Text(
-              "UNDERSTOOD",
-              style: TextStyle(
-                color: Colors.tealAccent,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'monospace',
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

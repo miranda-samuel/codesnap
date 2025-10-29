@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 import '../services/api_service.dart';
 import '../services/user_preferences.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-import 'dart:async';
+import '../services/music_service.dart';
 import 'profile_screen.dart';
 import 'training_mode_screen.dart';
 
@@ -22,14 +23,15 @@ class _HomeScreenState extends State<HomeScreen> {
   int _userPoints = 0;
   bool _isTop1Shining = true;
 
-  // FIXED: Season timer - 24 hours (86400 seconds)
+  // Season management - PERSISTENT ACROSS LOGINS
   int _currentSeason = 1;
   DateTime? _seasonStartDate;
   DateTime? _seasonEndDate;
   Timer? _seasonTimer;
   int _secondsRemaining = 86400; // 24 hours in seconds
+  bool _isSeasonEnding = false;
 
-  // SEARCH FUNCTIONALITY
+  // Search functionality
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
@@ -82,9 +84,8 @@ class _HomeScreenState extends State<HomeScreen> {
     _initializeSeason();
     _loadData();
     _startShiningAnimation();
-    _startSeasonTimer();
-    _loadAllUsers();
     _setupSearchListener();
+    _loadAllUsers();
   }
 
   @override
@@ -93,6 +94,165 @@ class _HomeScreenState extends State<HomeScreen> {
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  // Season initialization - PERSISTENT ACROSS ALL USERS
+  void _initializeSeason() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Check if we have existing season data (GLOBAL - not user specific)
+    final savedSeason = prefs.getInt('global_currentSeason');
+    final savedStartDate = prefs.getString('global_seasonStartDate');
+    final savedEndDate = prefs.getString('global_seasonEndDate');
+    final savedSecondsRemaining = prefs.getInt('global_secondsRemaining');
+
+    if (savedSeason != null && savedStartDate != null && savedEndDate != null) {
+      // Continue existing GLOBAL season from saved data
+      _currentSeason = savedSeason;
+      _seasonStartDate = DateTime.parse(savedStartDate);
+      _seasonEndDate = DateTime.parse(savedEndDate);
+
+      final now = DateTime.now();
+
+      if (now.isBefore(_seasonEndDate!)) {
+        // Season is still ongoing - calculate remaining time
+        _secondsRemaining = _seasonEndDate!.difference(now).inSeconds;
+        print('Continuing GLOBAL season $_currentSeason');
+        print('Season ends in: ${_formatTime(_secondsRemaining)}');
+      } else {
+        // Season has ended - automatically start new season
+        print('GLOBAL Season $_currentSeason has ended. Starting season ${_currentSeason + 1}...');
+        await _resetSeasonAutomatically();
+        return;
+      }
+    } else {
+      // No saved season - START FROM SEASON 1 (FIRST TIME APP LAUNCH)
+      print('Starting fresh GLOBAL Season 1...');
+      _currentSeason = 1;
+      await _startNewSeason(prefs);
+    }
+
+    // Start timer after initialization
+    _startSeasonTimer();
+  }
+
+  // Automatic season reset - CONTINUES FOR ALL USERS
+  Future<void> _resetSeasonAutomatically() async {
+    try {
+      print('Automatically resetting GLOBAL season $_currentSeason...');
+
+      final response = await ApiService.resetSeasonScores(_currentSeason);
+      final prefs = await SharedPreferences.getInstance();
+
+      // Increment season for continuation
+      setState(() {
+        _currentSeason++;
+      });
+
+      // Start new season
+      await _startNewSeason(prefs);
+
+      // Reload leaderboard data
+      _loadLeaderboardData();
+
+      print('Automatically started GLOBAL season $_currentSeason');
+
+    } catch (e) {
+      print('Error in automatic season reset: $e');
+      // Fallback: start new season anyway
+      final prefs = await SharedPreferences.getInstance();
+      await _startNewSeason(prefs);
+    }
+  }
+
+  // Start new season with proper saving - GLOBAL
+  Future<void> _startNewSeason(SharedPreferences prefs) async {
+    final now = DateTime.now();
+    _seasonStartDate = now;
+    _seasonEndDate = now.add(const Duration(days: 1)); // 24 hours
+    _secondsRemaining = 86400;
+
+    // Save to shared preferences as GLOBAL data
+    await prefs.setInt('global_currentSeason', _currentSeason);
+    await prefs.setString('global_seasonStartDate', _seasonStartDate!.toIso8601String());
+    await prefs.setString('global_seasonEndDate', _seasonEndDate!.toIso8601String());
+    await prefs.setInt('global_secondsRemaining', _secondsRemaining);
+
+    print('Started GLOBAL season $_currentSeason');
+    print('Season ends at: $_seasonEndDate');
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  // Season timer that handles automatic continuation - GLOBAL
+  void _startSeasonTimer() {
+    _seasonTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          if (_secondsRemaining > 0) {
+            _secondsRemaining--;
+
+            // Show warning when 10 minutes remaining
+            if (_secondsRemaining == 600 && !_isSeasonEnding) {
+              _isSeasonEnding = true;
+              _showSeasonEndingWarning();
+            }
+
+            // Save progress every minute
+            if (_secondsRemaining % 60 == 0) {
+              _saveSeasonProgress();
+            }
+          } else {
+            // Season ended - reset automatically
+            timer.cancel();
+            _resetSeasonAutomatically();
+          }
+        });
+      }
+    });
+  }
+
+  // Show season ending warning
+  void _showSeasonEndingWarning() {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.orange),
+              SizedBox(width: 8),
+              Expanded(child: Text('Season $_currentSeason ending in 10 minutes!')),
+            ],
+          ),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {},
+          ),
+        ),
+      );
+    }
+  }
+
+  // Save season progress - GLOBAL
+  Future<void> _saveSeasonProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('global_secondsRemaining', _secondsRemaining);
+  }
+
+  void _startShiningAnimation() {
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      if (mounted) {
+        setState(() {
+          _isTop1Shining = !_isTop1Shining;
+        });
+        _startShiningAnimation();
+      }
+    });
   }
 
   void _setupSearchListener() {
@@ -108,7 +268,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // FIXED: Load all users with proper error handling
   Future<void> _loadAllUsers() async {
     try {
       print('Loading all users from database...');
@@ -120,16 +279,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _allUsers = List<Map<String, dynamic>>.from(response['users']);
         });
         print('Successfully loaded ${_allUsers.length} users from database');
-
-        // Debug: Print first few users
-        if (_allUsers.isNotEmpty) {
-          for (int i = 0; i < (_allUsers.length > 3 ? 3 : _allUsers.length); i++) {
-            print('User ${i + 1}: ${_allUsers[i]}');
-          }
-        }
       } else {
         print('Failed to load users: ${response['message']}');
-        // Fallback: Try alternative method
         _loadUsersFallback();
       }
     } catch (e) {
@@ -138,11 +289,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // FALLBACK METHOD if main method fails
   Future<void> _loadUsersFallback() async {
     try {
       print('Trying fallback method to load users...');
-      // Try to get users from leaderboard data
       final response = await ApiService.getLeaderboard();
       if (response['success'] == true && response['leaderboard'] != null) {
         final leaderboard = List<Map<String, dynamic>>.from(response['leaderboard']);
@@ -164,7 +313,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // FIXED: Search users with multiple fallback methods
   Future<void> _searchUsers(String query) async {
     if (query.isEmpty) {
       setState(() {
@@ -180,8 +328,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       print('Searching for: $query');
-
-      // Method 1: Use API search
       final response = await ApiService.searchUsers(query);
       print('API Search Response: $response');
 
@@ -191,11 +337,9 @@ class _HomeScreenState extends State<HomeScreen> {
           _searchResults = apiResults;
           _searchLoading = false;
         });
-        print('API search found ${apiResults.length} users');
         return;
       }
 
-      // Method 2: Fallback to local search from loaded users
       print('API search failed, using local search...');
       final filteredUsers = _allUsers.where((user) {
         final username = user['username']?.toString().toLowerCase() ?? '';
@@ -209,12 +353,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _searchResults = filteredUsers;
         _searchLoading = false;
       });
-      print('Local search found ${filteredUsers.length} users');
 
     } catch (e) {
       print('Error searching users: $e');
-
-      // Final fallback: local search only
       final filteredUsers = _allUsers.where((user) {
         final username = user['username']?.toString().toLowerCase() ?? '';
         final fullName = user['full_name']?.toString().toLowerCase() ?? '';
@@ -251,210 +392,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }),
       ),
     ).then((_) {
-      // Reload data when returning from profile
       _loadData();
-    });
-  }
-
-  // FIXED: Initialize season with proper persistence
-  void _initializeSeason() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    // Load saved season data
-    _currentSeason = prefs.getInt('currentSeason') ?? 1;
-    final savedStartDate = prefs.getString('seasonStartDate');
-    final savedEndDate = prefs.getString('seasonEndDate');
-
-    if (savedStartDate != null && savedEndDate != null) {
-      // Continue existing season
-      _seasonStartDate = DateTime.parse(savedStartDate);
-      _seasonEndDate = DateTime.parse(savedEndDate);
-
-      // Calculate remaining time
-      final now = DateTime.now();
-      if (now.isBefore(_seasonEndDate!)) {
-        // Season is still ongoing
-        _secondsRemaining = _seasonEndDate!.difference(now).inSeconds;
-        print('Continuing existing season $_currentSeason');
-        print('Season ends in: ${_formatTime(_secondsRemaining)}');
-      } else {
-        // Season has ended, start new one
-        _startNewSeason(prefs);
-      }
-    } else {
-      // No saved season, start new one
-      _startNewSeason(prefs);
-    }
-  }
-
-  // NEW: Start new season properly
-  void _startNewSeason(SharedPreferences prefs) {
-    final now = DateTime.now();
-    _seasonStartDate = now;
-    _seasonEndDate = now.add(const Duration(days: 1)); // 24 hours
-    _secondsRemaining = 86400; // 24 hours in seconds
-
-    // Save to shared preferences
-    prefs.setInt('currentSeason', _currentSeason);
-    prefs.setString('seasonStartDate', _seasonStartDate!.toIso8601String());
-    prefs.setString('seasonEndDate', _seasonEndDate!.toIso8601String());
-    prefs.setInt('secondsRemaining', _secondsRemaining);
-
-    print('Started new season $_currentSeason');
-    print('Season ends at: $_seasonEndDate');
-  }
-
-  // FIXED: Season timer that continues properly
-  void _startSeasonTimer() {
-    _seasonTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
-        setState(() {
-          if (_secondsRemaining > 0) {
-            _secondsRemaining--;
-
-            // Save progress every minute to prevent data loss
-            if (_secondsRemaining % 60 == 0) {
-              _saveSeasonProgress();
-            }
-          } else {
-            // Season ended, reset and start new one
-            _resetSeason();
-          }
-        });
-      }
-    });
-  }
-
-  // NEW: Save season progress to shared preferences
-  Future<void> _saveSeasonProgress() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('secondsRemaining', _secondsRemaining);
-  }
-
-  // UPDATED: Season reset with 50% points reduction
-  Future<void> _resetSeason() async {
-    try {
-      // Apply 50% points reduction to all users
-      await _applyPointsReduction();
-
-      final response = await ApiService.resetSeasonScores(_currentSeason);
-      if (response['success'] == true) {
-        final prefs = await SharedPreferences.getInstance();
-
-        // Increment season and start new one
-        setState(() {
-          _currentSeason++;
-        });
-
-        _startNewSeason(prefs);
-
-        // Reload leaderboard data to show updated points
-        _loadLeaderboardData();
-
-        final awardedBadges = response['awarded_badges'] ?? [];
-        final topUsers = response['top_users'] ?? [];
-
-        if (awardedBadges.isNotEmpty) {
-          _showBadgeAwardDialog(awardedBadges, topUsers);
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('🎉 New season started! Points reduced by 50%'),
-                backgroundColor: Colors.green,
-                duration: Duration(seconds: 5),
-              ),
-            );
-          }
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error resetting season: ${response['message']}'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error resetting season: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
-
-  // NEW: Apply 50% points reduction to all users
-  Future<void> _applyPointsReduction() async {
-    try {
-      print('Applying 50% points reduction for new season...');
-
-      // Get all users from database
-      final usersResponse = await ApiService.getAllUsers();
-      if (usersResponse['success'] == true && usersResponse['users'] != null) {
-        final users = List<Map<String, dynamic>>.from(usersResponse['users']);
-
-        for (final user in users) {
-          final userId = user['id'];
-          if (userId != null) {
-            // Get user's current scores
-            final languages = ['Python', 'Java', 'C++', 'PHP', 'SQL'];
-
-            for (final language in languages) {
-              final scoresResponse = await ApiService.getScores(userId, language);
-              if (scoresResponse['success'] == true && scoresResponse['scores'] != null) {
-                final scores = Map<String, dynamic>.from(scoresResponse['scores']);
-
-                // Apply 50% reduction to each score
-                for (final entry in scores.entries) {
-                  final level = int.parse(entry.key);
-                  final scoreData = Map<String, dynamic>.from(entry.value);
-                  final currentScore = _getInt(scoreData['score']);
-
-                  if (currentScore > 0) {
-                    // Calculate new score (50% reduction, minimum 1)
-                    final newScore = (currentScore * 0.5).ceil();
-                    final reducedScore = newScore > 0 ? newScore : 1;
-
-                    // Update the score in database
-                    await ApiService.saveScore(
-                        userId,
-                        language,
-                        level,
-                        reducedScore,
-                        scoreData['completed'] == true
-                    );
-
-                    print('Reduced $language Level $level score from $currentScore to $reducedScore for user $userId');
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        print('50% points reduction applied successfully for all users');
-      }
-    } catch (e) {
-      print('Error applying points reduction: $e');
-    }
-  }
-
-  void _startShiningAnimation() {
-    Future.delayed(const Duration(milliseconds: 1000), () {
-      if (mounted) {
-        setState(() {
-          _isTop1Shining = !_isTop1Shining;
-        });
-        _startShiningAnimation();
-      }
     });
   }
 
@@ -484,7 +422,6 @@ class _HomeScreenState extends State<HomeScreen> {
         if (response['leaderboard'] != null && response['leaderboard'] is List) {
           final rawData = List<Map<String, dynamic>>.from(response['leaderboard']);
 
-          // FILTER: Only show users with points > 0
           final filteredData = rawData.where((user) {
             final points = _getInt(user['points']);
             return points > 0;
@@ -535,7 +472,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // NEW: Load only leaderboard data (preserves level progress)
   Future<void> _loadLeaderboardData() async {
     if (!mounted) return;
 
@@ -548,7 +484,6 @@ class _HomeScreenState extends State<HomeScreen> {
         if (response['leaderboard'] != null && response['leaderboard'] is List) {
           final rawData = List<Map<String, dynamic>>.from(response['leaderboard']);
 
-          // FILTER: Only show users with points > 0
           final filteredData = rawData.where((user) {
             final points = _getInt(user['points']);
             return points > 0;
@@ -576,9 +511,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // FIXED: Time format with seconds always included
   String _formatTime(int seconds) {
-    // Always show hours, minutes, and seconds
     int days = seconds ~/ 86400;
     int hours = (seconds % 86400) ~/ 3600;
     int minutes = (seconds % 3600) ~/ 60;
@@ -672,6 +605,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             TextButton(
               onPressed: () async {
+                // IMPORTANT: Season continues even after logout
                 await UserPreferences.clearUser();
                 Navigator.of(context).pop();
                 Navigator.pushNamedAndRemoveUntil(
@@ -804,7 +738,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // FIXED: Top 10 card is no longer clickable
   Widget _buildTop10Card(Map<String, dynamic> user, int rank) {
     final username = _getString(user['username']);
     final points = _getInt(user['points']);
@@ -952,7 +885,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTop10Season() {
-    // Only show users with points > 0
     final usersWithPoints = leaderboardData.where((user) {
       final points = _getInt(user['points']);
       return points > 0;
@@ -1003,27 +935,17 @@ class _HomeScreenState extends State<HomeScreen> {
           Padding(
             padding: const EdgeInsets.only(left: 8, bottom: 12),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.emoji_events, color: Colors.tealAccent, size: 22),
-                    const SizedBox(width: 6),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Top 10 Coders',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                const Icon(Icons.emoji_events, color: Colors.tealAccent, size: 22),
+                const SizedBox(width: 6),
+                const Text(
+                  'Top 10 Coders',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontFamily: 'monospace',
+                  ),
                 ),
               ],
             ),
@@ -1221,6 +1143,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // FIXED: Add back the missing leaderboard dialog method
   void _showLeaderboardDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -1336,6 +1259,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // FIXED: Add back the missing leaderboard dialog content method
   Widget _buildLeaderboardDialogContent() {
     if (_isLoading) {
       return Center(
@@ -1374,7 +1298,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // Only show users with points > 0
     final usersWithPoints = leaderboardData.where((user) {
       final points = _getInt(user['points']);
       return points > 0;
@@ -1422,7 +1345,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // FIXED: Leaderboard dialog items are no longer clickable
+  // FIXED: Add back the missing leaderboard dialog item method
   Widget _buildLeaderboardDialogItem(Map<String, dynamic> user, int rank) {
     final username = _getString(user['username']);
     final points = _getInt(user['points']);
@@ -1535,51 +1458,49 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // UPDATED: Points info to show 50% reduction
+  // UPDATED: Points info dialog
   void _showPointsInfo(BuildContext context) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF1B263B),
+        backgroundColor: Color(0xFF1B263B),
         title: Row(
           children: [
-            const Icon(Icons.emoji_events, color: Colors.tealAccent),
-            const SizedBox(width: 10),
-            const Text("🏆 Points System", style: TextStyle(color: Colors.white)),
+            Icon(Icons.emoji_events, color: Colors.tealAccent),
+            SizedBox(width: 10),
+            Text("🏆 Points System", style: TextStyle(color: Colors.white)),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Each score point = 10 leaderboard points:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-            const SizedBox(height: 10),
+            Text("Each score point = 10 leaderboard points:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+            SizedBox(height: 10),
             _buildPointsRow("Score 1/3", "10 points"),
             _buildPointsRow("Score 2/3", "20 points"),
             _buildPointsRow("Score 3/3", "30 points"),
-            const SizedBox(height: 10),
-            const Text("💡 Tip: Get perfect scores to climb the leaderboard faster!", style: TextStyle(color: Colors.white70)),
-            const SizedBox(height: 10),
-            // UPDATED: 24 hours season with 50% reduction
-            const Text("Season Reset: Every 24 hours", style: TextStyle(color: Colors.tealAccent, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 5),
-            Text("Current Season: $_currentSeason (${_formatTime(_secondsRemaining)} remaining)", style: const TextStyle(color: Colors.white70)),
-            const SizedBox(height: 10),
-            // NEW: Points reduction info
+            SizedBox(height: 10),
+            Text("💡 Tip: Get perfect scores to climb the leaderboard faster!", style: TextStyle(color: Colors.white70)),
+            SizedBox(height: 10),
+            Text("Season Reset: Every 24 hours", style: TextStyle(color: Colors.tealAccent, fontWeight: FontWeight.bold)),
+            SizedBox(height: 5),
+            Text("Current Season: $_currentSeason", style: TextStyle(color: Colors.white70)),
+            SizedBox(height: 10),
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: Colors.orange.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.orange),
               ),
-              child: const Row(
+              child: Row(
                 children: [
                   Icon(Icons.trending_down, color: Colors.orange, size: 16),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      "50% points reduction each season",
+                      "50% leaderboard points reduction each season",
                       style: TextStyle(
                         color: Colors.orange,
                         fontSize: 12,
@@ -1590,16 +1511,66 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 10),
-            const Text("🏅 Top 3 players earn special badges each season!", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            const Text("✅ Your level progress is always preserved!", style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
+            SizedBox(height: 10),
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.verified, color: Colors.green, size: 16),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "Level progress and scores are preserved!",
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 10),
+            Text("🏅 Top 3 players earn special badges each season!", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+            SizedBox(height: 5),
+            Text("✅ Your level unlocks and completions are safe!", style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
+            SizedBox(height: 10),
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.public, color: Colors.blue, size: 16),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "Season continues for ALL users - even after logout!",
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Got it!", style: TextStyle(color: Colors.tealAccent)),
+            child: Text("Got it!", style: TextStyle(color: Colors.tealAccent)),
           )
         ],
       ),
@@ -1608,20 +1579,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildPointsRow(String score, String points) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          const Icon(Icons.arrow_forward, size: 16, color: Colors.tealAccent),
-          const SizedBox(width: 8),
-          Text(score, style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.white)),
-          const Spacer(),
-          Text(points, style: const TextStyle(color: Colors.tealAccent, fontWeight: FontWeight.bold)),
+          Icon(Icons.arrow_forward, size: 16, color: Colors.tealAccent),
+          SizedBox(width: 8),
+          Text(score, style: TextStyle(fontWeight: FontWeight.w500, color: Colors.white)),
+          Spacer(),
+          Text(points, style: TextStyle(color: Colors.tealAccent, fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 
-  // FIXED: Build search bar for search mode
   Widget _buildSearchBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1674,7 +1644,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // FIXED: Build search results with proper styling
   Widget _buildSearchResults() {
     if (_searchLoading) {
       return const Center(
@@ -1822,241 +1791,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // UPDATED: Show badge award dialog with 50% points reduction info
-  void _showBadgeAwardDialog(List<dynamic> awardedBadges, List<dynamic> topUsers) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1B263B),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: const BorderSide(color: Colors.tealAccent, width: 2),
-          ),
-          title: Row(
-            children: [
-              const Icon(Icons.emoji_events, color: Colors.amber, size: 30),
-              const SizedBox(width: 10),
-              Text(
-                'Season ${_currentSeason - 1} Results!',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Congratulations to the top players!',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                if (topUsers.isNotEmpty) _buildTopUserBadge(topUsers[0], 1),
-                if (topUsers.length > 1) _buildTopUserBadge(topUsers[1], 2),
-                if (topUsers.length > 2) _buildTopUserBadge(topUsers[2], 3),
-
-                const SizedBox(height: 20),
-
-                // NEW: Points reduction information
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.orange, width: 1),
-                  ),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.trending_down, color: Colors.orange, size: 30),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Scores Reduced by 50%',
-                        style: TextStyle(
-                          color: Colors.orange,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'All player scores halved for new season',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Level progress preserved',
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-                const Text(
-                  '🏆 New season started! 🏆',
-                  style: TextStyle(
-                    color: Colors.tealAccent,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  '24h Season $_currentSeason',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'This season lasts 24 hours',
-                  style: TextStyle(
-                    color: Colors.tealAccent,
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('🎉 24h Season started! Points reduced by 50%'),
-                      backgroundColor: Colors.green,
-                      duration: Duration(seconds: 5),
-                    ),
-                  );
-                }
-              },
-              child: const Text(
-                'Start New Season',
-                style: TextStyle(
-                  color: Colors.tealAccent,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildTopUserBadge(dynamic user, int rank) {
-    final userMap = user is Map<String, dynamic> ? user : <String, dynamic>{};
-    final username = _getString(userMap['username']);
-    final points = _getInt(userMap['points']);
-
-    Color badgeColor;
-    IconData badgeIcon;
-    String badgeText;
-
-    switch (rank) {
-      case 1:
-        badgeColor = Colors.amber;
-        badgeIcon = Icons.emoji_events;
-        badgeText = 'CHAMPION';
-        break;
-      case 2:
-        badgeColor = const Color(0xFFC0C0C0);
-        badgeIcon = Icons.workspace_premium;
-        badgeText = 'RUNNER-UP';
-        break;
-      case 3:
-        badgeColor = const Color(0xFFCD7F32);
-        badgeIcon = Icons.star;
-        badgeText = 'TOP 3';
-        break;
-      default:
-        badgeColor = Colors.tealAccent;
-        badgeIcon = Icons.person;
-        badgeText = 'TOP $rank';
-    }
-
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: badgeColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: badgeColor, width: 2),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: badgeColor,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(badgeIcon, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  username,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  badgeText,
-                  style: TextStyle(
-                    color: badgeColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$points points',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Helper methods
   String _getString(dynamic value) {
     if (value == null) return 'Unknown';
     return value.toString();
@@ -2088,7 +1822,6 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         centerTitle: true,
         actions: [
-          // SEARCH BUTTON
           IconButton(
             icon: const Icon(Icons.search, color: Colors.tealAccent),
             onPressed: () {
@@ -2101,6 +1834,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             tooltip: 'Search Users',
           ),
+          // FIXED: This button should show leaderboard dialog, not points info
           IconButton(
             icon: const Icon(Icons.leaderboard, color: Colors.tealAccent),
             onPressed: () => _showLeaderboardDialog(context),
@@ -2113,25 +1847,25 @@ class _HomeScreenState extends State<HomeScreen> {
               PopupMenuItem(
                 value: 'Profile',
                 child: ListTile(
-                  leading: const Icon(Icons.person, color: Colors.tealAccent),
+                  leading: const Icon(Icons.person, color: Colors.black87),
                   title: Text(
                     'Profile: ${_getString(currentUser?['username'])}',
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: Colors.black87),
                   ),
                 ),
               ),
               PopupMenuItem(
                 value: 'PointsInfo',
                 child: const ListTile(
-                  leading: Icon(Icons.emoji_events, color: Colors.tealAccent),
-                  title: Text('Points System', style: TextStyle(color: Colors.white)),
+                  leading: Icon(Icons.emoji_events, color: Colors.black87),
+                  title: Text('Points System', style: TextStyle(color: Colors.black87)),
                 ),
               ),
               PopupMenuItem(
                 value: 'Settings',
                 child: const ListTile(
-                  leading: Icon(Icons.settings, color: Colors.tealAccent),
-                  title: Text('Settings', style: TextStyle(color: Colors.white)),
+                  leading: Icon(Icons.settings, color: Colors.black87),
+                  title: Text('Settings', style: TextStyle(color: Colors.black87)),
                 ),
               ),
               const PopupMenuDivider(),
@@ -2170,13 +1904,8 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 16),
-
-                // User Card with BUTTON EFFECT
                 _buildUserCard(),
-
                 const SizedBox(height: 20),
-
-                // Start Coding Button
                 ElevatedButton.icon(
                   icon: const Icon(Icons.code, color: Colors.white, size: 20),
                   label: const Text('Start Coding', style: TextStyle(fontSize: 16, color: Colors.white)),
@@ -2193,18 +1922,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     elevation: 6,
                   ),
                 ),
-
-                // Training Mode Button
                 _buildTrainingModeButton(),
-
-                // Programming Modules Button
                 _buildProgrammingModulesButton(),
-
                 const SizedBox(height: 16),
-
-                // Top 10 Season Section
+                // FIXED: This will now show the Top 10 Coders section
                 _buildTop10Season(),
-
                 const SizedBox(height: 16),
               ],
             ),

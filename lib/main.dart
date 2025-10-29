@@ -13,62 +13,101 @@ import 'screens/game_screen.dart';
 import 'screens/forgot_password_page.dart';
 import 'screens/settings_screen.dart';
 import 'screens/training_mode_screen.dart';
+import 'screens/difficulty_selection_screen.dart';
 
 // Import per-language level screens
-import 'levels/python/level1.dart';
-import 'levels/python/level2.dart';
-import 'levels/python/level3.dart';
-import 'levels/python/level4.dart';
-import 'levels/python/level5.dart';
-import 'levels/python/level6.dart';
-import 'levels/python/level7.dart';
-import 'levels/python/level8.dart';
-import 'levels/python/level9.dart';
-import 'levels/python/level10.dart';
+import 'levels/python/easy/level1.dart';
+import 'levels/python/easy/level2.dart';
+import 'levels/python/easy/level3.dart';
+import 'levels/python/easy/level4.dart';
+import 'levels/python/easy/level5.dart';
+import 'levels/python/easy/level6.dart';
+import 'levels/python/easy/level7.dart';
+import 'levels/python/easy/level8.dart';
+import 'levels/python/easy/level9.dart';
+import 'levels/python/easy/level10.dart';
 
-import 'levels/java/level1.dart';
-import 'levels/java/level2.dart';
-import 'levels/java/level3.dart';
-import 'levels/java/level4.dart';
-import 'levels/java/level5.dart';
-import 'levels/java/level6.dart';
-import 'levels/java/level7.dart';
-import 'levels/java/level8.dart';
-import 'levels/java/level9.dart';
-import 'levels/java/level10.dart';
+// PYTHON MEDIUM
+import 'levels/python/medium/level1.dart';
+import 'levels/python/medium/level2.dart';
 
-import 'levels/cpp/level1.dart';
-import 'levels/cpp/level2.dart';
-import 'levels/cpp/level3.dart';
-import 'levels/cpp/level4.dart';
-import 'levels/cpp/level5.dart';
-import 'levels/cpp/level6.dart';
-import 'levels/cpp/level7.dart';
-import 'levels/cpp/level8.dart';
-import 'levels/cpp/level9.dart';
-import 'levels/cpp/level10.dart';
+// PYTHON HARD
+import 'levels/python/hard/level1.dart';
+import 'levels/python/hard/level2.dart';
 
-import 'levels/php/level1.dart';
-import 'levels/php/level2.dart';
-import 'levels/php/level3.dart';
-import 'levels/php/level4.dart';
-import 'levels/php/level5.dart';
-import 'levels/php/level6.dart';
-import 'levels/php/level7.dart';
-import 'levels/php/level8.dart';
-import 'levels/php/level9.dart';
-import 'levels/php/level10.dart';
+import 'levels/java/easy/level1.dart';
+import 'levels/java/easy/level2.dart';
+import 'levels/java/easy/level3.dart';
+import 'levels/java/easy/level4.dart';
+import 'levels/java/easy/level5.dart';
+import 'levels/java/easy/level6.dart';
+import 'levels/java/easy/level7.dart';
+import 'levels/java/easy/level8.dart';
+import 'levels/java/easy/level9.dart';
+import 'levels/java/easy/level10.dart';
 
-import 'levels/sql/level1.dart';
-import 'levels/sql/level2.dart';
-import 'levels/sql/level3.dart';
-import 'levels/sql/level4.dart';
-import 'levels/sql/level5.dart';
-import 'levels/sql/level6.dart';
-import 'levels/sql/level7.dart';
-import 'levels/sql/level8.dart';
-import 'levels/sql/level9.dart';
-import 'levels/sql/level10.dart';
+// JAVA MEDIUM
+import 'levels/java/medium/level1.dart';
+import 'levels/java/medium/level2.dart';
+
+// JAVA HARD
+import 'levels/java/hard/level1.dart';
+import 'levels/java/hard/level2.dart';
+
+import 'levels/cpp/easy/level1.dart';
+import 'levels/cpp/easy/level2.dart';
+import 'levels/cpp/easy/level3.dart';
+import 'levels/cpp/easy/level4.dart';
+import 'levels/cpp/easy/level5.dart';
+import 'levels/cpp/easy/level6.dart';
+import 'levels/cpp/easy/level7.dart';
+import 'levels/cpp/easy/level8.dart';
+import 'levels/cpp/easy/level9.dart';
+import 'levels/cpp/easy/level10.dart';
+
+ // C++ MEDIUM
+import 'levels/cpp/medium/level1.dart';
+import 'levels/cpp/medium/level2.dart';
+import 'levels/cpp/medium/level3.dart';
+
+// C++ HARD
+import 'levels/cpp/hard/level1.dart';
+import 'levels/cpp/hard/level2.dart';
+import 'levels/cpp/hard/level3.dart';
+
+import 'levels/php/easy/level1.dart';
+import 'levels/php/easy/level2.dart';
+import 'levels/php/easy/level3.dart';
+import 'levels/php/easy/level4.dart';
+import 'levels/php/easy/level5.dart';
+import 'levels/php/easy/level6.dart';
+import 'levels/php/easy/level7.dart';
+import 'levels/php/easy/level8.dart';
+import 'levels/php/easy/level9.dart';
+import 'levels/php/easy/level10.dart';
+
+// PHP MEDIUM
+import 'levels/php/medium/level1.dart';
+
+// PHP HARD
+import 'levels/php/hard/level1.dart';
+
+import 'levels/sql/easy/level1.dart';
+import 'levels/sql/easy/level2.dart';
+import 'levels/sql/easy/level3.dart';
+import 'levels/sql/easy/level4.dart';
+import 'levels/sql/easy/level5.dart';
+import 'levels/sql/easy/level6.dart';
+import 'levels/sql/easy/level7.dart';
+import 'levels/sql/easy/level8.dart';
+import 'levels/sql/easy/level9.dart';
+import 'levels/sql/easy/level10.dart';
+
+// SQL MEDIUM
+import 'levels/sql/medium/level1.dart';
+
+// SQL HARD
+import 'levels/sql/hard/level1.dart';
 
 // Import new module screens
 import 'screens/php_modules_screen.dart';
@@ -166,6 +205,7 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           '/home': (context) => const HomeScreen(),
           '/profile': (context) => const ProfileScreen(),
           '/select_language': (context) => const SelectLanguageScreen(),
+          '/select_difficulty': (context) => const DifficultySelectionScreen(),
           '/levels': (context) => const LevelSelectionScreen(),
           '/game': (context) => const GameScreen(),
           '/forgot_password': (context) => const ForgotPasswordPage(),
@@ -191,6 +231,14 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           '/python_level9': (context) => const PythonLevel9(),
           '/python_level10': (context) => const PythonLevel10(),
 
+          // PYTHON MEDIUM LEVELS
+          '/python_level1_medium': (context) => const PythonLevel1Medium(),
+          '/python_level2_medium': (context) => const PythonLevel2Medium(),
+
+          // PYTHON HARD LEVELS
+          '/python_level1_hard': (context) => const PythonLevel1Hard(),
+          '/python_level2_hard': (context) => const PythonLevel2Hard(),
+
           // Java levels
           '/java_level1': (context) => const JavaLevel1(),
           '/java_level2': (context) => const JavaLevel2(),
@@ -202,6 +250,14 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           '/java_level8': (context) => const JavaLevel8(),
           '/java_level9': (context) => const JavaLevel9(),
           '/java_level10': (context) => const JavaLevel10(),
+
+          // JAVA MEDIUM LEVELS
+          '/java_level1_medium': (context) => const JavaLevel1Medium(),
+          '/java_level2_medium': (context) => const JavaLevel2Medium(),
+
+          // JAVA HARD LEVELS
+          '/java_level1_hard': (context) => const JavaLevel1Hard(),
+          '/java_level2_hard': (context) => const JavaLevel2Hard(),
 
           // C++ levels
           '/cpp_level1': (context) => const CppLevel1(),
@@ -215,6 +271,16 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           '/cpp_level9': (context) => const CppLevel9(),
           '/cpp_level10': (context) => const CppLevel10(),
 
+          // C++ MEDIUM LEVELS
+          '/cpp_level1_medium': (context) => const CppLevel1Medium(),
+          '/cpp_level2_medium': (context) => const CppLevel2Medium(),
+          '/cpp_level3_medium': (context) => const CppLevel3Medium(),
+
+          // C++ HARD LEVELS
+          '/cpp_level1_hard': (context) => const CppLevel1Hard(),
+          '/cpp_level2_hard': (context) => const CppLevel2Hard(),
+          '/cpp_level3_hard': (context) => const CppLevel3Hard(),
+
           // PHP levels
           '/php_level1': (context) => const PhpLevel1(),
           '/php_level2': (context) => const PhpLevel2(),
@@ -227,6 +293,12 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           '/php_level9': (context) => const PhpLevel9(),
           '/php_level10': (context) => const PhpLevel10(),
 
+          // PHP MEDIUM LEVELS
+          '/php_level1_medium': (context) => const PhpLevel1Medium(),
+
+          // PHP HARD LEVELS
+          '/php_level1_hard': (context) => const PhpLevel1Hard(),
+
           // SQL levels
           '/sql_level1': (context) => const SqlLevel1(),
           '/sql_level2': (context) => const SqlLevel2(),
@@ -238,6 +310,12 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           '/sql_level8': (context) => const SqlLevel8(),
           '/sql_level9': (context) => const SqlLevel9(),
           '/sql_level10': (context) => const SqlLevel10(),
+
+          // SQL MEDIUM LEVELS
+          '/sql_level1_medium': (context) => const SqlLevel1Medium(),
+
+          // SQL HARD LEVELS
+          '/sql_level1_hard': (context) => const SqlLevel1Hard(),
         },
       ),
     );

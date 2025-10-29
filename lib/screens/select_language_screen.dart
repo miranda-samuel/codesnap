@@ -404,7 +404,7 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
 
             Navigator.pushNamed(
               context,
-              '/levels',
+              '/select_difficulty',
               arguments: language,
             );
           },

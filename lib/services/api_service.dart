@@ -19,9 +19,224 @@ class ApiService {
     return false;
   }
 
-  // Auth methods
+  // Helper function for min/max
+  static int max(int a, int b) => a > b ? a : b;
+  static int min(int a, int b) => a < b ? a : b;
+
+  // ✅ FIXED: ACTUAL GAME SCORING - ALLOW SCORE 0
+  static Future<Map<String, dynamic>> saveScore(int userId, String language, int level, int score, bool completed) async {
+    try {
+      // ✅ FIXED: Allow score 0, 1, 2, or 3 (not just 1-3)
+      final actualScore = max(0, min(3, score)); // Allow scores 0-3
+
+      print('🎮 SAVING SCORE - User: $userId, $language Level $level, Score: $actualScore/3, Completed: $completed');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/scores.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'save_score',
+          'user_id': userId,
+          'language': language,
+          'level': level,
+          'score': actualScore, // ✅ ACTUAL SCORE (0,1,2,3) - NO REDUCTION
+          'completed': completed,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        print('✅ SCORE SAVED SUCCESS: $actualScore/3 for $language Level $level');
+        print('📊 SERVER RESPONSE: $result');
+        return result;
+      } else {
+        print('❌ SCORE SAVE FAILED: Server error ${response.statusCode}');
+        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      print('❌ SCORE SAVE ERROR: $e');
+      return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
+
+  // ✅ FIXED: For Medium and Hard difficulties - ALLOW SCORE 0
+  static Future<Map<String, dynamic>> saveScoreWithDifficulty(int userId, String language, String difficulty, int level, int score, bool completed) async {
+    try {
+      // ✅ FIXED: Allow score 0, 1, 2, or 3 (not just 1-3)
+      final actualScore = max(0, min(3, score));
+
+      // Use unique key for each difficulty
+      String scoreKey = '${language}_$difficulty';
+
+      print('🎮 SAVING SCORE - User: $userId, $language $difficulty Level $level, Score: $actualScore/3, Completed: $completed');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/scores.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'save_score',
+          'user_id': userId,
+          'language': scoreKey,
+          'level': level,
+          'score': actualScore, // ✅ ACTUAL SCORE (0,1,2,3) - NO REDUCTION
+          'completed': completed,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        print('✅ SCORE SAVED SUCCESS: $actualScore/3 for $language $difficulty Level $level');
+        return result;
+      } else {
+        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
+
+  // ✅ FIXED: Get scores with proper debugging
+  static Future<Map<String, dynamic>> getScores(int userId, String language) async {
+    try {
+      print('🔍 GETTING SCORES - User: $userId, Language: $language');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/scores.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'get_scores',
+          'user_id': userId,
+          'language': language,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('📊 SCORES RESPONSE RAW: $data');
+
+        // Process scores to ensure proper types
+        if (data['success'] == true && data['scores'] != null) {
+          final Map<String, dynamic> processedScores = {};
+          data['scores'].forEach((key, value) {
+            processedScores[key] = {
+              'score': _safeIntConversion(value['score']),
+              'completed': _safeBoolConversion(value['completed']),
+            };
+          });
+          data['scores'] = processedScores;
+
+          print('🎯 PROCESSED SCORES: $processedScores');
+        } else {
+          print('⚠️ NO SCORES FOUND or ERROR: ${data['message']}');
+        }
+
+        return data;
+      } else {
+        print('❌ GET SCORES FAILED: Server error ${response.statusCode}');
+        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      print('❌ GET SCORES ERROR: $e');
+      return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getScoresWithDifficulty(int userId, String language, String difficulty) async {
+    try {
+      // Use unique key for each difficulty
+      String scoreKey = '${language}_$difficulty';
+
+      print('🔍 GETTING SCORES - User: $userId, Language: $scoreKey');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/scores.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'get_scores',
+          'user_id': userId,
+          'language': scoreKey,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        if (data['success'] == true && data['scores'] != null) {
+          final Map<String, dynamic> processedScores = {};
+          data['scores'].forEach((key, value) {
+            processedScores[key] = {
+              'score': _safeIntConversion(value['score']),
+              'completed': _safeBoolConversion(value['completed']),
+            };
+          });
+          data['scores'] = processedScores;
+        }
+
+        return data;
+      } else {
+        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> resetScores(int userId, String language) async {
+    try {
+      print('🔄 RESETTING SCORES - User: $userId, Language: $language');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/scores.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'reset_scores',
+          'user_id': userId,
+          'language': language,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        print('✅ SCORES RESET SUCCESS: $result');
+        return result;
+      } else {
+        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> resetScoresWithDifficulty(int userId, String language, String difficulty) async {
+    try {
+      // Use unique key for each difficulty
+      String scoreKey = '${language}_$difficulty';
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/scores.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'reset_scores',
+          'user_id': userId,
+          'language': scoreKey,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
+
+  // AUTH METHODS
   static Future<Map<String, dynamic>> login(String username, String password) async {
     try {
+      print('🔐 LOGIN ATTEMPT - Username: $username');
+
       final response = await http.post(
         Uri.parse('$baseUrl/auth.php'),
         headers: {'Content-Type': 'application/json'},
@@ -33,7 +248,9 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        final result = jsonDecode(response.body);
+        print('✅ LOGIN RESPONSE: $result');
+        return result;
       } else {
         return {'success': false, 'message': 'Server error: ${response.statusCode}'};
       }
@@ -65,9 +282,10 @@ class ApiService {
     }
   }
 
-  // NEW METHOD: Get all users from database - FIXED VERSION
   static Future<Map<String, dynamic>> getAllUsers() async {
     try {
+      print('👥 GETTING ALL USERS');
+
       final response = await http.get(
         Uri.parse('$baseUrl/auth.php?action=get_all_users'),
         headers: {'Content-Type': 'application/json'},
@@ -75,7 +293,6 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('Get All Users Response: $data'); // Debug logging
 
         if (data['success'] == true && data['users'] != null) {
           return {
@@ -95,7 +312,6 @@ class ApiService {
         };
       }
     } catch (e) {
-      print('Error getting all users: $e');
       return {
         'success': false,
         'message': 'Connection error: $e'
@@ -103,7 +319,6 @@ class ApiService {
     }
   }
 
-  // NEW METHOD: Search users
   static Future<Map<String, dynamic>> searchUsers(String searchTerm) async {
     try {
       final response = await http.post(
@@ -117,7 +332,6 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('Search Users Response: $data'); // Debug logging
 
         if (data['success'] == true && data['users'] != null) {
           return {
@@ -137,7 +351,6 @@ class ApiService {
         };
       }
     } catch (e) {
-      print('Error searching users: $e');
       return {
         'success': false,
         'message': 'Connection error: $e'
@@ -145,132 +358,42 @@ class ApiService {
     }
   }
 
-  // Score methods - UPDATED to preserve level progress
-  static Future<Map<String, dynamic>> saveScore(int userId, String language, int level, int score, bool completed) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/scores.php'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'action': 'save_score',
-          'user_id': userId,
-          'language': language,
-          'level': level,
-          'score': score,
-          'completed': completed,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
-      }
-    } catch (e) {
-      return {'success': false, 'message': 'Connection error: $e'};
-    }
-  }
-
-  static Future<Map<String, dynamic>> getScores(int userId, String language) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/scores.php'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'action': 'get_scores',
-          'user_id': userId,
-          'language': language,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        // Process scores to ensure proper types
-        if (data['success'] == true && data['scores'] != null) {
-          final Map<String, dynamic> processedScores = {};
-          data['scores'].forEach((key, value) {
-            processedScores[key] = {
-              'score': _safeIntConversion(value['score']),
-              'completed': _safeBoolConversion(value['completed']),
-            };
-          });
-          data['scores'] = processedScores;
-        }
-
-        return data;
-      } else {
-        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
-      }
-    } catch (e) {
-      return {'success': false, 'message': 'Connection error: $e'};
-    }
-  }
-
-  static Future<Map<String, dynamic>> resetScores(int userId, String language) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/scores.php'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'action': 'reset_scores',
-          'user_id': userId,
-          'language': language,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
-      }
-    } catch (e) {
-      return {'success': false, 'message': 'Connection error: $e'};
-    }
-  }
-
-  // UPDATE: Reset season scores method
+  // SEASON METHODS
   static Future<Map<String, dynamic>> resetSeasonScores(int season) async {
     try {
+      print('🔄 RESETTING SEASON $season');
+
       final response = await http.get(
         Uri.parse('$baseUrl/scores.php?action=reset_season&season=$season'),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('Season $season reset response: $data');
+
+        if (data['success'] == true) {
+          return {
+            'success': true,
+            'current_season': data['current_season'] ?? season,
+            'next_season': data['next_season'] ?? (season + 1),
+            'awarded_badges': data['awarded_badges'] ?? [],
+            'top_users': data['top_users'] ?? [],
+            'message': data['message'] ?? 'Season reset successfully - Levels preserved',
+            'note': data['note'] ?? 'Level progress preserved, only leaderboard points reduced'
+          };
+        }
         return data;
       } else {
         return {'success': false, 'message': 'Server error: ${response.statusCode}'};
       }
     } catch (e) {
-      print('Error resetting season: $e');
-      return {'success': false, 'message': 'Connection error: $e'};
-    }
-  }
-
-  // NEW METHOD: Get user badges
-  static Future<Map<String, dynamic>> getUserBadges(int userId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/scores.php?action=get_user_badges&user_id=$userId'),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        print('User badges response for user $userId: $data');
-        return data;
-      } else {
-        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
-      }
-    } catch (e) {
-      print('Error getting user badges: $e');
       return {'success': false, 'message': 'Connection error: $e'};
     }
   }
 
   static Future<Map<String, dynamic>> getLeaderboard() async {
     try {
+      print('🏆 GETTING LEADERBOARD');
+
       final response = await http.get(
         Uri.parse('$baseUrl/scores.php?action=get_leaderboard'),
       );
@@ -278,15 +401,13 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        // Debug print to see what the API returns
-        print('API Response: $data');
-
-        // Handle different response structures
         if (data['success'] == true) {
           if (data['leaderboard'] != null && data['leaderboard'] is List) {
             return {
               'success': true,
-              'leaderboard': data['leaderboard']
+              'leaderboard': data['leaderboard'],
+              'current_season': data['current_season'] ?? 1,
+              'note': data['note'] ?? ''
             };
           } else {
             return {
@@ -307,7 +428,6 @@ class ApiService {
         };
       }
     } catch (e) {
-      print('Connection error: $e');
       return {
         'success': false,
         'message': 'Connection error: $e'
@@ -315,7 +435,24 @@ class ApiService {
     }
   }
 
-  // Profile methods
+  static Future<Map<String, dynamic>> getUserBadges(int userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/scores.php?action=get_user_badges&user_id=$userId'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data;
+      } else {
+        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
+
+  // PROFILE METHODS
   static Future<Map<String, dynamic>> updateProfile(int userId, String fullName, String username) async {
     try {
       final response = await http.post(
@@ -362,9 +499,10 @@ class ApiService {
     }
   }
 
-  // UPDATED METHOD: Get user stats with better error handling and logging
   static Future<Map<String, dynamic>> getUserStats(int userId) async {
     try {
+      print('📊 GETTING USER STATS - User: $userId');
+
       final response = await http.post(
         Uri.parse('$baseUrl/profile.php'),
         headers: {'Content-Type': 'application/json'},
@@ -377,10 +515,6 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        // Debug logging
-        print('User Stats for $userId: $data');
-
-        // Process stats to ensure proper types
         if (data['success'] == true && data['stats'] != null) {
           final stats = data['stats'];
           stats['totalPoints'] = _safeIntConversion(stats['totalPoints']);
@@ -405,12 +539,11 @@ class ApiService {
         return {'success': false, 'message': 'Server error: ${response.statusCode}'};
       }
     } catch (e) {
-      print('Error getting user stats: $e');
       return {'success': false, 'message': 'Connection error: $e'};
     }
   }
 
-  // Password reset methods
+  // PASSWORD RESET METHODS
   static Future<Map<String, dynamic>> requestPasswordReset(String username) async {
     try {
       final response = await http.post(
@@ -459,7 +592,7 @@ class ApiService {
     }
   }
 
-  // Feedback method
+  // FEEDBACK METHOD
   static Future<Map<String, dynamic>> submitFeedback(int userId, String message) async {
     try {
       final response = await http.post(
@@ -482,25 +615,7 @@ class ApiService {
     }
   }
 
-  // Utility method to test connection
-  static Future<Map<String, dynamic>> testConnection() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/'),
-        headers: {'Content-Type': 'application/json'},
-      );
-
-      if (response.statusCode == 200) {
-        return {'success': true, 'message': 'Connection successful'};
-      } else {
-        return {'success': false, 'message': 'Server responded with status: ${response.statusCode}'};
-      }
-    } catch (e) {
-      return {'success': false, 'message': 'Connection error: $e'};
-    }
-  }
-
-  // Season methods
+  // SEASON INFO METHODS
   static Future<Map<String, dynamic>> getSeasonInfo() async {
     try {
       final response = await http.get(
@@ -511,12 +626,10 @@ class ApiService {
         final data = jsonDecode(response.body);
 
         if (data['success'] == true && data['season_info'] != null) {
-          // Process season info to ensure proper types
           final seasonInfo = data['season_info'];
           seasonInfo['current_season'] = _safeIntConversion(seasonInfo['current_season']);
           seasonInfo['days_remaining'] = _safeIntConversion(seasonInfo['days_remaining']);
 
-          // Parse dates if provided
           if (seasonInfo['season_start'] != null) {
             try {
               seasonInfo['season_start'] = DateTime.parse(seasonInfo['season_start']);
@@ -542,7 +655,6 @@ class ApiService {
         };
       }
     } catch (e) {
-      print('Error getting season info: $e');
       return {
         'success': false,
         'message': 'Connection error: $e'
@@ -559,10 +671,6 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        // Debug print to see what the API returns
-        print('Season Leaderboard API Response: $data');
-
-        // Handle different response structures
         if (data['success'] == true) {
           if (data['leaderboard'] != null && data['leaderboard'] is List) {
             return {
@@ -588,7 +696,6 @@ class ApiService {
         };
       }
     } catch (e) {
-      print('Connection error: $e');
       return {
         'success': false,
         'message': 'Connection error: $e'
@@ -596,461 +703,51 @@ class ApiService {
     }
   }
 
-  // NEW METHOD: Debug endpoint to test API connectivity
-  static Future<Map<String, dynamic>> debugEndpoint() async {
+  // DEBUG METHOD
+  static Future<Map<String, dynamic>> debugScoreSubmission(int userId, String language, int level, int score) async {
     try {
+      print('🔍 DEBUG SCORE SUBMISSION:');
+      print('   User: $userId');
+      print('   Language: $language');
+      print('   Level: $level');
+      print('   Score: $score (should be 0, 1, 2, or 3)');
+
       final response = await http.post(
-        Uri.parse('$baseUrl/auth.php'),
+        Uri.parse('$baseUrl/scores.php'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'action': 'debug',
+          'action': 'save_score',
+          'user_id': userId,
+          'language': language,
+          'level': level,
+          'score': score,
+          'completed': score == 3, // completed if perfect score
         }),
       );
 
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        return {
-          'success': false,
-          'message': 'Server error: ${response.statusCode}',
-          'response_body': response.body
-        };
-      }
+      print('   Server Response: ${response.body}');
+      return jsonDecode(response.body);
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Connection error: $e'
-      };
+      print('   ERROR: $e');
+      return {'success': false, 'message': 'Debug failed: $e'};
     }
   }
 
-  // NEW METHOD: Get user by ID
-  static Future<Map<String, dynamic>> getUserById(int userId) async {
+  // TEST CONNECTION
+  static Future<Map<String, dynamic>> testConnection() async {
     try {
-      // Since we don't have a direct endpoint, we'll get all users and filter
-      final response = await getAllUsers();
-      if (response['success'] == true && response['users'] != null) {
-        final users = List<Map<String, dynamic>>.from(response['users']);
-        final user = users.firstWhere(
-              (user) => user['id'] == userId,
-          orElse: () => {},
-        );
-
-        if (user.isNotEmpty) {
-          return {
-            'success': true,
-            'user': user
-          };
-        } else {
-          return {
-            'success': false,
-            'message': 'User not found'
-          };
-        }
-      } else {
-        return response;
-      }
-    } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error finding user: $e'
-      };
-    }
-  }
-
-  // NEW METHOD: Get user profile by ID or username
-  static Future<Map<String, dynamic>> getUserProfile({int? userId, String? username}) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth.php'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'action': 'get_user_profile',
-          if (userId != null) 'user_id': userId,
-          if (username != null) 'username': username,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data;
-      } else {
-        return {
-          'success': false,
-          'message': 'Server error: ${response.statusCode}'
-        };
-      }
-    } catch (e) {
-      return {
-        'success': false,
-        'message': 'Connection error: $e'
-      };
-    }
-  }
-
-  // NEW METHOD: Validate user session
-  static Future<Map<String, dynamic>> validateSession(int userId) async {
-    try {
-      final response = await getUserById(userId);
-      if (response['success'] == true) {
-        return {
-          'success': true,
-          'valid': true,
-          'user': response['user']
-        };
-      } else {
-        return {
-          'success': false,
-          'valid': false,
-          'message': response['message']
-        };
-      }
-    } catch (e) {
-      return {
-        'success': false,
-        'valid': false,
-        'message': 'Session validation error: $e'
-      };
-    }
-  }
-
-  // NEW METHOD: Get user ranking
-  static Future<Map<String, dynamic>> getUserRanking(int userId) async {
-    try {
-      final response = await getLeaderboard();
-      if (response['success'] == true && response['leaderboard'] != null) {
-        final leaderboard = List<Map<String, dynamic>>.from(response['leaderboard']);
-
-        // Find user in leaderboard
-        for (int i = 0; i < leaderboard.length; i++) {
-          final user = leaderboard[i];
-          if (user['username'] == await _getUsernameById(userId)) {
-            return {
-              'success': true,
-              'rank': i + 1,
-              'points': user['points'] ?? 0,
-              'levels_completed': user['levels_completed'] ?? 0
-            };
-          }
-        }
-
-        return {
-          'success': true,
-          'rank': leaderboard.length + 1, // Not in top list
-          'points': 0,
-          'levels_completed': 0
-        };
-      } else {
-        return response;
-      }
-    } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error getting user ranking: $e'
-      };
-    }
-  }
-
-  // Helper method to get username by ID
-  static Future<String> _getUsernameById(int userId) async {
-    try {
-      final response = await getUserById(userId);
-      if (response['success'] == true) {
-        return response['user']['username'] ?? 'Unknown';
-      }
-      return 'Unknown';
-    } catch (e) {
-      return 'Unknown';
-    }
-  }
-
-  // NEW METHOD: Bulk operations for better performance
-  static Future<Map<String, dynamic>> getMultipleUserStats(List<int> userIds) async {
-    try {
-      // Since we don't have a bulk endpoint, we'll make individual calls
-      final List<Map<String, dynamic>> results = [];
-
-      for (final userId in userIds) {
-        final response = await getUserStats(userId);
-        if (response['success'] == true) {
-          results.add({
-            'user_id': userId,
-            'stats': response['stats']
-          });
-        }
-      }
-
-      return {
-        'success': true,
-        'user_stats': results
-      };
-    } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error getting multiple user stats: $e'
-      };
-    }
-  }
-
-  // NEW METHOD: Check server status
-  static Future<Map<String, dynamic>> checkServerStatus() async {
-    try {
-      final stopwatch = Stopwatch()..start();
       final response = await http.get(
         Uri.parse('$baseUrl/'),
         headers: {'Content-Type': 'application/json'},
       );
-      stopwatch.stop();
 
       if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'status': 'online',
-          'response_time': '${stopwatch.elapsedMilliseconds}ms',
-          'server_url': baseUrl
-        };
+        return {'success': true, 'message': 'Connection successful'};
       } else {
-        return {
-          'success': false,
-          'status': 'error',
-          'http_status': response.statusCode,
-          'response_time': '${stopwatch.elapsedMilliseconds}ms'
-        };
+        return {'success': false, 'message': 'Server responded with status: ${response.statusCode}'};
       }
     } catch (e) {
-      return {
-        'success': false,
-        'status': 'offline',
-        'message': 'Server is unreachable: $e'
-      };
-    }
-  }
-
-  // NEW METHOD: Clear cache (utility for development)
-  static Future<void> clearCache() async {
-    // This would typically clear any cached data
-    print('API Service cache cleared');
-  }
-
-  // NEW METHOD: Retry mechanism for failed requests
-  static Future<Map<String, dynamic>> retryRequest(
-      Future<Map<String, dynamic>> Function() requestFunction,
-      {int maxRetries = 3, int delayMs = 1000}
-      ) async {
-    for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        final result = await requestFunction();
-        if (result['success'] == true) {
-          return result;
-        }
-
-        // If not successful but not a connection error, return immediately
-        if (!result['message'].toString().contains('Connection error')) {
-          return result;
-        }
-
-        print('Request failed (attempt $attempt/$maxRetries): ${result['message']}');
-
-        if (attempt < maxRetries) {
-          await Future.delayed(Duration(milliseconds: delayMs * attempt));
-        }
-      } catch (e) {
-        print('Request exception (attempt $attempt/$maxRetries): $e');
-        if (attempt < maxRetries) {
-          await Future.delayed(Duration(milliseconds: delayMs * attempt));
-        }
-      }
-    }
-
-    return {
-      'success': false,
-      'message': 'All retry attempts failed'
-    };
-  }
-
-  // NEW METHOD: Get user progress summary
-  static Future<Map<String, dynamic>> getUserProgressSummary(int userId) async {
-    try {
-      final statsResponse = await getUserStats(userId);
-      final badgesResponse = await getUserBadges(userId);
-      final rankingResponse = await getUserRanking(userId);
-
-      return {
-        'success': true,
-        'user_id': userId,
-        'stats': statsResponse['success'] == true ? statsResponse['stats'] : {},
-        'badges': badgesResponse['success'] == true ? badgesResponse['badges'] : [],
-        'ranking': rankingResponse['success'] == true ? rankingResponse : {},
-        'season': await getSeasonInfo(),
-      };
-    } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error getting user progress summary: $e'
-      };
-    }
-  }
-
-  // NEW METHOD: Get language-specific stats
-  static Future<Map<String, dynamic>> getLanguageStats(int userId, String language) async {
-    try {
-      final response = await getScores(userId, language);
-
-      if (response['success'] == true && response['scores'] != null) {
-        final scores = response['scores'] as Map<String, dynamic>;
-        int totalScore = 0;
-        int levelsCompleted = 0;
-        int levelsAttempted = 0;
-
-        scores.forEach((level, data) {
-          final score = _safeIntConversion(data['score']);
-          final completed = _safeBoolConversion(data['completed']);
-
-          if (score > 0) {
-            levelsAttempted++;
-            totalScore += score;
-            if (completed) {
-              levelsCompleted++;
-            }
-          }
-        });
-
-        return {
-          'success': true,
-          'language': language,
-          'total_score': totalScore,
-          'levels_completed': levelsCompleted,
-          'levels_attempted': levelsAttempted,
-          'total_points': totalScore * 10, // 1 score = 10 points
-          'completion_rate': levelsAttempted > 0 ? (levelsCompleted / levelsAttempted) * 100 : 0,
-        };
-      } else {
-        return {
-          'success': false,
-          'message': response['message'] ?? 'Failed to get language stats'
-        };
-      }
-    } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error getting language stats: $e'
-      };
-    }
-  }
-
-  // NEW METHOD: Get all languages progress for user
-  static Future<Map<String, dynamic>> getAllLanguagesProgress(int userId) async {
-    try {
-      final languages = ['Python', 'Java', 'C++', 'PHP', 'SQL'];
-      final Map<String, dynamic> progress = {};
-
-      for (final language in languages) {
-        final stats = await getLanguageStats(userId, language);
-        if (stats['success'] == true) {
-          progress[language] = stats;
-        } else {
-          progress[language] = {
-            'success': false,
-            'message': stats['message'],
-            'total_score': 0,
-            'levels_completed': 0,
-            'levels_attempted': 0,
-            'total_points': 0,
-            'completion_rate': 0,
-          };
-        }
-      }
-
-      return {
-        'success': true,
-        'user_id': userId,
-        'languages_progress': progress,
-      };
-    } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error getting all languages progress: $e'
-      };
-    }
-  }
-
-  // NEW METHOD: Test database connection specifically
-  static Future<Map<String, dynamic>> testDatabaseConnection() async {
-    try {
-      final response = await getAllUsers();
-      if (response['success'] == true) {
-        return {
-          'success': true,
-          'message': 'Database connection successful',
-          'user_count': response['users']?.length ?? 0
-        };
-      } else {
-        return {
-          'success': false,
-          'message': 'Database connection failed: ${response['message']}'
-        };
-      }
-    } catch (e) {
-      return {
-        'success': false,
-        'message': 'Database connection error: $e'
-      };
-    }
-  }
-
-  // NEW METHOD: Get server information
-  static Future<Map<String, dynamic>> getServerInfo() async {
-    try {
-      final response = await debugEndpoint();
-      if (response['success'] == true) {
-        return {
-          'success': true,
-          'server_info': response
-        };
-      } else {
-        return response;
-      }
-    } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error getting server info: $e'
-      };
-    }
-  }
-
-  // NEW METHOD: Validate all API endpoints
-  static Future<Map<String, dynamic>> validateAllEndpoints() async {
-    try {
-      final results = <String, dynamic>{};
-
-      // Test auth endpoint
-      final authTest = await testConnection();
-      results['auth_endpoint'] = authTest;
-
-      // Test database connection
-      final dbTest = await testDatabaseConnection();
-      results['database'] = dbTest;
-
-      // Test scores endpoint
-      final scoresTest = await getLeaderboard();
-      results['scores_endpoint'] = scoresTest;
-
-      // Test profile endpoint
-      final profileTest = await debugEndpoint();
-      results['profile_endpoint'] = profileTest;
-
-      return {
-        'success': true,
-        'validation_results': results,
-        'all_endpoints_working': authTest['success'] == true &&
-            dbTest['success'] == true &&
-            scoresTest['success'] == true
-      };
-    } catch (e) {
-      return {
-        'success': false,
-        'message': 'Validation error: $e'
-      };
+      return {'success': false, 'message': 'Connection error: $e'};
     }
   }
 }
