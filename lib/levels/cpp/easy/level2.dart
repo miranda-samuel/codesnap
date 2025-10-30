@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'dart:convert';
 import '../../../services/api_service.dart';
 import '../../../services/user_preferences.dart';
 import '../../../services/music_service.dart';
@@ -37,6 +38,11 @@ class _CppLevel2State extends State<CppLevel2> {
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
+  // NEW: Game configuration from database
+  Map<String, dynamic>? gameConfig;
+  bool isLoading = true;
+  String? errorMessage;
+
   // NEW: Hint card system using UserPreferences
   int _availableHintCards = 0;
   bool _showHint = false;
@@ -46,11 +52,166 @@ class _CppLevel2State extends State<CppLevel2> {
   @override
   void initState() {
     super.initState();
-    resetBlocks();
+    _loadGameConfig(); // Load from database first
     _loadUserData();
     _calculateScaleFactor();
     _startGameMusic();
-    _loadHintCards(); // Load hint cards for current user
+    _loadHintCards();
+  }
+
+  // NEW METHOD: Load game configuration from database
+  Future<void> _loadGameConfig() async {
+    try {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+
+      final response = await ApiService.getGameConfig('C++', 2); // CHANGED: Level 2
+
+      print('🔍 GAME CONFIG RESPONSE:');
+      print('   Success: ${response['success']}');
+      print('   Message: ${response['message']}');
+
+      if (response['success'] == true && response['game'] != null) {
+        setState(() {
+          gameConfig = response['game'];
+          _initializeGameFromConfig();
+        });
+      } else {
+        setState(() {
+          errorMessage = response['message'] ?? 'Failed to load game configuration from database';
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading game config: $e');
+      setState(() {
+        errorMessage = 'Connection error: $e';
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  // NEW METHOD: Initialize game using database configuration
+  void _initializeGameFromConfig() {
+    if (gameConfig == null) return;
+
+    try {
+      print('🔄 INITIALIZING GAME FROM CONFIG');
+      print('📋 Correct Blocks Raw: ${gameConfig!['correct_blocks']}');
+      print('📋 Incorrect Blocks Raw: ${gameConfig!['incorrect_blocks']}');
+
+      // Parse correct blocks from JSON with better error handling
+      String correctBlocksStr = gameConfig!['correct_blocks']?.toString() ?? '[]';
+      List<String> correctBlocks = [];
+
+      try {
+        // Try to parse as JSON first
+        List<dynamic> correctBlocksJson = json.decode(correctBlocksStr);
+        correctBlocks = List<String>.from(correctBlocksJson);
+      } catch (e) {
+        print('❌ JSON Parse failed for correct_blocks: $e');
+        // Fallback: Try to parse as string array
+        correctBlocks = _parseStringArray(correctBlocksStr);
+      }
+
+      // Parse incorrect blocks from JSON with better error handling
+      String incorrectBlocksStr = gameConfig!['incorrect_blocks']?.toString() ?? '[]';
+      List<String> incorrectBlocks = [];
+
+      try {
+        // Try to parse as JSON first
+        List<dynamic> incorrectBlocksJson = json.decode(incorrectBlocksStr);
+        incorrectBlocks = List<String>.from(incorrectBlocksJson);
+      } catch (e) {
+        print('❌ JSON Parse failed for incorrect_blocks: $e');
+        // Fallback: Try to parse as string array
+        incorrectBlocks = _parseStringArray(incorrectBlocksStr);
+      }
+
+      print('✅ Correct Blocks Parsed: $correctBlocks');
+      print('✅ Incorrect Blocks Parsed: $incorrectBlocks');
+
+      // Combine and shuffle blocks
+      allBlocks = [
+        ...correctBlocks,
+        ...incorrectBlocks,
+      ]..shuffle();
+
+      print('🎮 All Blocks Final: $allBlocks');
+
+    } catch (e) {
+      print('❌ Error parsing game config: $e');
+      resetBlocks(); // Fallback to default
+    }
+  }
+
+  // NEW METHOD: Parse string array with various formats - SIMPLE AND WORKING
+  List<String> _parseStringArray(String input) {
+    try {
+      print('🔄 PARSING INPUT: $input');
+
+      // Remove any extra spaces and brackets
+      String cleaned = input.trim();
+
+      // Handle different formats
+      if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+        cleaned = cleaned.substring(1, cleaned.length - 1);
+      }
+
+      // Simple approach: split by comma but preserve quoted content
+      List<String> items = [];
+      StringBuffer current = StringBuffer();
+      bool inQuotes = false;
+
+      for (int i = 0; i < cleaned.length; i++) {
+        String char = cleaned[i];
+
+        if (char == '"') {
+          inQuotes = !inQuotes;
+          current.write(char);
+        } else if (char == ',' && !inQuotes) {
+          String item = current.toString().trim();
+          if (item.isNotEmpty) {
+            items.add(item);
+          }
+          current.clear();
+        } else {
+          current.write(char);
+        }
+      }
+
+      // Add the last item
+      String lastItem = current.toString().trim();
+      if (lastItem.isNotEmpty) {
+        items.add(lastItem);
+      }
+
+      print('✅ PARSED ITEMS: $items');
+      return items;
+
+    } catch (e) {
+      print('❌ Error in _parseStringArray: $e');
+
+      // Fallback: simple split for emergency cases
+      try {
+        List<String> fallback = input
+            .replaceAll('[', '')
+            .replaceAll(']', '')
+            .split(',')
+            .map((item) => item.trim())
+            .where((item) => item.isNotEmpty)
+            .toList();
+        print('🔄 USING FALLBACK: $fallback');
+        return fallback;
+      } catch (e2) {
+        print('❌ Fallback also failed: $e2');
+        return [];
+      }
+    }
   }
 
   void _startGameMusic() {
@@ -85,6 +246,20 @@ class _CppLevel2State extends State<CppLevel2> {
       final hintCards = await DailyChallengeService.getUserHintCards(user['id']);
       setState(() {
         _availableHintCards = hintCards;
+      });
+    }
+  }
+
+  // NEW: Save hint cards using UserPreferences
+  Future<void> _saveHintCards(int count) async {
+    final user = await UserPreferences.getUser();
+    if (user['id'] != null) {
+      final prefs = await SharedPreferences.getInstance();
+      final userKey = 'hint_cards_${user['id']}';
+      await prefs.setInt(userKey, count);
+
+      setState(() {
+        _availableHintCards = count;
       });
     }
   }
@@ -125,45 +300,56 @@ class _CppLevel2State extends State<CppLevel2> {
 
   // NEW: Auto-drag correct blocks to answer area
   void _autoDragCorrectBlocks() {
-    // Correct blocks for C++ variable declaration and display
-    List<String> correctBlocks = ['int age = 25;', 'cout <<', 'age;'];
+    // Kunin lang ang correct blocks kung available ang config
+    if (gameConfig != null) {
+      try {
+        List<dynamic> correctBlocksJson = json.decode(gameConfig!['correct_blocks'] ?? '[]');
+        List<String> correctBlocks = List<String>.from(correctBlocksJson);
 
-    // Remove any existing correct blocks from dropped area first
-    setState(() {
-      droppedBlocks.clear();
-    });
+        // Remove any existing correct blocks from dropped area first
+        setState(() {
+          droppedBlocks.clear();
+        });
 
-    // Add correct blocks one by one with delay
-    int delay = 0;
-    for (String block in correctBlocks) {
-      Future.delayed(Duration(milliseconds: delay), () {
-        if (mounted) {
-          setState(() {
-            if (!droppedBlocks.contains(block)) {
-              droppedBlocks.add(block);
-            }
-            if (allBlocks.contains(block)) {
-              allBlocks.remove(block);
+        // Add correct blocks one by one with delay
+        int delay = 0;
+        for (String block in correctBlocks) {
+          Future.delayed(Duration(milliseconds: delay), () {
+            if (mounted) {
+              setState(() {
+                if (!droppedBlocks.contains(block)) {
+                  droppedBlocks.add(block);
+                }
+                if (allBlocks.contains(block)) {
+                  allBlocks.remove(block);
+                }
+              });
             }
           });
+          delay += 500; // 0.5 second delay between each block
         }
-      });
-      delay += 500; // 0.5 second delay between each block
-    }
 
-    // Hide hint after all blocks are placed
-    Future.delayed(Duration(milliseconds: delay + 1000), () {
-      if (mounted) {
-        setState(() {
-          _showHint = false;
-          _isUsingHint = false;
+        // Hide hint after all blocks are placed
+        Future.delayed(Duration(milliseconds: delay + 1000), () {
+          if (mounted) {
+            setState(() {
+              _showHint = false;
+              _isUsingHint = false;
+            });
+          }
         });
+      } catch (e) {
+        print('❌ Error in auto-drag: $e');
       }
-    });
+    }
   }
 
   String _getLevelHint() {
-    return "The correct code is: int age = 25; cout << age;\n\n💡 Hint: First declare the variable, then use cout to display it. Don't forget the semicolons!";
+    if (gameConfig != null) {
+      String correctAnswer = gameConfig!['correct_answer'] ?? '';
+      return "The correct code is: $correctAnswer\n\n💡 Hint: This is Level 2 - variables and user input!";
+    }
+    return "Game configuration not loaded. Please contact administrator.";
   }
 
   void _loadUserData() async {
@@ -172,48 +358,33 @@ class _CppLevel2State extends State<CppLevel2> {
       currentUser = user;
     });
     loadScoreFromDatabase();
-    _loadHintCards(); // Load hint cards for this user
+    _loadHintCards();
   }
 
   void resetBlocks() {
-    List<String> correctBlocks = [
-      'int age = 25;',
-      'cout <<',
-      'age;'
-    ];
-
-    // Incorrect/distractor blocks
-    List<String> incorrectBlocks = [
-      'string name;',
-      'double price;',
-      'printf(age);',
-      'cin >> age;',
-      'System.out.print(age);',
-      'age = 25',
-      'cout >> age;',
-      'print(age)',
-      'var age = 25;',
-      'Console.WriteLine(age);',
-      'endl;',
-      'std::cout << age;',
-      '<< age',
-      'age <<',
-      'int age',
-      '25 = age'
-    ];
-
-    // Shuffle incorrect blocks and take 3 random ones
-    incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(3).toList();
-
-    // Combine correct and incorrect blocks, then shuffle
-    allBlocks = [
-      ...correctBlocks,
-      ...selectedIncorrectBlocks,
-    ]..shuffle();
+    if (gameConfig != null) {
+      _initializeGameFromConfig();
+    } else {
+      allBlocks = [];
+      setState(() {});
+    }
   }
 
   void startGame() {
+    // Check muna kung may game config
+    if (gameConfig == null) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('error.mp3');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Game configuration not loaded. Please retry.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final musicService = Provider.of<MusicService>(context, listen: false);
     musicService.playSoundEffect('level_start.mp3');
 
@@ -282,7 +453,9 @@ class _CppLevel2State extends State<CppLevel2> {
         musicService.playSoundEffect('penalty.mp3');
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
+          SnackBar(
+            content: Text("⏰ Time penalty! -1 point. Current score: $score"),
+          ),
         );
       });
     });
@@ -313,14 +486,14 @@ class _CppLevel2State extends State<CppLevel2> {
       final response = await ApiService.saveScore(
         currentUser!['id'],
         'C++',
-        2,
+        2, // CHANGED: Level 2
         score,
-        score == 3, // Only completed if perfect score
+        score == 3,
       );
 
       if (response['success'] == true) {
         setState(() {
-          level2Completed = score == 3;
+          level2Completed = score == 3; // CHANGED: level2Completed
           previousScore = score;
           hasPreviousScore = true;
         });
@@ -340,7 +513,7 @@ class _CppLevel2State extends State<CppLevel2> {
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level2Data = scoresData['2'];
+        final level2Data = scoresData['2']; // CHANGED: Level 2 data
 
         if (level2Data != null) {
           setState(() {
@@ -356,53 +529,30 @@ class _CppLevel2State extends State<CppLevel2> {
     }
   }
 
-  Future<void> refreshScore() async {
-    if (currentUser?['id'] != null) {
-      try {
-        final response = await ApiService.getScores(currentUser!['id'], 'C++');
-        if (response['success'] == true && response['scores'] != null) {
-          final scoresData = response['scores'];
-          final level2Data = scoresData['2'];
-
-          setState(() {
-            if (level2Data != null) {
-              previousScore = level2Data['score'] ?? 0;
-              level2Completed = level2Data['completed'] ?? false;
-              hasPreviousScore = true;
-              score = previousScore;
-            } else {
-              hasPreviousScore = false;
-              previousScore = 0;
-              level2Completed = false;
-              score = 3;
-            }
-          });
-        }
-      } catch (e) {
-        print('Error refreshing score: $e');
-      }
-    }
-  }
-
   // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
+    if (gameConfig != null) {
+      try {
+        List<dynamic> incorrectBlocksJson = json.decode(gameConfig!['incorrect_blocks'] ?? '[]');
+        List<String> incorrectBlocks = List<String>.from(incorrectBlocksJson);
+        return incorrectBlocks.contains(block);
+      } catch (e) {
+        // Fallback to original method
+      }
+    }
+
+    // Fallback incorrect blocks for Level 2 (more advanced)
     List<String> incorrectBlocks = [
-      'string name;',
-      'double price;',
-      'printf(age);',
-      'cin >> age;',
-      'System.out.print(age);',
-      'age = 25',
-      'cout >> age;',
-      'print(age)',
-      'var age = 25;',
-      'Console.WriteLine(age);',
-      'endl;',
-      'std::cout << age;',
-      '<< age',
-      'age <<',
-      'int age',
-      '25 = age'
+      'printf',
+      'cout >>',
+      'System.out.print',
+      'print',
+      'Console.WriteLine',
+      'scanf',
+      'return 1;',
+      'void main()',
+      'var',
+      'let',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -459,17 +609,24 @@ class _CppLevel2State extends State<CppLevel2> {
       return;
     }
 
-    // Check for: int age = 25; cout << age;
+    // Check correct answer - use config or fallback
     String answer = droppedBlocks.join(' ');
-    String normalizedAnswer = answer
-        .replaceAll(' ', '')
-        .replaceAll('\n', '')
-        .toLowerCase();
+    String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
 
-    // Expected: intage=25;cout<<age;
-    String expected = 'intage=25;cout<<age;';
+    bool isCorrect = false;
 
-    if (normalizedAnswer == expected) {
+    if (gameConfig != null) {
+      // Use configured correct answer
+      String expectedAnswer = gameConfig!['correct_answer'] ?? '';
+      String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+      isCorrect = normalizedAnswer == normalizedExpected;
+    } else {
+      // Fallback to original check for Level 2 (more advanced)
+      String expected = 'intmain(){intage;cin>>age;cout<<"youare"<<age<<"yearsold";return0;}';
+      isCorrect = normalizedAnswer == expected;
+    }
+
+    if (isCorrect) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -494,13 +651,13 @@ class _CppLevel2State extends State<CppLevel2> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Great job! You've learned about variables!"),
+              Text("Excellent work C++ Programmer!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've unlocked Level 3!",
+                  "🎉 Perfect! You've unlocked Level 3!", // CHANGED: Level 3
                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
               else
@@ -514,7 +671,7 @@ class _CppLevel2State extends State<CppLevel2> {
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  "25",
+                  gameConfig?['expected_output'] ?? "Enter your age: 20\nYou are 20 years old!",
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
@@ -531,10 +688,12 @@ class _CppLevel2State extends State<CppLevel2> {
                 Navigator.pop(context);
                 if (score == 3) {
                   musicService.playSoundEffect('level_complete.mp3');
-                  Navigator.pushReplacementNamed(context, '/cpp_level3');
+                  Navigator.pushReplacementNamed(context, '/cpp_level3'); // CHANGED: Level 3
                 } else {
-                  Navigator.pushReplacementNamed(context, '/levels',
-                      arguments: 'C++');
+                  Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                    'language': 'C++',
+                    'difficulty': 'Easy'
+                  });
                 }
               },
               child: Text(score == 3 ? "Next Level" : "Go Back"),
@@ -550,7 +709,9 @@ class _CppLevel2State extends State<CppLevel2> {
           score--;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Incorrect arrangement. -1 point. Current score: $score")),
+          SnackBar(
+            content: Text("❌ Incorrect arrangement. -1 point. Current score: $score"),
+          ),
         );
       } else {
         setState(() {
@@ -587,6 +748,46 @@ class _CppLevel2State extends State<CppLevel2> {
     final m = (seconds ~/ 60).toString().padLeft(2, '0');
     final s = (seconds % 60).toString().padLeft(2, '0');
     return "$m:$s";
+  }
+
+  // NEW: Hint Card Button Widget
+  Widget _buildHintButton() {
+    return Positioned(
+      top: 10 * _scaleFactor,
+      right: 10 * _scaleFactor,
+      child: GestureDetector(
+        onTap: _useHintCard,
+        child: Container(
+          padding: EdgeInsets.all(12 * _scaleFactor),
+          decoration: BoxDecoration(
+            color: Colors.orange,
+            borderRadius: BorderRadius.circular(20 * _scaleFactor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 4 * _scaleFactor,
+                offset: Offset(0, 2 * _scaleFactor),
+              )
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lightbulb_outline, color: Colors.white, size: 18 * _scaleFactor),
+              SizedBox(width: 6 * _scaleFactor),
+              Text(
+                '$_availableHintCards',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16 * _scaleFactor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // NEW: Hint Display Widget
@@ -662,7 +863,6 @@ class _CppLevel2State extends State<CppLevel2> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Code editor header
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
             decoration: BoxDecoration(
@@ -687,17 +887,14 @@ class _CppLevel2State extends State<CppLevel2> {
               ],
             ),
           ),
-          // Code content
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Line numbers and code
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Line numbers
                     Container(
                       width: 30 * _scaleFactor,
                       child: Column(
@@ -710,11 +907,12 @@ class _CppLevel2State extends State<CppLevel2> {
                           _buildCodeLine(5),
                           _buildCodeLine(6),
                           _buildCodeLine(7),
+                          _buildCodeLine(8),
+                          _buildCodeLine(9),
                         ],
                       ),
                     ),
                     SizedBox(width: 16 * _scaleFactor),
-                    // Actual code with syntax highlighting
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -723,7 +921,7 @@ class _CppLevel2State extends State<CppLevel2> {
                           _buildSyntaxHighlightedLine('using namespace std;', isKeyword: true),
                           SizedBox(height: 8 * _scaleFactor),
                           _buildSyntaxHighlightedLine('int main() {', isKeyword: true),
-                          _buildUserCodePreview(),
+                          _buildUserCodeLine(getPreviewCode()),
                           _buildSyntaxHighlightedLine('    return 0;', isKeyword: true),
                           _buildSyntaxHighlightedLine('}', isNormal: true),
                         ],
@@ -739,14 +937,14 @@ class _CppLevel2State extends State<CppLevel2> {
     );
   }
 
-  Widget _buildUserCodePreview() {
-    if (droppedBlocks.isEmpty) {
+  Widget _buildUserCodeLine(String code) {
+    if (code.isEmpty) {
       return Container(
         height: 20 * _scaleFactor,
         child: Text(
-          '    ',
+          '        ',
           style: TextStyle(
-            color: Colors.grey[600],
+            color: Colors.white,
             fontSize: 12 * _scaleFactor,
             fontFamily: 'monospace',
           ),
@@ -754,57 +952,25 @@ class _CppLevel2State extends State<CppLevel2> {
       );
     }
 
-    // Organize the code properly with line breaks
-    List<Widget> codeLines = [];
-
-    // Check if we have variable declaration
-    bool hasVariableDeclaration = droppedBlocks.any((block) => block.contains('int age'));
-    bool hasCoutStatement = droppedBlocks.any((block) => block.contains('cout'));
-
-    if (hasVariableDeclaration) {
-      // Find the variable declaration block
-      String varBlock = droppedBlocks.firstWhere((block) => block.contains('int age'), orElse: () => '');
-      if (varBlock.isNotEmpty) {
-        codeLines.add(_buildUserCodeLine(varBlock));
-      }
-    }
-
-    if (hasCoutStatement) {
-      // Find cout and age blocks and combine them properly
-      String coutBlock = droppedBlocks.firstWhere((block) => block.contains('cout'), orElse: () => '');
-      String ageBlock = droppedBlocks.firstWhere((block) => block == 'age;', orElse: () => '');
-
-      if (coutBlock.isNotEmpty && ageBlock.isNotEmpty) {
-        String combinedCout = '$coutBlock $ageBlock';
-        codeLines.add(_buildUserCodeLine(combinedCout));
-      } else if (coutBlock.isNotEmpty) {
-        codeLines.add(_buildUserCodeLine(coutBlock));
-      }
-    }
-
-    // Add any remaining blocks
-    for (String block in droppedBlocks) {
-      if (!block.contains('int age') && !block.contains('cout') && block != 'age;') {
-        codeLines.add(_buildUserCodeLine(block));
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: codeLines,
-    );
-  }
-
-  Widget _buildUserCodeLine(String code) {
     return Container(
       height: 20 * _scaleFactor,
-      child: Text(
-        '    $code',
-        style: TextStyle(
-          color: Colors.greenAccent[400],
-          fontFamily: 'monospace',
-          fontSize: 12 * _scaleFactor,
-          fontWeight: FontWeight.bold,
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '        ',
+              style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12 * _scaleFactor),
+            ),
+            TextSpan(
+              text: code,
+              style: TextStyle(
+                color: Colors.greenAccent[400],
+                fontFamily: 'monospace',
+                fontSize: 12 * _scaleFactor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -848,6 +1014,10 @@ class _CppLevel2State extends State<CppLevel2> {
     );
   }
 
+  String getPreviewCode() {
+    return droppedBlocks.join(' ');
+  }
+
   @override
   void dispose() {
     countdownTimer?.cancel();
@@ -863,7 +1033,108 @@ class _CppLevel2State extends State<CppLevel2> {
 
   @override
   Widget build(BuildContext context) {
-    // Recalculate scale factor when screen size changes
+    // Show loading state
+    if (isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("⚡ C++ - Level 2", style: TextStyle(fontSize: 18)), // CHANGED: Level 2
+          backgroundColor: Colors.blue,
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0D1B2A),
+                Color(0xFF1B263B),
+                Color(0xFF415A77),
+              ],
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.blue),
+                SizedBox(height: 20),
+                Text(
+                  "Loading Game Configuration...",
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "From Database",
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Show error state
+    if (errorMessage != null && !gameStarted) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("⚡ C++ - Level 2", style: TextStyle(fontSize: 18)), // CHANGED: Level 2
+          backgroundColor: Colors.blue,
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0D1B2A),
+                Color(0xFF1B263B),
+                Color(0xFF415A77),
+              ],
+            ),
+          ),
+          child: Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.warning_amber, color: Colors.orange, size: 50),
+                  SizedBox(height: 20),
+                  Text(
+                    "Configuration Warning",
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _loadGameConfig,
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                    child: Text("Retry Loading"),
+                  ),
+                  SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                        'language': 'C++',
+                        'difficulty': 'Easy'
+                      });
+                    },
+                    child: Text("Back to Levels", style: TextStyle(color: Colors.blue)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
       final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
@@ -877,7 +1148,7 @@ class _CppLevel2State extends State<CppLevel2> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("⚡ C++ - Level 2", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        title: Text("⚡ C++ - Level 2", style: TextStyle(fontSize: 18 * _scaleFactor)), // CHANGED: Level 2
         backgroundColor: Colors.blue,
         actions: gameStarted
             ? [
@@ -890,8 +1161,7 @@ class _CppLevel2State extends State<CppLevel2> {
                 Text(formatTime(remainingSeconds), style: TextStyle(fontSize: 14 * _scaleFactor)),
                 SizedBox(width: 16 * _scaleFactor),
                 Icon(Icons.star, color: Colors.yellowAccent, size: 18 * _scaleFactor),
-                Text(" $score",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor)),
+                Text(" $score", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor)),
               ],
             ),
           ),
@@ -913,7 +1183,7 @@ class _CppLevel2State extends State<CppLevel2> {
         child: Stack(
           children: [
             gameStarted ? buildGameUI() : buildStartScreen(),
-            // ADD HINT DISPLAY TO STACK
+            // ADD HINT BUTTON AND DISPLAY TO STACK
             if (gameStarted && !isAnsweredCorrectly) ...[
               _buildHintDisplay(),
               // ✅ HINT CARD BUTTON - BOTTOM RIGHT
@@ -972,16 +1242,17 @@ class _CppLevel2State extends State<CppLevel2> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              onPressed: () {
+              onPressed: gameConfig != null ? () {
                 final musicService = Provider.of<MusicService>(context, listen: false);
                 musicService.playSoundEffect('button_click.mp3');
                 startGame();
-              },
+              } : null,
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text(gameConfig != null ? "Start" : "Config Missing",
+                  style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.blue,
+                backgroundColor: gameConfig != null ? Colors.blue : Colors.grey,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
@@ -1019,19 +1290,19 @@ class _CppLevel2State extends State<CppLevel2> {
               ),
             ),
 
-            if (level2Completed)
+            if (level2Completed) // CHANGED: level2Completed
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Level 2 completed with perfect score!",
+                      "✅ Level 2 completed with perfect score!", // CHANGED: Level 2
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "You've unlocked Level 3!",
+                      "You've unlocked Level 3!", // CHANGED: Level 3
                       style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -1050,7 +1321,7 @@ class _CppLevel2State extends State<CppLevel2> {
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score and unlock Level 3!",
+                      "Try again to get a perfect score and unlock Level 3!", // CHANGED: Level 3
                       style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -1089,19 +1360,19 @@ class _CppLevel2State extends State<CppLevel2> {
               child: Column(
                 children: [
                   Text(
-                    "🎯 Level 2 Objective",
+                    gameConfig?['objective'] ?? "🎯 Level 2 Objective", // CHANGED: Level 2
                     style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.blue[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create a C++ program that declares a variable and displays its value",
+                    gameConfig?['objective'] ?? "Complete the C++ Level 2 challenge with variables and user input",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.blue[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎁 Get a perfect score (3/3) to unlock the Level 3!",
+                    "🎁 Get a perfect score (3/3) to unlock Level 3!", // CHANGED: Level 3
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
@@ -1129,8 +1400,7 @@ class _CppLevel2State extends State<CppLevel2> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Short Story',
-                    style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text('📖 Short Story', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
                 onPressed: () {
@@ -1141,27 +1411,25 @@ class _CppLevel2State extends State<CppLevel2> {
                   });
                 },
                 icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
-                label: Text(isTagalog ? 'English' : 'Tagalog',
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+                label: Text(isTagalog ? 'English' : 'Tagalog', style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
               ),
             ],
           ),
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Ngayon, gusto ni Alex mag-imbak ng impormasyon sa variable! Tulungan siyang gumamit ng variable para i-display ang edad.'
-                : 'Now, Alex wants to store information in a variable! Help him use a variable to display age.',
+                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Level 2 ng C++ programming! Matuto tungkol sa variables at user input.')
+                : (gameConfig?['story_english'] ?? 'This is C++ Level 2! Learn about variables and user input.'),
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the 3 correct blocks to create the program',
+          Text('🧩 Arrange the blocks to form the correct C++ code',
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          // TARGET AREA
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
@@ -1245,7 +1513,6 @@ class _CppLevel2State extends State<CppLevel2> {
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
 
-          // SOURCE AREA
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
@@ -1322,6 +1589,9 @@ class _CppLevel2State extends State<CppLevel2> {
               ),
             ),
           ),
+
+          SizedBox(height: 10 * _scaleFactor),
+
           TextButton(
             onPressed: () {
               final musicService = Provider.of<MusicService>(context, listen: false);
@@ -1336,14 +1606,13 @@ class _CppLevel2State extends State<CppLevel2> {
   }
 
   Widget puzzleBlock(String text, Color color) {
-    // Calculate text width to adjust block size - SAME AS LEVEL 8
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 12 * _scaleFactor, // Using 12 instead of 14 for consistency
+          fontSize: 12 * _scaleFactor,
           color: Colors.black,
         ),
       ),
@@ -1351,8 +1620,8 @@ class _CppLevel2State extends State<CppLevel2> {
     )..layout();
 
     final textWidth = textPainter.width;
-    final minWidth = 80 * _scaleFactor;  // Same as Level 8
-    final maxWidth = 240 * _scaleFactor; // Same as Level 8
+    final minWidth = 80 * _scaleFactor;
+    final maxWidth = 240 * _scaleFactor;
 
     return Container(
       constraints: BoxConstraints(
@@ -1361,8 +1630,8 @@ class _CppLevel2State extends State<CppLevel2> {
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 12 * _scaleFactor,  // Same as Level 8
-        vertical: 10 * _scaleFactor,    // Same as Level 8
+        horizontal: 12 * _scaleFactor,
+        vertical: 10 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
@@ -1384,7 +1653,7 @@ class _CppLevel2State extends State<CppLevel2> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 12 * _scaleFactor, // Changed from 14 to 12 to match Level 8
+          fontSize: 12 * _scaleFactor,
           color: Colors.black,
           shadows: [
             Shadow(
@@ -1396,7 +1665,7 @@ class _CppLevel2State extends State<CppLevel2> {
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.visible,
-        softWrap: true, // Added for better text wrapping
+        softWrap: true,
       ),
     );
   }

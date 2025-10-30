@@ -1,8 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = "https://codesnap.fun";
+  static const String baseUrl = "http://192.168.100.92/codesnap";
 
   // Helper methods for safe type conversion
   static int _safeIntConversion(dynamic value) {
@@ -178,6 +179,111 @@ class ApiService {
       }
     } catch (e) {
       return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
+
+// ✅ UPDATED: Get Game Configuration from database - FIXED VERSION
+  static Future<Map<String, dynamic>> getGameConfig(String language, int level) async {
+    try {
+      print('🎮 GETTING GAME CONFIG - Language: $language, Level: $level');
+
+      // Use POST instead of GET to avoid URL encoding issues
+      final response = await http.post(
+        Uri.parse('$baseUrl/get_game_config.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'language': language,
+          'level': level,
+        }),
+      ).timeout(Duration(seconds: 10));
+
+      print('🔍 RESPONSE STATUS: ${response.statusCode}');
+      print('📋 RESPONSE BODY: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('📋 GAME CONFIG RESPONSE SUCCESS: ${data['success']}');
+
+        if (data['success'] == true && data['game'] != null) {
+          print('✅ GAME CONFIG LOADED SUCCESSFULLY FROM DATABASE');
+
+          // Parse the JSON strings from database
+          final game = data['game'];
+
+          // Parse correct_blocks JSON
+          try {
+            if (game['correct_blocks'] is String) {
+              game['correct_blocks'] = json.decode(game['correct_blocks']);
+            }
+          } catch (e) {
+            print('❌ Error parsing correct_blocks: $e');
+            game['correct_blocks'] = [];
+          }
+
+          // Parse incorrect_blocks JSON
+          try {
+            if (game['incorrect_blocks'] is String) {
+              game['incorrect_blocks'] = json.decode(game['incorrect_blocks']);
+            }
+          } catch (e) {
+            print('❌ Error parsing incorrect_blocks: $e');
+            game['incorrect_blocks'] = [];
+          }
+
+          // Parse code_structure JSON
+          try {
+            if (game['code_structure'] is String) {
+              game['code_structure'] = json.decode(game['code_structure']);
+            }
+          } catch (e) {
+            print('❌ Error parsing code_structure: $e');
+            game['code_structure'] = [
+              "#include <iostream>",
+              "using namespace std;",
+              "",
+              "int main() {",
+              "    // Your code here",
+              "    return 0;",
+              "}"
+            ];
+          }
+
+          // Ensure timer_duration is int
+          game['timer_duration'] = _safeIntConversion(game['timer_duration']);
+
+          print('🎯 PARSED GAME CONFIG:');
+          print('   Correct Blocks: ${game['correct_blocks']}');
+          print('   Incorrect Blocks: ${game['incorrect_blocks']}');
+          print('   Code Structure: ${game['code_structure']}');
+          print('   Timer Duration: ${game['timer_duration']}');
+
+          return data;
+        } else {
+          print('❌ GAME CONFIG NOT FOUND IN DATABASE: ${data['message']}');
+          return {
+            'success': false,
+            'message': data['message'] ?? 'Game configuration not found in database'
+          };
+        }
+      } else {
+        print('❌ SERVER ERROR: ${response.statusCode}');
+        return {
+          'success': false,
+          'message': 'Server error: ${response.statusCode}'
+        };
+      }
+    } on TimeoutException {
+      print('❌ TIMEOUT ERROR: Request timed out');
+      return {
+        'success': false,
+        'message': 'Connection timeout. Please check your server.'
+      };
+    } catch (e) {
+      print('❌ ERROR: $e');
+      return {
+        'success': false,
+        'message': 'Connection error: $e'
+      };
     }
   }
 
