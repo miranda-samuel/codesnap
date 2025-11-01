@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -26,7 +25,7 @@ class _CppLevel1State extends State<CppLevel1> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 120; // Default value, will be overridden by database
+  int remainingSeconds = 120;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -43,11 +42,12 @@ class _CppLevel1State extends State<CppLevel1> {
   bool isLoading = true;
   String? errorMessage;
 
-  // NEW: Hint card system using UserPreferences
+  // HINT SYSTEM ONLY
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
   bool _isUsingHint = false;
+
   // NEW: Configurable code preview from database
   String _codePreviewTitle = '💻 Code Preview:';
 
@@ -177,6 +177,20 @@ class _CppLevel1State extends State<CppLevel1> {
         print('🎯 Expected output loaded: $_expectedOutput');
       }
 
+      // NEW: Load hint from database
+      if (gameConfig!['hint_text'] != null) {
+        setState(() {
+          _currentHint = gameConfig!['hint_text'].toString();
+        });
+        print('💡 Hint loaded from database: $_currentHint');
+      } else {
+        // Fallback hint if database hint is not available
+        setState(() {
+          _currentHint = _getDefaultHint();
+        });
+        print('💡 Using default hint');
+      }
+
       // Parse correct blocks from JSON with better error handling
       List<String> correctBlocks = [];
       if (gameConfig!['correct_blocks'] != null) {
@@ -228,20 +242,6 @@ class _CppLevel1State extends State<CppLevel1> {
       print('❌ Error parsing game config: $e');
       resetBlocks(); // Fallback to default
     }
-  }
-  // NEW METHOD: Set default code structure
-  void _setDefaultCodeStructure() {
-    setState(() {
-      _codeStructure = [
-        '#include <iostream>',
-        'using namespace std;',
-        '',
-        'int main() {',
-        '    // Your code here',
-        '    return 0;',
-        '}'
-      ];
-    });
   }
 
   // NEW METHOD: Parse string array with various formats - SIMPLE AND WORKING
@@ -308,6 +308,15 @@ class _CppLevel1State extends State<CppLevel1> {
     }
   }
 
+  // NEW: Get default hint if database hint is not available
+  String _getDefaultHint() {
+    if (gameConfig != null) {
+      String correctAnswer = gameConfig!['correct_answer'] ?? '';
+      return "💡 Hint: The correct code structure is: $correctAnswer\n\nTry to arrange the blocks in the correct order!";
+    }
+    return "💡 Hint: This is Level 1 - basic C++ introduction! Use cout to display text.";
+  }
+
   void _startGameMusic() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final musicService = Provider.of<MusicService>(context, listen: false);
@@ -337,29 +346,14 @@ class _CppLevel1State extends State<CppLevel1> {
   Future<void> _loadHintCards() async {
     final user = await UserPreferences.getUser();
     if (user['id'] != null) {
-      final hintCards = await DailyChallengeService.getUserHintCards(
-          user['id']);
+      final hintCards = await DailyChallengeService.getUserHintCards(user['id']);
       setState(() {
         _availableHintCards = hintCards;
       });
     }
   }
 
-  // NEW: Save hint cards using UserPreferences
-  Future<void> _saveHintCards(int count) async {
-    final user = await UserPreferences.getUser();
-    if (user['id'] != null) {
-      final prefs = await SharedPreferences.getInstance();
-      final userKey = 'hint_cards_${user['id']}';
-      await prefs.setInt(userKey, count);
-
-      setState(() {
-        _availableHintCards = count;
-      });
-    }
-  }
-
-  // NEW: Use hint card - shows hint and auto-drags correct answer
+  // UPDATED: Use hint card - shows hint from database
   void _useHintCard() async {
     if (_availableHintCards > 0 && !_isUsingHint) {
       final musicService = Provider.of<MusicService>(context, listen: false);
@@ -368,7 +362,7 @@ class _CppLevel1State extends State<CppLevel1> {
       setState(() {
         _isUsingHint = true;
         _showHint = true;
-        _currentHint = _getLevelHint();
+        // _currentHint is already loaded from database in _initializeGameFromConfig
         _availableHintCards--;
       });
 
@@ -378,75 +372,26 @@ class _CppLevel1State extends State<CppLevel1> {
         await DailyChallengeService.useHintCard(user['id']);
       }
 
-      // Auto-drag the correct blocks after a short delay
-      _autoDragCorrectBlocks();
+      // Auto-hide hint after 5 seconds
+      Future.delayed(Duration(seconds: 5), () {
+        if (mounted) {
+          setState(() {
+            _showHint = false;
+            _isUsingHint = false;
+          });
+        }
+      });
     } else if (_availableHintCards <= 0) {
       final musicService = Provider.of<MusicService>(context, listen: false);
       musicService.playSoundEffect('error.mp3');
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-              'No hint cards available! Complete daily challenges to earn more.'),
+          content: Text('No hint cards available! Complete daily challenges to earn more.'),
           backgroundColor: Colors.orange,
         ),
       );
     }
-  }
-
-  // NEW: Auto-drag correct blocks to answer area
-  void _autoDragCorrectBlocks() {
-    // Kunin lang ang correct blocks kung available ang config
-    if (gameConfig != null) {
-      try {
-        List<dynamic> correctBlocksJson = json.decode(
-            gameConfig!['correct_blocks'] ?? '[]');
-        List<String> correctBlocks = List<String>.from(correctBlocksJson);
-
-        // Remove any existing correct blocks from dropped area first
-        setState(() {
-          droppedBlocks.clear();
-        });
-
-        // Add correct blocks one by one with delay
-        int delay = 0;
-        for (String block in correctBlocks) {
-          Future.delayed(Duration(milliseconds: delay), () {
-            if (mounted) {
-              setState(() {
-                if (!droppedBlocks.contains(block)) {
-                  droppedBlocks.add(block);
-                }
-                if (allBlocks.contains(block)) {
-                  allBlocks.remove(block);
-                }
-              });
-            }
-          });
-          delay += 500; // 0.5 second delay between each block
-        }
-
-        // Hide hint after all blocks are placed
-        Future.delayed(Duration(milliseconds: delay + 1000), () {
-          if (mounted) {
-            setState(() {
-              _showHint = false;
-              _isUsingHint = false;
-            });
-          }
-        });
-      } catch (e) {
-        print('❌ Error in auto-drag: $e');
-      }
-    }
-  }
-
-  String _getLevelHint() {
-    if (gameConfig != null) {
-      String correctAnswer = gameConfig!['correct_answer'] ?? '';
-      return "The correct code is: $correctAnswer\n\n💡 Hint: This is Level 1 - basic C++ introduction!";
-    }
-    return "Game configuration not loaded. Please contact administrator.";
   }
 
   void _loadUserData() async {
@@ -492,15 +437,16 @@ class _CppLevel1State extends State<CppLevel1> {
 
     setState(() {
       gameStarted = true;
-      score = 3;
-      remainingSeconds =
-          timerDuration; // Use configured timer duration from database
+      score = 3; // ✅ ALWAYS START WITH 3 POINTS - DON'T USE PREVIOUS SCORE
+      remainingSeconds = timerDuration;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       _showHint = false;
       _isUsingHint = false;
       resetBlocks();
     });
+
+    print('🎮 GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
     startTimers();
   }
 
@@ -519,29 +465,26 @@ class _CppLevel1State extends State<CppLevel1> {
           scoreReductionTimer?.cancel();
           saveScoreToDatabase(score);
 
-          final musicService = Provider.of<MusicService>(
-              context, listen: false);
+          final musicService = Provider.of<MusicService>(context, listen: false);
           musicService.playSoundEffect('time_up.mp3');
 
           showDialog(
             context: context,
-            builder: (_) =>
-                AlertDialog(
-                  title: Text("⏰ Time's Up!"),
-                  content: Text("Score: $score"),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        final musicService = Provider.of<MusicService>(
-                            context, listen: false);
-                        musicService.playSoundEffect('click.mp3');
-                        resetGame();
-                        Navigator.pop(context);
-                      },
-                      child: Text("Retry"),
-                    )
-                  ],
-                ),
+            builder: (_) => AlertDialog(
+              title: Text("⏰ Time's Up!"),
+              content: Text("Score: $score"),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    final musicService = Provider.of<MusicService>(context, listen: false);
+                    musicService.playSoundEffect('click.mp3');
+                    resetGame();
+                    Navigator.pop(context);
+                  },
+                  child: Text("Retry"),
+                )
+              ],
+            ),
           );
         }
       });
@@ -590,10 +533,21 @@ class _CppLevel1State extends State<CppLevel1> {
     });
   }
 
+  // UPDATED: Save score using UserPreferences and API
   Future<void> saveScoreToDatabase(int score) async {
-    if (currentUser?['id'] == null) return;
+    if (currentUser?['id'] == null) {
+      print('❌ Cannot save score: No user ID');
+      return;
+    }
 
     try {
+      print('💾 ATTEMPTING TO SAVE SCORE:');
+      print('   User ID: ${currentUser!['id']}');
+      print('   Language: C++');
+      print('   Level: 1');
+      print('   Score: $score/3');
+      print('   Completed: ${score == 3}');
+
       final response = await ApiService.saveScore(
         currentUser!['id'],
         'C++',
@@ -602,20 +556,40 @@ class _CppLevel1State extends State<CppLevel1> {
         score == 3,
       );
 
+      print('📡 SERVER RESPONSE: $response');
+
       if (response['success'] == true) {
         setState(() {
           level1Completed = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
+
+        print('✅ SCORE SAVED SUCCESSFULLY TO DATABASE');
       } else {
-        print('Failed to save score: ${response['message']}');
+        print('❌ FAILED TO SAVE SCORE: ${response['message']}');
+
+        // Show error to user
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save score: ${response['message']}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
-      print('Error saving score: $e');
+      print('❌ ERROR SAVING SCORE: $e');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Network error saving score: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
+  // UPDATED: Load score using UserPreferences and API
   Future<void> loadScoreFromDatabase() async {
     if (currentUser?['id'] == null) return;
 
@@ -631,7 +605,7 @@ class _CppLevel1State extends State<CppLevel1> {
             previousScore = level1Data['score'] ?? 0;
             level1Completed = level1Data['completed'] ?? false;
             hasPreviousScore = true;
-            score = previousScore;
+            // DON'T SET score HERE - game should always start with 3
           });
         }
       }
@@ -640,12 +614,40 @@ class _CppLevel1State extends State<CppLevel1> {
     }
   }
 
+  // NEW: Refresh score using UserPreferences and API
+  Future<void> refreshScore() async {
+    if (currentUser?['id'] != null) {
+      try {
+        final response = await ApiService.getScores(currentUser!['id'], 'C++');
+        if (response['success'] == true && response['scores'] != null) {
+          final scoresData = response['scores'];
+          final level1Data = scoresData['1'];
+
+          setState(() {
+            if (level1Data != null) {
+              previousScore = level1Data['score'] ?? 0;
+              level1Completed = level1Data['completed'] ?? false;
+              hasPreviousScore = true;
+              // DON'T SET score HERE - game should always start with 3
+            } else {
+              hasPreviousScore = false;
+              previousScore = 0;
+              level1Completed = false;
+              // DON'T SET score HERE - game should always start with 3
+            }
+          });
+        }
+      } catch (e) {
+        print('Error refreshing score: $e');
+      }
+    }
+  }
+
   // Check if a block is incorrect
   bool isIncorrectBlock(String block) {
     if (gameConfig != null) {
       try {
-        List<dynamic> incorrectBlocksJson = json.decode(
-            gameConfig!['incorrect_blocks'] ?? '[]');
+        List<dynamic> incorrectBlocksJson = json.decode(gameConfig!['incorrect_blocks'] ?? '[]');
         List<String> incorrectBlocks = List<String>.from(incorrectBlocksJson);
         return incorrectBlocks.contains(block);
       } catch (e) {
@@ -673,8 +675,7 @@ class _CppLevel1State extends State<CppLevel1> {
     final musicService = Provider.of<MusicService>(context, listen: false);
 
     // Check if any incorrect blocks are used
-    bool hasIncorrectBlock = droppedBlocks.any((block) =>
-        isIncorrectBlock(block));
+    bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
       musicService.playSoundEffect('error.mp3');
@@ -685,8 +686,7 @@ class _CppLevel1State extends State<CppLevel1> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                "❌ You used incorrect code! -1 point. Current score: $score"),
+            content: Text("❌ You used incorrect code! -1 point. Current score: $score"),
             backgroundColor: Colors.red,
           ),
         );
@@ -702,21 +702,20 @@ class _CppLevel1State extends State<CppLevel1> {
 
         showDialog(
           context: context,
-          builder: (_) =>
-              AlertDialog(
-                title: Text("💀 Game Over"),
-                content: Text("You used incorrect code and lost all points!"),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      musicService.playSoundEffect('click.mp3');
-                      Navigator.pop(context);
-                      resetGame();
-                    },
-                    child: Text("Retry"),
-                  )
-                ],
-              ),
+          builder: (_) => AlertDialog(
+            title: Text("💀 Game Over"),
+            content: Text("You used incorrect code and lost all points!"),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  musicService.playSoundEffect('click.mp3');
+                  Navigator.pop(context);
+                  resetGame();
+                },
+                child: Text("Retry"),
+              )
+            ],
+          ),
         );
       }
       return;
@@ -724,18 +723,14 @@ class _CppLevel1State extends State<CppLevel1> {
 
     // Check correct answer - use config or fallback
     String answer = droppedBlocks.join(' ');
-    String normalizedAnswer = answer
-        .replaceAll(' ', '')
-        .replaceAll('\n', '')
-        .toLowerCase();
+    String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
 
     bool isCorrect = false;
 
     if (gameConfig != null) {
       // Use configured correct answer
       String expectedAnswer = gameConfig!['correct_answer'] ?? '';
-      String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll(
-          '\n', '').toLowerCase();
+      String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
       isCorrect = normalizedAnswer == normalizedExpected;
     } else {
       // Fallback to original check for Level 1 (simpler)
@@ -762,67 +757,61 @@ class _CppLevel1State extends State<CppLevel1> {
 
       showDialog(
         context: context,
-        builder: (_) =>
-            AlertDialog(
-              title: Text("✅ Correct!"),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Excellent work C++ Beginner!"),
-                  SizedBox(height: 10),
-                  Text("Your Score: $score/3", style: TextStyle(
-                      fontWeight: FontWeight.bold, color: Colors.green)),
-                  SizedBox(height: 10),
-                  if (score == 3)
-                    Text(
-                      "🎉 Perfect! You've unlocked Level 2!",
-                      style: TextStyle(
-                          color: Colors.blue, fontWeight: FontWeight.bold),
-                    )
-                  else
-                    Text(
-                      "⚠️ Get a perfect score (3/3) to unlock the next level!",
-                      style: TextStyle(
-                          color: Colors.orange, fontWeight: FontWeight.bold),
-                    ),
-                  SizedBox(height: 10),
-                  Text("Code Output:",
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  Container(
-                    padding: EdgeInsets.all(10),
-                    color: Colors.black,
-                    child: Text(
-                      _expectedOutput, // USE CONFIGURED EXPECTED OUTPUT
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'monospace',
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    musicService.playSoundEffect('click.mp3');
-                    Navigator.pop(context);
-                    if (score == 3) {
-                      musicService.playSoundEffect('level_complete.mp3');
-                      Navigator.pushReplacementNamed(context, '/cpp_level2');
-                    } else {
-                      Navigator.pushReplacementNamed(
-                          context, '/levels', arguments: {
-                        'language': 'C++',
-                        'difficulty': 'Easy'
-                      });
-                    }
-                  },
-                  child: Text(score == 3 ? "Next Level" : "Go Back"),
+        builder: (_) => AlertDialog(
+          title: Text("✅ Correct!"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Excellent work C++ Beginner!"),
+              SizedBox(height: 10),
+              Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+              SizedBox(height: 10),
+              if (score == 3)
+                Text(
+                  "🎉 Perfect! You've unlocked Level 2!",
+                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
-              ],
-            ),
+              else
+                Text(
+                  "⚠️ Get a perfect score (3/3) to unlock the next level!",
+                  style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                ),
+              SizedBox(height: 10),
+              Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Container(
+                padding: EdgeInsets.all(10),
+                color: Colors.black,
+                child: Text(
+                  _expectedOutput, // USE CONFIGURED EXPECTED OUTPUT
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'monospace',
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                musicService.playSoundEffect('click.mp3');
+                Navigator.pop(context);
+                if (score == 3) {
+                  musicService.playSoundEffect('level_complete.mp3');
+                  Navigator.pushReplacementNamed(context, '/cpp_level2');
+                } else {
+                  Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                    'language': 'C++',
+                    'difficulty': 'Easy'
+                  });
+                }
+              },
+              child: Text(score == 3 ? "Next Level" : "Go Back"),
+            )
+          ],
+        ),
       );
     } else {
       musicService.playSoundEffect('wrong.mp3');
@@ -833,8 +822,7 @@ class _CppLevel1State extends State<CppLevel1> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                "❌ Incorrect arrangement. -1 point. Current score: $score"),
+            content: Text("❌ Incorrect arrangement. -1 point. Current score: $score"),
           ),
         );
       } else {
@@ -849,21 +837,20 @@ class _CppLevel1State extends State<CppLevel1> {
 
         showDialog(
           context: context,
-          builder: (_) =>
-              AlertDialog(
-                title: Text("💀 Game Over"),
-                content: Text("You lost all your points."),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      musicService.playSoundEffect('click.mp3');
-                      Navigator.pop(context);
-                      resetGame();
-                    },
-                    child: Text("Retry"),
-                  )
-                ],
-              ),
+          builder: (_) => AlertDialog(
+            title: Text("💀 Game Over"),
+            content: Text("You lost all your points."),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  musicService.playSoundEffect('click.mp3');
+                  Navigator.pop(context);
+                  resetGame();
+                },
+                child: Text("Retry"),
+              )
+            ],
+          ),
         );
       }
     }
@@ -875,48 +862,7 @@ class _CppLevel1State extends State<CppLevel1> {
     return "$m:$s";
   }
 
-  // NEW: Hint Card Button Widget
-  Widget _buildHintButton() {
-    return Positioned(
-      top: 10 * _scaleFactor,
-      right: 10 * _scaleFactor,
-      child: GestureDetector(
-        onTap: _useHintCard,
-        child: Container(
-          padding: EdgeInsets.all(12 * _scaleFactor),
-          decoration: BoxDecoration(
-            color: Colors.orange,
-            borderRadius: BorderRadius.circular(20 * _scaleFactor),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 4 * _scaleFactor,
-                offset: Offset(0, 2 * _scaleFactor),
-              )
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.lightbulb_outline, color: Colors.white,
-                  size: 18 * _scaleFactor),
-              SizedBox(width: 6 * _scaleFactor),
-              Text(
-                '$_availableHintCards',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16 * _scaleFactor,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // NEW: Hint Display Widget
+  // UPDATED: Hint Display Widget with database hint
   Widget _buildHintDisplay() {
     if (!_showHint) return SizedBox();
 
@@ -929,8 +875,7 @@ class _CppLevel1State extends State<CppLevel1> {
         decoration: BoxDecoration(
           color: Colors.orange.withOpacity(0.95),
           borderRadius: BorderRadius.circular(12 * _scaleFactor),
-          border: Border.all(
-              color: Colors.orangeAccent, width: 2 * _scaleFactor),
+          border: Border.all(color: Colors.orangeAccent, width: 2 * _scaleFactor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.3),
@@ -943,8 +888,7 @@ class _CppLevel1State extends State<CppLevel1> {
           children: [
             Row(
               children: [
-                Icon(Icons.lightbulb, color: Colors.white,
-                    size: 20 * _scaleFactor),
+                Icon(Icons.lightbulb, color: Colors.white, size: 20 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
                   '💡 Hint Activated!',
@@ -962,12 +906,13 @@ class _CppLevel1State extends State<CppLevel1> {
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 14 * _scaleFactor,
+                height: 1.4,
               ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Correct blocks are being placed automatically...',
+              'Hint will disappear in 5 seconds...',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 12 * _scaleFactor,
@@ -975,6 +920,50 @@ class _CppLevel1State extends State<CppLevel1> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // Hint Card Button Widget
+  Widget _buildHintButton() {
+    return Positioned(
+      bottom: 20 * _scaleFactor,
+      right: 20 * _scaleFactor,
+      child: GestureDetector(
+        onTap: _useHintCard,
+        child: Container(
+          padding: EdgeInsets.all(12 * _scaleFactor),
+          decoration: BoxDecoration(
+            color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
+            borderRadius: BorderRadius.circular(20 * _scaleFactor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 4 * _scaleFactor,
+                offset: Offset(0, 2 * _scaleFactor),
+              )
+            ],
+            border: Border.all(
+              color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
+              width: 2 * _scaleFactor,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lightbulb_outline, color: Colors.white, size: 20 * _scaleFactor),
+              SizedBox(width: 6 * _scaleFactor),
+              Text(
+                '$_availableHintCards',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18 * _scaleFactor,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -993,8 +982,7 @@ class _CppLevel1State extends State<CppLevel1> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: EdgeInsets.symmetric(
-                horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
+            padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
             decoration: BoxDecoration(
               color: Color(0xFF2D2D2D),
               borderRadius: BorderRadius.only(
@@ -1004,8 +992,7 @@ class _CppLevel1State extends State<CppLevel1> {
             ),
             child: Row(
               children: [
-                Icon(Icons.code, color: Colors.grey[400],
-                    size: 16 * _scaleFactor),
+                Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
                   'main.cpp',
@@ -1101,9 +1088,7 @@ class _CppLevel1State extends State<CppLevel1> {
           children: [
             TextSpan(
               text: '    ', // Indentation
-              style: TextStyle(color: Colors.white,
-                  fontFamily: 'monospace',
-                  fontSize: 12 * _scaleFactor),
+              style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12 * _scaleFactor),
             ),
             TextSpan(
               text: code,
@@ -1140,9 +1125,7 @@ class _CppLevel1State extends State<CppLevel1> {
     // Syntax highlighting rules
     if (code.trim().startsWith('#include')) {
       textColor = Color(0xFFCE9178); // Preprocessor - orange
-    } else if (code.contains('int main') ||
-        code.contains('using namespace') ||
-        code.contains('return')) {
+    } else if (code.contains('int main') || code.contains('using namespace') || code.contains('return')) {
       textColor = Color(0xFF569CD6); // Keywords - blue
     } else if (code.trim().startsWith('//')) {
       textColor = Color(0xFF6A9955); // Comments - green
@@ -1254,9 +1237,7 @@ class _CppLevel1State extends State<CppLevel1> {
                   SizedBox(height: 20),
                   Text(
                     "Configuration Warning",
-                    style: TextStyle(color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold),
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10),
                   Text(
@@ -1267,21 +1248,18 @@ class _CppLevel1State extends State<CppLevel1> {
                   SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: _loadGameConfig,
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
                     child: Text("Retry Loading"),
                   ),
                   SizedBox(height: 10),
                   TextButton(
                     onPressed: () {
-                      Navigator.pushReplacementNamed(
-                          context, '/levels', arguments: {
+                      Navigator.pushReplacementNamed(context, '/levels', arguments: {
                         'language': 'C++',
                         'difficulty': 'Easy'
                       });
                     },
-                    child: Text(
-                        "Back to Levels", style: TextStyle(color: Colors.blue)),
+                    child: Text("Back to Levels", style: TextStyle(color: Colors.blue)),
                   ),
                 ],
               ),
@@ -1292,10 +1270,7 @@ class _CppLevel1State extends State<CppLevel1> {
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final newScreenWidth = MediaQuery
-          .of(context)
-          .size
-          .width;
+      final newScreenWidth = MediaQuery.of(context).size.width;
       final newScaleFactor = newScreenWidth < _baseScreenWidth
           ? newScreenWidth / _baseScreenWidth
           : 1.0;
@@ -1309,8 +1284,7 @@ class _CppLevel1State extends State<CppLevel1> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("⚡ C++ - Level 1", style: TextStyle(fontSize: 18 *
-            _scaleFactor)),
+        title: Text("⚡ C++ - Level 1", style: TextStyle(fontSize: 18 * _scaleFactor)),
         backgroundColor: Colors.blue,
         actions: gameStarted
             ? [
@@ -1320,13 +1294,10 @@ class _CppLevel1State extends State<CppLevel1> {
               children: [
                 Icon(Icons.timer, size: 18 * _scaleFactor),
                 SizedBox(width: 4 * _scaleFactor),
-                Text(formatTime(remainingSeconds),
-                    style: TextStyle(fontSize: 14 * _scaleFactor)),
+                Text(formatTime(remainingSeconds), style: TextStyle(fontSize: 14 * _scaleFactor)),
                 SizedBox(width: 16 * _scaleFactor),
-                Icon(Icons.star, color: Colors.yellowAccent,
-                    size: 18 * _scaleFactor),
-                Text(" $score", style: TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor)),
+                Icon(Icons.star, color: Colors.yellowAccent, size: 18 * _scaleFactor),
+                Text(" $score", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor)),
               ],
             ),
           ),
@@ -1348,54 +1319,10 @@ class _CppLevel1State extends State<CppLevel1> {
         child: Stack(
           children: [
             gameStarted ? buildGameUI() : buildStartScreen(),
-            // ADD HINT BUTTON AND DISPLAY TO STACK
+            // HINT SYSTEM ONLY
             if (gameStarted && !isAnsweredCorrectly) ...[
               _buildHintDisplay(),
-              // ✅ HINT CARD BUTTON - BOTTOM RIGHT
-              Positioned(
-                bottom: 20 * _scaleFactor,
-                right: 20 * _scaleFactor,
-                child: GestureDetector(
-                  onTap: _useHintCard,
-                  child: Container(
-                    padding: EdgeInsets.all(12 * _scaleFactor),
-                    decoration: BoxDecoration(
-                      color: _availableHintCards > 0 ? Colors.orange : Colors
-                          .grey,
-                      borderRadius: BorderRadius.circular(20 * _scaleFactor),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 4 * _scaleFactor,
-                          offset: Offset(0, 2 * _scaleFactor),
-                        )
-                      ],
-                      border: Border.all(
-                        color: _availableHintCards > 0
-                            ? Colors.orangeAccent
-                            : Colors.grey,
-                        width: 2 * _scaleFactor,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.lightbulb_outline, color: Colors.white,
-                            size: 20 * _scaleFactor),
-                        SizedBox(width: 6 * _scaleFactor),
-                        Text(
-                          '$_availableHintCards',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18 * _scaleFactor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+              _buildHintButton(),
             ],
           ],
         ),
@@ -1412,17 +1339,14 @@ class _CppLevel1State extends State<CppLevel1> {
           children: [
             ElevatedButton.icon(
               onPressed: gameConfig != null ? () {
-                final musicService = Provider.of<MusicService>(
-                    context, listen: false);
+                final musicService = Provider.of<MusicService>(context, listen: false);
                 musicService.playSoundEffect('button_click.mp3');
                 startGame();
               } : null,
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text(gameConfig != null ? "Start" : "Config Missing",
-                  style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text(gameConfig != null ? "Start" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(
-                    horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
+                padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
                 backgroundColor: gameConfig != null ? Colors.blue : Colors.grey,
               ),
             ),
@@ -1439,8 +1363,7 @@ class _CppLevel1State extends State<CppLevel1> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.lightbulb_outline, color: Colors.orange,
-                      size: 20 * _scaleFactor),
+                  Icon(Icons.lightbulb_outline, color: Colors.orange, size: 20 * _scaleFactor),
                   SizedBox(width: 8 * _scaleFactor),
                   Text(
                     'Hint Cards: $_availableHintCards',
@@ -1469,65 +1392,56 @@ class _CppLevel1State extends State<CppLevel1> {
                   children: [
                     Text(
                       "✅ Level 1 completed with perfect score!",
-                      style: TextStyle(
-                          color: Colors.green, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
                       "You've unlocked Level 2!",
-                      style: TextStyle(color: Colors.blue,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14 * _scaleFactor),
+                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
                 ),
               )
-            else
-              if (hasPreviousScore && previousScore > 0)
+            else if (hasPreviousScore && previousScore > 0)
+              Padding(
+                padding: EdgeInsets.only(top: 10 * _scaleFactor),
+                child: Column(
+                  children: [
+                    Text(
+                      "📊 Your previous score: $previousScore/3",
+                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 5 * _scaleFactor),
+                    Text(
+                      "Try again to get a perfect score and unlock Level 2!",
+                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              )
+            else if (hasPreviousScore && previousScore == 0)
                 Padding(
                   padding: EdgeInsets.only(top: 10 * _scaleFactor),
                   child: Column(
                     children: [
                       Text(
-                        "📊 Your previous score: $previousScore/3",
-                        style: TextStyle(
-                            color: Colors.blue, fontSize: 16 * _scaleFactor),
+                        "😅 Your previous score: $previousScore/3",
+                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
-                        "Try again to get a perfect score and unlock Level 2!",
-                        style: TextStyle(
-                            color: Colors.orange, fontSize: 14 * _scaleFactor),
+                        "Don't give up! You can do better this time!",
+                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                     ],
                   ),
-                )
-              else
-                if (hasPreviousScore && previousScore == 0)
-                  Padding(
-                    padding: EdgeInsets.only(top: 10 * _scaleFactor),
-                    child: Column(
-                      children: [
-                        Text(
-                          "😅 Your previous score: $previousScore/3",
-                          style: TextStyle(
-                              color: Colors.red, fontSize: 16 * _scaleFactor),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: 5 * _scaleFactor),
-                        Text(
-                          "Don't give up! You can do better this time!",
-                          style: TextStyle(color: Colors.orange,
-                              fontSize: 14 * _scaleFactor),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
+                ),
 
             SizedBox(height: 30 * _scaleFactor),
             Container(
@@ -1542,18 +1456,14 @@ class _CppLevel1State extends State<CppLevel1> {
                 children: [
                   Text(
                     gameConfig?['objective'] ?? "🎯 Level 1 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue[800]),
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.blue[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    gameConfig?['objective'] ??
-                        "Complete the C++ Level 1 challenge",
+                    gameConfig?['objective'] ?? "Complete the C++ Level 1 challenge",
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 14 * _scaleFactor, color: Colors.blue[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.blue[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
@@ -1813,8 +1723,8 @@ class _CppLevel1State extends State<CppLevel1> {
 
     return Container(
       constraints: BoxConstraints(
-        minWidth: minWidth, // CORRECTED: Use colon : instead of equals =
-        maxWidth: maxWidth, // CORRECTED: Use colon : instead of equals =
+        minWidth: minWidth,
+        maxWidth: maxWidth,
       ),
       margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
