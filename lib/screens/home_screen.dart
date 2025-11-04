@@ -1540,31 +1540,6 @@ class _HomeScreenState extends State<HomeScreen> {
             Text("🏅 Top 3 players earn special badges each season!", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
             SizedBox(height: 5),
             Text("✅ Your level unlocks and completions are safe!", style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
-            SizedBox(height: 10),
-            Container(
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.public, color: Colors.blue, size: 16),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      "Season continues for ALL users - even after logout!",
-                      style: TextStyle(
-                        color: Colors.blue,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
         actions: [

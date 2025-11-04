@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
-import '../../../services/api_service.dart';
-import '../../../services/user_preferences.dart';
-import '../../../services/music_service.dart';
-import '../../../services/daily_challenge_service.dart';
+import 'dart:convert';
+import '../../../../services/api_service.dart';
+import '../../../../services/user_preferences.dart';
+import '../../../../services/music_service.dart';
+import '../../../../services/daily_challenge_service.dart';
 
 class CppLevel1Medium extends StatefulWidget {
   const CppLevel1Medium({super.key});
@@ -20,33 +20,277 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level1Completed = false;
+  bool levelCompleted = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 240;
+  int remainingSeconds = 180; // Medium: 3 minutes
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
+  // Track currently dragged block
   String? currentlyDraggedBlock;
+
+  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
+  // Game configuration from database
+  Map<String, dynamic>? gameConfig;
+  bool isLoading = true;
+  String? errorMessage;
+
+  // HINT SYSTEM
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
   bool _isUsingHint = false;
 
+  // Configurable elements from database
+  String _codePreviewTitle = '💻 Code Preview:';
+  String _instructionText = '🧩 Arrange the blocks to form the correct C++ code';
+  List<String> _codeStructure = [];
+  String _expectedOutput = '';
+
   @override
   void initState() {
     super.initState();
-    resetBlocks();
+    _loadGameConfig();
     _loadUserData();
     _calculateScaleFactor();
     _startGameMusic();
     _loadHintCards();
+  }
+
+  Future<void> _loadGameConfig() async {
+    try {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+
+      final response = await ApiService.getGameConfigWithDifficulty('C++', 'Medium', 1);
+
+      print('🔍 MEDIUM GAME CONFIG RESPONSE:');
+      print('   Success: ${response['success']}');
+      print('   Message: ${response['message']}');
+
+      if (response['success'] == true && response['game'] != null) {
+        setState(() {
+          gameConfig = response['game'];
+          _initializeGameFromConfig();
+        });
+      } else {
+        setState(() {
+          errorMessage = response['message'] ?? 'Failed to load game configuration from database';
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading game config: $e');
+      setState(() {
+        errorMessage = 'Connection error: $e';
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  void _initializeGameFromConfig() {
+    if (gameConfig == null) return;
+
+    try {
+      print('🔄 INITIALIZING MEDIUM GAME FROM CONFIG');
+
+      // Load timer duration from database
+      if (gameConfig!['timer_duration'] != null) {
+        int timerDuration = int.tryParse(gameConfig!['timer_duration'].toString()) ?? 180;
+        setState(() {
+          remainingSeconds = timerDuration;
+        });
+        print('⏰ Timer duration loaded: $timerDuration seconds');
+      }
+
+      // Load instruction text from database
+      if (gameConfig!['instruction_text'] != null) {
+        setState(() {
+          _instructionText = gameConfig!['instruction_text'].toString();
+        });
+        print('📝 Instruction text loaded: $_instructionText');
+      }
+
+      // Load code preview title from database
+      if (gameConfig!['code_preview_title'] != null) {
+        setState(() {
+          _codePreviewTitle = gameConfig!['code_preview_title'].toString();
+        });
+        print('💻 Code preview title loaded: $_codePreviewTitle');
+      }
+
+      // Load code structure from database
+      if (gameConfig!['code_structure'] != null) {
+        if (gameConfig!['code_structure'] is List) {
+          setState(() {
+            _codeStructure = List<String>.from(gameConfig!['code_structure']);
+          });
+        } else {
+          String codeStructureStr = gameConfig!['code_structure']?.toString() ?? '[]';
+          try {
+            List<dynamic> codeStructureJson = json.decode(codeStructureStr);
+            setState(() {
+              _codeStructure = List<String>.from(codeStructureJson);
+            });
+          } catch (e) {
+            print('❌ Error parsing code structure: $e');
+            setState(() {
+              _codeStructure = [];
+            });
+          }
+        }
+        print('📝 Code structure loaded: $_codeStructure');
+      } else {
+        setState(() {
+          _codeStructure = [];
+        });
+      }
+
+      // Load expected output from database
+      if (gameConfig!['expected_output'] != null) {
+        setState(() {
+          _expectedOutput = gameConfig!['expected_output'].toString();
+        });
+        print('🎯 Expected output loaded: $_expectedOutput');
+      }
+
+      // Load hint from database
+      if (gameConfig!['hint_text'] != null) {
+        setState(() {
+          _currentHint = gameConfig!['hint_text'].toString();
+        });
+        print('💡 Hint loaded from database: $_currentHint');
+      } else {
+        setState(() {
+          _currentHint = _getDefaultHint();
+        });
+        print('💡 Using default hint');
+      }
+
+      // Parse correct blocks
+      List<String> correctBlocks = [];
+      if (gameConfig!['correct_blocks'] != null) {
+        if (gameConfig!['correct_blocks'] is List) {
+          correctBlocks = List<String>.from(gameConfig!['correct_blocks']);
+        } else {
+          String correctBlocksStr = gameConfig!['correct_blocks']?.toString() ?? '[]';
+          try {
+            List<dynamic> correctBlocksJson = json.decode(correctBlocksStr);
+            correctBlocks = List<String>.from(correctBlocksJson);
+          } catch (e) {
+            print('❌ JSON Parse failed for correct_blocks: $e');
+            correctBlocks = _parseStringArray(correctBlocksStr);
+          }
+        }
+      }
+
+      // Parse incorrect blocks
+      List<String> incorrectBlocks = [];
+      if (gameConfig!['incorrect_blocks'] != null) {
+        if (gameConfig!['incorrect_blocks'] is List) {
+          incorrectBlocks = List<String>.from(gameConfig!['incorrect_blocks']);
+        } else {
+          String incorrectBlocksStr = gameConfig!['incorrect_blocks']?.toString() ?? '[]';
+          try {
+            List<dynamic> incorrectBlocksJson = json.decode(incorrectBlocksStr);
+            incorrectBlocks = List<String>.from(incorrectBlocksJson);
+          } catch (e) {
+            print('❌ JSON Parse failed for incorrect_blocks: $e');
+            incorrectBlocks = _parseStringArray(incorrectBlocksStr);
+          }
+        }
+      }
+
+      print('✅ Correct Blocks Parsed: $correctBlocks');
+      print('✅ Incorrect Blocks Parsed: $incorrectBlocks');
+
+      // Combine and shuffle blocks
+      allBlocks = [
+        ...correctBlocks,
+        ...incorrectBlocks,
+      ]..shuffle();
+
+      print('🎮 All Blocks Final: $allBlocks');
+
+    } catch (e) {
+      print('❌ Error parsing game config: $e');
+      resetBlocks();
+    }
+  }
+
+  List<String> _parseStringArray(String input) {
+    try {
+      print('🔄 PARSING INPUT: $input');
+      String cleaned = input.trim();
+
+      if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+        cleaned = cleaned.substring(1, cleaned.length - 1);
+      }
+
+      List<String> items = [];
+      StringBuffer current = StringBuffer();
+      bool inQuotes = false;
+
+      for (int i = 0; i < cleaned.length; i++) {
+        String char = cleaned[i];
+
+        if (char == '"') {
+          inQuotes = !inQuotes;
+          current.write(char);
+        } else if (char == ',' && !inQuotes) {
+          String item = current.toString().trim();
+          if (item.isNotEmpty) {
+            items.add(item);
+          }
+          current.clear();
+        } else {
+          current.write(char);
+        }
+      }
+
+      String lastItem = current.toString().trim();
+      if (lastItem.isNotEmpty) {
+        items.add(lastItem);
+      }
+
+      print('✅ PARSED ITEMS: $items');
+      return items;
+    } catch (e) {
+      print('❌ Error in _parseStringArray: $e');
+      try {
+        List<String> fallback = input
+            .replaceAll('[', '')
+            .replaceAll(']', '')
+            .split(',')
+            .map((item) => item.trim())
+            .where((item) => item.isNotEmpty)
+            .toList();
+        print('🔄 USING FALLBACK: $fallback');
+        return fallback;
+      } catch (e2) {
+        print('❌ Fallback also failed: $e2');
+        return [];
+      }
+    }
+  }
+
+  String _getDefaultHint() {
+    if (gameConfig != null) {
+      String correctAnswer = gameConfig!['correct_answer'] ?? '';
+      return "💡 Hint: The correct code structure is: $correctAnswer\n\nMedium level requires more complex logic!";
+    }
+    return "💡 Hint: This is Medium Level 1 - variables and calculations!";
   }
 
   void _startGameMusic() {
@@ -92,7 +336,6 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
       setState(() {
         _isUsingHint = true;
         _showHint = true;
-        _currentHint = _getLevelHint();
         _availableHintCards--;
       });
 
@@ -101,7 +344,14 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
         await DailyChallengeService.useHintCard(user['id']);
       }
 
-      _autoDragCorrectBlocks();
+      Future.delayed(Duration(seconds: 5), () {
+        if (mounted) {
+          setState(() {
+            _showHint = false;
+            _isUsingHint = false;
+          });
+        }
+      });
     } else if (_availableHintCards <= 0) {
       final musicService = Provider.of<MusicService>(context, listen: false);
       musicService.playSoundEffect('error.mp3');
@@ -115,52 +365,6 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
     }
   }
 
-  void _autoDragCorrectBlocks() {
-    List<String> correctBlocks = [
-      '#include <iostream>',
-      'using namespace std;',
-      'int main() {',
-      'string message = "Hello World";',
-      'cout << message;',
-      'return 0;',
-      '}'
-    ];
-
-    setState(() {
-      droppedBlocks.clear();
-    });
-
-    int delay = 0;
-    for (String block in correctBlocks) {
-      Future.delayed(Duration(milliseconds: delay), () {
-        if (mounted) {
-          setState(() {
-            if (!droppedBlocks.contains(block)) {
-              droppedBlocks.add(block);
-            }
-            if (allBlocks.contains(block)) {
-              allBlocks.remove(block);
-            }
-          });
-        }
-      });
-      delay += 400;
-    }
-
-    Future.delayed(Duration(milliseconds: delay + 800), () {
-      if (mounted) {
-        setState(() {
-          _showHint = false;
-          _isUsingHint = false;
-        });
-      }
-    });
-  }
-
-  String _getLevelHint() {
-    return "MEDIUM: Build the complete C++ program! All blocks are needed including #include, main function, and return statement.";
-  }
-
   void _loadUserData() async {
     final user = await UserPreferences.getUser();
     setState(() {
@@ -171,58 +375,47 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
   }
 
   void resetBlocks() {
-    List<String> correctBlocks = [
-      '#include <iostream>',
-      'using namespace std;',
-      'int main() {',
-      'string message = "Hello World";',
-      'cout << message;',
-      'return 0;',
-      '}'
-    ];
-
-    List<String> incorrectBlocks = [
-      '#include <stdio.h>',
-      'using namespace std',
-      'int main',
-      'main()',
-      'String message = "Hello World"',
-      'printf("Hello World")',
-      'cout >> message',
-      'message = "Hello World"',
-      'return 1;',
-      'end',
-      'System.out.print(message)',
-      'var message = "Hello World"',
-      'std::cout << message',
-      'cin >> message',
-      '#include <string>',
-      'void main()',
-    ];
-
-    incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(4).toList();
-
-    allBlocks = [
-      ...correctBlocks,
-      ...selectedIncorrectBlocks,
-    ]..shuffle();
+    if (gameConfig != null) {
+      _initializeGameFromConfig();
+    } else {
+      allBlocks = [];
+      setState(() {});
+    }
   }
 
   void startGame() {
+    if (gameConfig == null) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('error.mp3');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Game configuration not loaded. Please retry.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final musicService = Provider.of<MusicService>(context, listen: false);
     musicService.playSoundEffect('level_start.mp3');
+
+    int timerDuration = gameConfig!['timer_duration'] != null
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 180
+        : 180;
 
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 240;
+      remainingSeconds = timerDuration;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       _showHint = false;
       _isUsingHint = false;
       resetBlocks();
     });
+
+    print('🎮 MEDIUM GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
     startTimers();
   }
 
@@ -266,7 +459,7 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 120), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 60), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -278,7 +471,9 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
         musicService.playSoundEffect('penalty.mp3');
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
+          SnackBar(
+            content: Text("⏰ Time penalty! -1 point. Current score: $score"),
+          ),
         );
       });
     });
@@ -288,9 +483,13 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
     final musicService = Provider.of<MusicService>(context, listen: false);
     musicService.playSoundEffect('reset.mp3');
 
+    int timerDuration = gameConfig!['timer_duration'] != null
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 180
+        : 180;
+
     setState(() {
       score = 3;
-      remainingSeconds = 240;
+      remainingSeconds = timerDuration;
       gameStarted = false;
       isAnsweredCorrectly = false;
       _showHint = false;
@@ -302,33 +501,58 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
     });
   }
 
-  // FIXED: Save score with proper Medium difficulty
   Future<void> saveScoreToDatabase(int score) async {
-    if (currentUser?['id'] == null) return;
+    if (currentUser?['id'] == null) {
+      print('❌ Cannot save score: No user ID');
+      return;
+    }
 
     try {
+      print('💾 ATTEMPTING TO SAVE MEDIUM SCORE:');
+      print('   User ID: ${currentUser!['id']}');
+      print('   Language: C++_Medium');
+      print('   Level: 1');
+      print('   Score: $score/3');
+      print('   Completed: ${score == 3}');
+
       final response = await ApiService.saveScoreWithDifficulty(
         currentUser!['id'],
         'C++',
         'Medium',
         1,
-        score, // Save original score 0-3
-        score == 3, // Completion is based on original score
+        score,
+        score == 3,
       );
+
+      print('📡 SERVER RESPONSE: $response');
 
       if (response['success'] == true) {
         setState(() {
-          level1Completed = score == 3;
+          levelCompleted = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
 
-        print('Score saved successfully: $score for C++ Medium Level 1');
+        print('✅ MEDIUM SCORE SAVED SUCCESSFULLY TO DATABASE');
       } else {
-        print('Failed to save score: ${response['message']}');
+        print('❌ FAILED TO SAVE MEDIUM SCORE: ${response['message']}');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save score: ${response['message']}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
-      print('Error saving score: $e');
+      print('❌ ERROR SAVING MEDIUM SCORE: $e');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Network error saving score: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -336,11 +560,7 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScoresWithDifficulty(
-          currentUser!['id'],
-          'C++',
-          'Medium'
-      );
+      final response = await ApiService.getScoresWithDifficulty(currentUser!['id'], 'C++', 'Medium');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
@@ -349,35 +569,62 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
         if (level1Data != null) {
           setState(() {
             previousScore = level1Data['score'] ?? 0;
-            level1Completed = level1Data['completed'] ?? false;
+            levelCompleted = level1Data['completed'] ?? false;
             hasPreviousScore = true;
-            score = previousScore;
           });
-          print('Loaded previous score: $previousScore for C++ Medium Level 1');
         }
       }
     } catch (e) {
-      print('Error loading score: $e');
+      print('Error loading medium score: $e');
+    }
+  }
+
+  Future<void> refreshScore() async {
+    if (currentUser?['id'] != null) {
+      try {
+        final response = await ApiService.getScoresWithDifficulty(currentUser!['id'], 'C++', 'Medium');
+        if (response['success'] == true && response['scores'] != null) {
+          final scoresData = response['scores'];
+          final level1Data = scoresData['1'];
+
+          setState(() {
+            if (level1Data != null) {
+              previousScore = level1Data['score'] ?? 0;
+              levelCompleted = level1Data['completed'] ?? false;
+              hasPreviousScore = true;
+            } else {
+              hasPreviousScore = false;
+              previousScore = 0;
+              levelCompleted = false;
+            }
+          });
+        }
+      } catch (e) {
+        print('Error refreshing medium score: $e');
+      }
     }
   }
 
   bool isIncorrectBlock(String block) {
+    if (gameConfig != null) {
+      try {
+        List<dynamic> incorrectBlocksJson = json.decode(gameConfig!['incorrect_blocks'] ?? '[]');
+        List<String> incorrectBlocks = List<String>.from(incorrectBlocksJson);
+        return incorrectBlocks.contains(block);
+      } catch (e) {
+        // Fallback to original method
+      }
+    }
+
+    // Fallback incorrect blocks for Medium Level 1
     List<String> incorrectBlocks = [
-      '#include <stdio.h>',
-      'using namespace std',
-      'int main',
-      'main()',
-      'String message = "Hello World"',
-      'printf("Hello World")',
-      'cout >> message',
-      'message = "Hello World"',
+      'printf',
+      'cout >>',
+      'System.out.print',
+      'print',
+      'Console.WriteLine',
+      'cin',
       'return 1;',
-      'end',
-      'System.out.print(message)',
-      'var message = "Hello World"',
-      'std::cout << message',
-      'cin >> message',
-      '#include <string>',
       'void main()',
     ];
     return incorrectBlocks.contains(block);
@@ -437,15 +684,19 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
     String answer = droppedBlocks.join(' ');
     String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
 
-    bool hasInclude = normalizedAnswer.contains('#include<iostream>');
-    bool hasNamespace = normalizedAnswer.contains('usingnamespacestd;');
-    bool hasMain = normalizedAnswer.contains('intmain(){');
-    bool hasVariable = normalizedAnswer.contains('stringmessage="helloworld";');
-    bool hasOutput = normalizedAnswer.contains('cout<<message;');
-    bool hasReturn = normalizedAnswer.contains('return0;');
-    bool hasClosingBrace = normalizedAnswer.contains('}');
+    bool isCorrect = false;
 
-    if (hasInclude && hasNamespace && hasMain && hasVariable && hasOutput && hasReturn && hasClosingBrace) {
+    if (gameConfig != null) {
+      String expectedAnswer = gameConfig!['correct_answer'] ?? '';
+      String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+      isCorrect = normalizedAnswer == normalizedExpected;
+    } else {
+      // Fallback check for Medium Level 1
+      String expected = 'intmain(){inta=5;intb=10;intsum=a+b;cout<<"Sum:"<<sum;return0;}';
+      isCorrect = normalizedAnswer == expected;
+    }
+
+    if (isCorrect) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -461,10 +712,6 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
         musicService.playSoundEffect('success.mp3');
       }
 
-      // FIXED: Show correct points calculation for Medium
-      final gameScore = score;
-      final leaderboardPoints = score * 20; // Medium: 20× multiplier
-
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
@@ -473,45 +720,27 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent! You built a complete C++ program!"),
+              Text("Excellent work C++ Intermediate!"),
               SizedBox(height: 10),
-              Text("Game Score: $gameScore/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-              Text("Leaderboard Points: $leaderboardPoints/60", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+              Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've mastered Medium Level!",
+                  "🎉 Perfect! You've unlocked Level 2 Medium!",
                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) for full completion!",
+                  "⚠️ Get a perfect score (3/3) to unlock the next level!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
-              SizedBox(height: 10),
-              Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange),
-                ),
-                child: Text(
-                  "🎯 Medium Difficulty: 20× Points Multiplier!",
-                  style: TextStyle(
-                    color: Colors.orange,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
               SizedBox(height: 10),
               Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  "Hello World",
+                  _expectedOutput.isNotEmpty ? _expectedOutput : 'Sum: 15',
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
@@ -530,9 +759,10 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
                   musicService.playSoundEffect('level_complete.mp3');
                   Navigator.pushReplacementNamed(context, '/cpp_level2_medium');
                 } else {
-                  Navigator.pushReplacementNamed(context, '/levels',
-                      arguments: {'language': 'C++', // Use the actual language
-                        'difficulty': 'medium'});
+                  Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                    'language': 'C++',
+                    'difficulty': 'Medium'
+                  });
                 }
               },
               child: Text(score == 3 ? "Next Level" : "Go Back"),
@@ -548,7 +778,9 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
           score--;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Incomplete program. -1 point. Current score: $score")),
+          SnackBar(
+            content: Text("❌ Incorrect arrangement. -1 point. Current score: $score"),
+          ),
         );
       } else {
         setState(() {
@@ -564,7 +796,7 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("Remember to build the complete C++ program with all necessary parts."),
+            content: Text("You lost all your points."),
             actions: [
               TextButton(
                 onPressed: () {
@@ -630,12 +862,13 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 14 * _scaleFactor,
+                height: 1.4,
               ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Correct blocks are being placed automatically...',
+              'Hint will disappear in 5 seconds...',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 12 * _scaleFactor,
@@ -643,6 +876,49 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHintButton() {
+    return Positioned(
+      bottom: 20 * _scaleFactor,
+      right: 20 * _scaleFactor,
+      child: GestureDetector(
+        onTap: _useHintCard,
+        child: Container(
+          padding: EdgeInsets.all(12 * _scaleFactor),
+          decoration: BoxDecoration(
+            color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
+            borderRadius: BorderRadius.circular(20 * _scaleFactor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 4 * _scaleFactor,
+                offset: Offset(0, 2 * _scaleFactor),
+              )
+            ],
+            border: Border.all(
+              color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
+              width: 2 * _scaleFactor,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lightbulb_outline, color: Colors.white, size: 20 * _scaleFactor),
+              SizedBox(width: 6 * _scaleFactor),
+              Text(
+                '$_availableHintCards',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18 * _scaleFactor,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -685,114 +961,143 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
           ),
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
-            child: _buildCodeContent(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 30 * _scaleFactor,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: _buildLineNumbers(),
+                      ),
+                    ),
+                    SizedBox(width: 16 * _scaleFactor),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: _buildCodeLines(),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCodeContent() {
-    if (droppedBlocks.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '// Drag blocks to build your program',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 12 * _scaleFactor,
-              fontFamily: 'monospace',
-            ),
-          ),
-        ],
-      );
-    }
-
-    List<Widget> codeLines = [];
-    int lineNumber = 1;
-
-    for (String block in droppedBlocks) {
-      bool isPreprocessor = block.contains('#include');
-      bool isKeyword = block.contains('using namespace') ||
-          block.contains('int main()') ||
-          block.contains('return 0') ||
-          block.contains('string message') ||
-          block.contains('cout <<');
-      bool isIncorrect = isIncorrectBlock(block);
-
-      Color textColor = Colors.white;
-      if (isPreprocessor) {
-        textColor = Color(0xFFCE9178);
-      } else if (isKeyword && !isIncorrect) {
-        textColor = Color(0xFF569CD6);
-      } else if (isIncorrect) {
-        textColor = Colors.red;
-      }
-
-      String displayCode = block;
-
-      if (block != '#include <iostream>' &&
-          block != 'using namespace std;' &&
-          block != 'int main() {' &&
-          block != '}') {
-        displayCode = '    $block';
-      }
-
-      codeLines.add(_buildCodeLineWithNumber(lineNumber++, displayCode,
-          textColor: textColor,
-          isIncorrect: isIncorrect
-      ));
-
-      if (block == 'using namespace std;') {
-        codeLines.add(SizedBox(height: 8 * _scaleFactor));
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: codeLines,
-    );
+  List<Widget> _buildLineNumbers() {
+    return List.generate(_codeStructure.length, (index) {
+      return _buildCodeLine(index + 1);
+    });
   }
 
-  Widget _buildCodeLineWithNumber(int lineNumber, String code, {Color? textColor, bool isIncorrect = false}) {
-    Color finalTextColor = textColor ?? Colors.white;
+  List<Widget> _buildCodeLines() {
+    List<Widget> lines = [];
 
-    if (isIncorrect) {
-      finalTextColor = Colors.red;
+    for (int i = 0; i < _codeStructure.length; i++) {
+      String line = _codeStructure[i];
+
+      if (line.contains('// Your code here')) {
+        lines.add(_buildUserCodeLine(getPreviewCode()));
+      } else if (line.trim().isEmpty) {
+        lines.add(Container(height: 20 * _scaleFactor));
+      } else {
+        lines.add(_buildSyntaxHighlightedLine(line));
+      }
+    }
+
+    return lines;
+  }
+
+  Widget _buildUserCodeLine(String code) {
+    if (code.isEmpty) {
+      return Container(
+        height: 20 * _scaleFactor,
+        child: Text(
+          '        ',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 12 * _scaleFactor,
+            fontFamily: 'monospace',
+          ),
+        ),
+      );
     }
 
     return Container(
       height: 20 * _scaleFactor,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 30 * _scaleFactor,
-            child: Text(
-              lineNumber.toString().padLeft(2, ' '),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '    ',
+              style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12 * _scaleFactor),
+            ),
+            TextSpan(
+              text: code,
               style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 12 * _scaleFactor,
+                color: Colors.greenAccent[400],
                 fontFamily: 'monospace',
+                fontSize: 12 * _scaleFactor,
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ),
-          SizedBox(width: 16 * _scaleFactor),
-          Expanded(
-            child: Text(
-              code,
-              style: TextStyle(
-                color: finalTextColor,
-                fontSize: 12 * _scaleFactor,
-                fontFamily: 'monospace',
-                fontWeight: isIncorrect ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _buildCodeLine(int lineNumber) {
+    return Container(
+      height: 20 * _scaleFactor,
+      child: Text(
+        lineNumber.toString().padLeft(2, ' '),
+        style: TextStyle(
+          color: Colors.grey[600],
+          fontSize: 12 * _scaleFactor,
+          fontFamily: 'monospace',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSyntaxHighlightedLine(String code) {
+    Color textColor = Colors.white;
+
+    if (code.trim().startsWith('#include')) {
+      textColor = Color(0xFFCE9178);
+    } else if (code.contains('int main') || code.contains('using namespace') || code.contains('return')) {
+      textColor = Color(0xFF569CD6);
+    } else if (code.trim().startsWith('//')) {
+      textColor = Color(0xFF6A9955);
+    } else if (code.contains('"') || code.contains("'")) {
+      textColor = Color(0xFFCE9178);
+    } else if (code.contains('{') || code.contains('}')) {
+      textColor = Colors.white;
+    }
+
+    return Container(
+      height: 20 * _scaleFactor,
+      child: Text(
+        code,
+        style: TextStyle(
+          color: textColor,
+          fontSize: 12 * _scaleFactor,
+          fontFamily: 'monospace',
+        ),
+      ),
+    );
+  }
+
+  String getPreviewCode() {
+    return droppedBlocks.join(' ');
   }
 
   @override
@@ -810,9 +1115,111 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("⚡ C++ Medium - Level 1", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.orange,
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0D1B2A),
+                Color(0xFF1B263B),
+                Color(0xFF415A77),
+              ],
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.orange),
+                SizedBox(height: 20),
+                Text(
+                  "Loading Medium Game Configuration...",
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "From Database",
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (errorMessage != null && !gameStarted) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("⚡ C++ Medium - Level 1", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.orange,
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0D1B2A),
+                Color(0xFF1B263B),
+                Color(0xFF415A77),
+              ],
+            ),
+          ),
+          child: Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.warning_amber, color: Colors.orange, size: 50),
+                  SizedBox(height: 20),
+                  Text(
+                    "Configuration Warning",
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _loadGameConfig,
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                    child: Text("Retry Loading"),
+                  ),
+                  SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                        'language': 'C++',
+                        'difficulty': 'Medium'
+                      });
+                    },
+                    child: Text("Back to Levels", style: TextStyle(color: Colors.orange)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
-      final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
+      final newScaleFactor = newScreenWidth < _baseScreenWidth
+          ? newScreenWidth / _baseScreenWidth
+          : 1.0;
 
       if (newScaleFactor != _scaleFactor) {
         setState(() {
@@ -823,9 +1230,10 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("⚡ C++ - Level 1 (Medium)", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        title: Text("⚡ C++ Medium - Level 1", style: TextStyle(fontSize: 18 * _scaleFactor)),
         backgroundColor: Colors.orange,
-        actions: gameStarted ? [
+        actions: gameStarted
+            ? [
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor),
             child: Row(
@@ -839,7 +1247,8 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
               ],
             ),
           ),
-        ] : [],
+        ]
+            : [],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -858,46 +1267,7 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
             gameStarted ? buildGameUI() : buildStartScreen(),
             if (gameStarted && !isAnsweredCorrectly) ...[
               _buildHintDisplay(),
-              Positioned(
-                bottom: 20 * _scaleFactor,
-                right: 20 * _scaleFactor,
-                child: GestureDetector(
-                  onTap: _useHintCard,
-                  child: Container(
-                    padding: EdgeInsets.all(12 * _scaleFactor),
-                    decoration: BoxDecoration(
-                      color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
-                      borderRadius: BorderRadius.circular(20 * _scaleFactor),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 4 * _scaleFactor,
-                          offset: Offset(0, 2 * _scaleFactor),
-                        )
-                      ],
-                      border: Border.all(
-                        color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
-                        width: 2 * _scaleFactor,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.lightbulb_outline, color: Colors.white, size: 20 * _scaleFactor),
-                        SizedBox(width: 6 * _scaleFactor),
-                        Text(
-                          '$_availableHintCards',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18 * _scaleFactor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+              _buildHintButton(),
             ],
           ],
         ),
@@ -906,12 +1276,6 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
   }
 
   Widget buildStartScreen() {
-    // Calculate display values for Medium difficulty
-    final displayGameScore = previousScore;
-    final displayLeaderboardPoints = previousScore * 20; // Medium: 20× multiplier
-    final maxGameScore = 3;
-    final maxLeaderboardPoints = 60; // 3 × 20
-
     return Center(
       child: SingleChildScrollView(
         padding: EdgeInsets.all(16 * _scaleFactor),
@@ -919,16 +1283,16 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              onPressed: () {
+              onPressed: gameConfig != null ? () {
                 final musicService = Provider.of<MusicService>(context, listen: false);
                 musicService.playSoundEffect('button_click.mp3');
                 startGame();
-              },
+              } : null,
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Medium", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text(gameConfig != null ? "Start" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.orange,
+                backgroundColor: gameConfig != null ? Colors.orange : Colors.grey,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
@@ -965,25 +1329,20 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
               ),
             ),
 
-            if (level1Completed)
+            if (levelCompleted)
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Medium Level completed with perfect score!",
+                      "✅ Level 1 Medium completed with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "🎮 Game Score: $displayGameScore/$maxGameScore",
-                      style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                    Text(
-                      "🏆 Leaderboard Points: $displayLeaderboardPoints/$maxLeaderboardPoints",
-                      style: TextStyle(color: Colors.blue, fontSize: 14 * _scaleFactor, fontWeight: FontWeight.bold),
+                      "You've unlocked Level 2 Medium!",
+                      style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -995,24 +1354,13 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
                 child: Column(
                   children: [
                     Text(
-                      "📊 Your previous medium score:",
-                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
+                      "📊 Your previous score: $previousScore/3",
+                      style: TextStyle(color: Colors.orange, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Game: $displayGameScore/$maxGameScore",
-                      style: TextStyle(color: Colors.white, fontSize: 14 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                    Text(
-                      "Leaderboard: $displayLeaderboardPoints/$maxLeaderboardPoints",
-                      style: TextStyle(color: Colors.blue, fontSize: 14 * _scaleFactor, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 5 * _scaleFactor),
-                    Text(
-                      "Try again to get a perfect score!",
+                      "Try again to get a perfect score and unlock Level 2!",
                       style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -1025,7 +1373,7 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
                   child: Column(
                     children: [
                       Text(
-                        "😅 Your previous score: $displayGameScore/$maxGameScore",
+                        "😅 Your previous score: $previousScore/3",
                         style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
@@ -1051,37 +1399,19 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
               child: Column(
                 children: [
                   Text(
-                    "🎯 Medium Level Objective",
+                    gameConfig?['objective'] ?? "🎯 Medium Level 1 Objective",
                     style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.orange[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Build a complete C++ program from scratch using all 7 blocks",
+                    gameConfig?['objective'] ?? "Complete the C++ Medium Level 1 challenge with variables and calculations",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.orange[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(8 * _scaleFactor),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(8 * _scaleFactor),
-                      border: Border.all(color: Colors.orange),
-                    ),
-                    child: Text(
-                      "🎁 Medium Difficulty: 20× Points Multiplier!",
-                      style: TextStyle(
-                        fontSize: 14 * _scaleFactor,
-                        color: Colors.orange[800],
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎮 Perfect Score (3/3) = 60 Leaderboard Points",
+                    "🎁 Get a perfect score (3/3) to unlock Level 2 Medium!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
@@ -1090,14 +1420,14 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
                         fontStyle: FontStyle.italic
                     ),
                   ),
-                  SizedBox(height: 5 * _scaleFactor),
+                  SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "(Easy: 30 points, Medium: 60 points, Hard: 90 points)",
+                    "🏆 2× POINTS MULTIPLIER",
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontSize: 11 * _scaleFactor,
-                        color: Colors.purple,
-                        fontStyle: FontStyle.italic
+                        fontSize: 14 * _scaleFactor,
+                        color: Colors.orange,
+                        fontWeight: FontWeight.bold
                     ),
                   ),
                 ],
@@ -1119,8 +1449,7 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Short Story',
-                    style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text('📖 Short Story', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
                 onPressed: () {
@@ -1131,22 +1460,21 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
                   });
                 },
                 icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
-                label: Text(isTagalog ? 'English' : 'Tagalog',
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+                label: Text(isTagalog ? 'English' : 'Tagalog', style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
               ),
             ],
           ),
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Ngayon, gusto ni Alex gumawa ng mas kumpletong C++ program! Kailangan niyang isama ang #include, main function, at return statement. Tulungan siyang buuin ang buong program!'
-                : 'Now, Alex wants to create a more complete C++ program! He needs to include #include, main function, and return statement. Help him build the entire program!',
+                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Medium Level 1 ng C++ programming! Hamon sa variables at calculations.')
+                : (gameConfig?['story_english'] ?? 'This is C++ Medium Level 1! Challenge yourself with variables and calculations.'),
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Build the complete C++ program using all 7 blocks',
+          Text(_instructionText,
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
@@ -1197,6 +1525,7 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
+
                           setState(() {
                             currentlyDraggedBlock = block;
                           });
@@ -1228,7 +1557,7 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
           ),
 
           SizedBox(height: 20 * _scaleFactor),
-          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          Text(_codePreviewTitle, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
           SizedBox(height: 10 * _scaleFactor),
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
@@ -1255,16 +1584,17 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
                   data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(block, Colors.deepOrange),
+                    child: puzzleBlock(block, Colors.orange),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.deepOrange),
+                    child: puzzleBlock(block, Colors.orange),
                   ),
-                  child: puzzleBlock(block, Colors.deepOrange),
+                  child: puzzleBlock(block, Colors.orange),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
+
                     setState(() {
                       currentlyDraggedBlock = block;
                     });
@@ -1310,6 +1640,7 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
           ),
 
           SizedBox(height: 10 * _scaleFactor),
+
           TextButton(
             onPressed: () {
               final musicService = Provider.of<MusicService>(context, listen: false);
@@ -1335,7 +1666,8 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
         ),
       ),
       textDirection: TextDirection.ltr,
-    )..layout();
+    )
+      ..layout();
 
     final textWidth = textPainter.width;
     final minWidth = 80 * _scaleFactor;

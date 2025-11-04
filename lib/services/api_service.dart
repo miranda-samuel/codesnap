@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = "http://192.168.100.92/codesnap";
+  static const String baseUrl = "http://192.168.56.1/codesnap";
 
   // Helper methods for safe type conversion
   static int _safeIntConversion(dynamic value) {
@@ -69,7 +69,7 @@ class ApiService {
       // Use unique key for each difficulty
       String scoreKey = '${language}_$difficulty';
 
-      print('🎮 SAVING SCORE - User: $userId, $language $difficulty Level $level, Score: $actualScore/3, Completed: $completed');
+      print('🎮 SAVING SCORE WITH DIFFICULTY - User: $userId, $language $difficulty Level $level, Score: $actualScore/3, Completed: $completed');
 
       final response = await http.post(
         Uri.parse('$baseUrl/scores.php'),
@@ -142,12 +142,13 @@ class ApiService {
     }
   }
 
+  // ✅ NEW: Get scores with difficulty support
   static Future<Map<String, dynamic>> getScoresWithDifficulty(int userId, String language, String difficulty) async {
     try {
       // Use unique key for each difficulty
       String scoreKey = '${language}_$difficulty';
 
-      print('🔍 GETTING SCORES - User: $userId, Language: $scoreKey');
+      print('🔍 GETTING SCORES WITH DIFFICULTY - User: $userId, Language: $scoreKey');
 
       final response = await http.post(
         Uri.parse('$baseUrl/scores.php'),
@@ -161,6 +162,7 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        print('📊 SCORES WITH DIFFICULTY RESPONSE: $data');
 
         if (data['success'] == true && data['scores'] != null) {
           final Map<String, dynamic> processedScores = {};
@@ -182,7 +184,7 @@ class ApiService {
     }
   }
 
-// ✅ UPDATED: Get Game Configuration from database - FIXED VERSION
+  // ✅ UPDATED: Get Game Configuration from database - FIXED VERSION
   static Future<Map<String, dynamic>> getGameConfig(String language, int level) async {
     try {
       print('🎮 GETTING GAME CONFIG - Language: $language, Level: $level');
@@ -287,6 +289,97 @@ class ApiService {
     }
   }
 
+  // ✅ NEW: Get game config with difficulty support
+  static Future<Map<String, dynamic>> getGameConfigWithDifficulty(String language, String difficulty, int level) async {
+    try {
+      String languageKey = '${language}_$difficulty';
+      print('🎮 GETTING GAME CONFIG WITH DIFFICULTY - Language: $languageKey, Level: $level');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/get_game_config.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'language': languageKey,
+          'level': level,
+        }),
+      ).timeout(Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        if (data['success'] == true && data['game'] != null) {
+          print('✅ GAME CONFIG WITH DIFFICULTY LOADED SUCCESSFULLY');
+
+          // Parse the JSON strings from database
+          final game = data['game'];
+
+          // Parse correct_blocks JSON
+          try {
+            if (game['correct_blocks'] is String) {
+              game['correct_blocks'] = json.decode(game['correct_blocks']);
+            }
+          } catch (e) {
+            print('❌ Error parsing correct_blocks: $e');
+            game['correct_blocks'] = [];
+          }
+
+          // Parse incorrect_blocks JSON
+          try {
+            if (game['incorrect_blocks'] is String) {
+              game['incorrect_blocks'] = json.decode(game['incorrect_blocks']);
+            }
+          } catch (e) {
+            print('❌ Error parsing incorrect_blocks: $e');
+            game['incorrect_blocks'] = [];
+          }
+
+          // Parse code_structure JSON
+          try {
+            if (game['code_structure'] is String) {
+              game['code_structure'] = json.decode(game['code_structure']);
+            }
+          } catch (e) {
+            print('❌ Error parsing code_structure: $e');
+            game['code_structure'] = [
+              "#include <iostream>",
+              "using namespace std;",
+              "",
+              "int main() {",
+              "    // Your code here",
+              "    return 0;",
+              "}"
+            ];
+          }
+
+          // Ensure timer_duration is int
+          game['timer_duration'] = _safeIntConversion(game['timer_duration']);
+
+          return data;
+        } else {
+          return {
+            'success': false,
+            'message': data['message'] ?? 'Game configuration not found in database'
+          };
+        }
+      } else {
+        return {
+          'success': false,
+          'message': 'Server error: ${response.statusCode}'
+        };
+      }
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Connection timeout. Please check your server.'
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error: $e'
+      };
+    }
+  }
+
   static Future<Map<String, dynamic>> resetScores(int userId, String language) async {
     try {
       print('🔄 RESETTING SCORES - User: $userId, Language: $language');
@@ -313,10 +406,13 @@ class ApiService {
     }
   }
 
+  // ✅ NEW: Reset scores with difficulty support
   static Future<Map<String, dynamic>> resetScoresWithDifficulty(int userId, String language, String difficulty) async {
     try {
       // Use unique key for each difficulty
       String scoreKey = '${language}_$difficulty';
+
+      print('🔄 RESETTING SCORES WITH DIFFICULTY - User: $userId, Language: $scoreKey');
 
       final response = await http.post(
         Uri.parse('$baseUrl/scores.php'),
@@ -329,7 +425,9 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        final result = jsonDecode(response.body);
+        print('✅ SCORES WITH DIFFICULTY RESET SUCCESS: $result');
+        return result;
       } else {
         return {'success': false, 'message': 'Server error: ${response.statusCode}'};
       }
@@ -851,6 +949,95 @@ class ApiService {
         return {'success': true, 'message': 'Connection successful'};
       } else {
         return {'success': false, 'message': 'Server responded with status: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
+
+  // ✅ NEW: Get user profile with comprehensive stats
+  static Future<Map<String, dynamic>> getUserProfile(int userId) async {
+    try {
+      print('👤 GETTING USER PROFILE - User: $userId');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/profile.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'get_user_profile',
+          'user_id': userId,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data;
+      } else {
+        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
+
+  // ✅ NEW: Get user rank
+  static Future<Map<String, dynamic>> getUserRank(int userId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/profile.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'get_user_rank',
+          'user_id': userId,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
+
+  // ✅ NEW: Get all users basic info
+  static Future<Map<String, dynamic>> getAllUsersBasic() async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/profile.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'get_all_users_basic',
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: $e'};
+    }
+  }
+
+  // ✅ NEW: Debug endpoint
+  static Future<Map<String, dynamic>> debugEndpoint() async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'action': 'debug',
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {'success': false, 'message': 'Server error: ${response.statusCode}'};
       }
     } catch (e) {
       return {'success': false, 'message': 'Connection error: $e'};

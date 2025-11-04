@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
-import '../../../services/api_service.dart';
-import '../../../services/user_preferences.dart';
-import '../../../services/music_service.dart';
-import '../../../services/daily_challenge_service.dart';
+import 'dart:convert';
+import '../../../../services/api_service.dart';
+import '../../../../services/user_preferences.dart';
+import '../../../../services/music_service.dart';
+import '../../../../services/daily_challenge_service.dart';
 
 class CppLevel1Hard extends StatefulWidget {
   const CppLevel1Hard({super.key});
@@ -15,49 +15,291 @@ class CppLevel1Hard extends StatefulWidget {
 }
 
 class _CppLevel1HardState extends State<CppLevel1Hard> {
+  List<String> allBlocks = [];
+  List<String> droppedBlocks = [];
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level1Completed = false;
+  bool levelCompleted = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 300;
+  int remainingSeconds = 240; // Hard: 4 minutes
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
+  // Track currently dragged block
   String? currentlyDraggedBlock;
+
+  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
+  // Game configuration from database
+  Map<String, dynamic>? gameConfig;
+  bool isLoading = true;
+  String? errorMessage;
+
+  // HINT SYSTEM
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
   bool _isUsingHint = false;
 
-  // Track block instances with unique IDs
-  List<BlockItem> allBlockItems = [];
-  List<BlockItem> droppedBlockItems = [];
+  // Configurable elements from database
+  String _codePreviewTitle = '💻 Code Preview:';
+  String _instructionText = '🧩 Arrange the blocks to form the correct C++ code';
+  List<String> _codeStructure = [];
+  String _expectedOutput = '';
 
   @override
   void initState() {
     super.initState();
-    resetBlocks();
+    _loadGameConfig();
     _loadUserData();
     _calculateScaleFactor();
     _startGameMusic();
     _loadHintCards();
   }
 
+  Future<void> _loadGameConfig() async {
+    try {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+
+      final response = await ApiService.getGameConfigWithDifficulty('C++', 'Hard', 1);
+
+      print('🔍 HARD GAME CONFIG RESPONSE:');
+      print('   Success: ${response['success']}');
+      print('   Message: ${response['message']}');
+
+      if (response['success'] == true && response['game'] != null) {
+        setState(() {
+          gameConfig = response['game'];
+          _initializeGameFromConfig();
+        });
+      } else {
+        setState(() {
+          errorMessage = response['message'] ?? 'Failed to load game configuration from database';
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading game config: $e');
+      setState(() {
+        errorMessage = 'Connection error: $e';
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  void _initializeGameFromConfig() {
+    if (gameConfig == null) return;
+
+    try {
+      print('🔄 INITIALIZING HARD GAME FROM CONFIG');
+
+      // Load timer duration from database
+      if (gameConfig!['timer_duration'] != null) {
+        int timerDuration = int.tryParse(gameConfig!['timer_duration'].toString()) ?? 240;
+        setState(() {
+          remainingSeconds = timerDuration;
+        });
+        print('⏰ Timer duration loaded: $timerDuration seconds');
+      }
+
+      // Load instruction text from database
+      if (gameConfig!['instruction_text'] != null) {
+        setState(() {
+          _instructionText = gameConfig!['instruction_text'].toString();
+        });
+        print('📝 Instruction text loaded: $_instructionText');
+      }
+
+      // Load code preview title from database
+      if (gameConfig!['code_preview_title'] != null) {
+        setState(() {
+          _codePreviewTitle = gameConfig!['code_preview_title'].toString();
+        });
+        print('💻 Code preview title loaded: $_codePreviewTitle');
+      }
+
+      // Load code structure from database
+      if (gameConfig!['code_structure'] != null) {
+        if (gameConfig!['code_structure'] is List) {
+          setState(() {
+            _codeStructure = List<String>.from(gameConfig!['code_structure']);
+          });
+        } else {
+          String codeStructureStr = gameConfig!['code_structure']?.toString() ?? '[]';
+          try {
+            List<dynamic> codeStructureJson = json.decode(codeStructureStr);
+            setState(() {
+              _codeStructure = List<String>.from(codeStructureJson);
+            });
+          } catch (e) {
+            print('❌ Error parsing code structure: $e');
+            setState(() {
+              _codeStructure = [];
+            });
+          }
+        }
+        print('📝 Code structure loaded: $_codeStructure');
+      } else {
+        setState(() {
+          _codeStructure = [];
+        });
+      }
+
+      // Load expected output from database
+      if (gameConfig!['expected_output'] != null) {
+        setState(() {
+          _expectedOutput = gameConfig!['expected_output'].toString();
+        });
+        print('🎯 Expected output loaded: $_expectedOutput');
+      }
+
+      // Load hint from database
+      if (gameConfig!['hint_text'] != null) {
+        setState(() {
+          _currentHint = gameConfig!['hint_text'].toString();
+        });
+        print('💡 Hint loaded from database: $_currentHint');
+      } else {
+        setState(() {
+          _currentHint = _getDefaultHint();
+        });
+        print('💡 Using default hint');
+      }
+
+      // Parse correct blocks
+      List<String> correctBlocks = [];
+      if (gameConfig!['correct_blocks'] != null) {
+        if (gameConfig!['correct_blocks'] is List) {
+          correctBlocks = List<String>.from(gameConfig!['correct_blocks']);
+        } else {
+          String correctBlocksStr = gameConfig!['correct_blocks']?.toString() ?? '[]';
+          try {
+            List<dynamic> correctBlocksJson = json.decode(correctBlocksStr);
+            correctBlocks = List<String>.from(correctBlocksJson);
+          } catch (e) {
+            print('❌ JSON Parse failed for correct_blocks: $e');
+            correctBlocks = _parseStringArray(correctBlocksStr);
+          }
+        }
+      }
+
+      // Parse incorrect blocks
+      List<String> incorrectBlocks = [];
+      if (gameConfig!['incorrect_blocks'] != null) {
+        if (gameConfig!['incorrect_blocks'] is List) {
+          incorrectBlocks = List<String>.from(gameConfig!['incorrect_blocks']);
+        } else {
+          String incorrectBlocksStr = gameConfig!['incorrect_blocks']?.toString() ?? '[]';
+          try {
+            List<dynamic> incorrectBlocksJson = json.decode(incorrectBlocksStr);
+            incorrectBlocks = List<String>.from(incorrectBlocksJson);
+          } catch (e) {
+            print('❌ JSON Parse failed for incorrect_blocks: $e');
+            incorrectBlocks = _parseStringArray(incorrectBlocksStr);
+          }
+        }
+      }
+
+      print('✅ Correct Blocks Parsed: $correctBlocks');
+      print('✅ Incorrect Blocks Parsed: $incorrectBlocks');
+
+      // Combine and shuffle blocks
+      allBlocks = [
+        ...correctBlocks,
+        ...incorrectBlocks,
+      ]..shuffle();
+
+      print('🎮 All Blocks Final: $allBlocks');
+
+    } catch (e) {
+      print('❌ Error parsing game config: $e');
+      resetBlocks();
+    }
+  }
+
+  List<String> _parseStringArray(String input) {
+    try {
+      print('🔄 PARSING INPUT: $input');
+      String cleaned = input.trim();
+
+      if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+        cleaned = cleaned.substring(1, cleaned.length - 1);
+      }
+
+      List<String> items = [];
+      StringBuffer current = StringBuffer();
+      bool inQuotes = false;
+
+      for (int i = 0; i < cleaned.length; i++) {
+        String char = cleaned[i];
+
+        if (char == '"') {
+          inQuotes = !inQuotes;
+          current.write(char);
+        } else if (char == ',' && !inQuotes) {
+          String item = current.toString().trim();
+          if (item.isNotEmpty) {
+            items.add(item);
+          }
+          current.clear();
+        } else {
+          current.write(char);
+        }
+      }
+
+      String lastItem = current.toString().trim();
+      if (lastItem.isNotEmpty) {
+        items.add(lastItem);
+      }
+
+      print('✅ PARSED ITEMS: $items');
+      return items;
+    } catch (e) {
+      print('❌ Error in _parseStringArray: $e');
+      try {
+        List<String> fallback = input
+            .replaceAll('[', '')
+            .replaceAll(']', '')
+            .split(',')
+            .map((item) => item.trim())
+            .where((item) => item.isNotEmpty)
+            .toList();
+        print('🔄 USING FALLBACK: $fallback');
+        return fallback;
+      } catch (e2) {
+        print('❌ Fallback also failed: $e2');
+        return [];
+      }
+    }
+  }
+
+  String _getDefaultHint() {
+    if (gameConfig != null) {
+      String correctAnswer = gameConfig!['correct_answer'] ?? '';
+      return "💡 Hint: The correct code structure is: $correctAnswer\n\nHard level requires advanced logic and functions!";
+    }
+    return "💡 Hint: This is Hard Level 1 - functions and complex logic!";
+  }
+
   void _startGameMusic() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final musicService = Provider.of<MusicService>(context, listen: false);
       await musicService.stopBackgroundMusic();
-      await musicService.playSoundEffect('game_start_hard.mp3');
+      await musicService.playSoundEffect('game_start.mp3');
       await Future.delayed(Duration(milliseconds: 500));
-      await musicService.playSoundEffect('game_music_hard.mp3');
+      await musicService.playSoundEffect('game_music.mp3');
     });
   }
 
@@ -89,12 +331,11 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
   void _useHintCard() async {
     if (_availableHintCards > 0 && !_isUsingHint) {
       final musicService = Provider.of<MusicService>(context, listen: false);
-      musicService.playSoundEffect('hint_use_hard.mp3');
+      musicService.playSoundEffect('hint_use.mp3');
 
       setState(() {
         _isUsingHint = true;
         _showHint = true;
-        _currentHint = _getLevelHint();
         _availableHintCards--;
       });
 
@@ -103,74 +344,25 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
         await DailyChallengeService.useHintCard(user['id']);
       }
 
-      _autoDragCorrectBlocks();
-    } else if (_availableHintCards <= 0) {
-      final musicService = Provider.of<MusicService>(context, listen: false);
-      musicService.playSoundEffect('error_hard.mp3');
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No hint cards! Complete challenges to earn more.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  void _autoDragCorrectBlocks() {
-    List<String> correctBlocks = [
-      '#include <iostream>',
-      '#include <string>',
-      'using namespace std;',
-      'void displayMessage(string msg)',
-      '{',
-      'cout << "Message: " << msg << endl;',
-      '}',
-      'int main()',
-      '{',
-      'string text = "Hello World";',
-      'displayMessage(text);',
-      'return 0;',
-      '}'
-    ];
-
-    setState(() {
-      droppedBlockItems.clear();
-    });
-
-    int delay = 0;
-    for (String block in correctBlocks) {
-      Future.delayed(Duration(milliseconds: delay), () {
+      Future.delayed(Duration(seconds: 5), () {
         if (mounted) {
           setState(() {
-            // Find the block in allBlockItems and move it to droppedBlockItems
-            var blockItem = allBlockItems.firstWhere(
-                  (item) => item.text == block && !droppedBlockItems.contains(item),
-              orElse: () => BlockItem(block, UniqueKey()),
-            );
-
-            if (!droppedBlockItems.contains(blockItem)) {
-              droppedBlockItems.add(blockItem);
-            }
-            allBlockItems.remove(blockItem);
+            _showHint = false;
+            _isUsingHint = false;
           });
         }
       });
-      delay += 350;
+    } else if (_availableHintCards <= 0) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('error.mp3');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No hint cards available! Complete daily challenges to earn more.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
     }
-
-    Future.delayed(Duration(milliseconds: delay + 1000), () {
-      if (mounted) {
-        setState(() {
-          _showHint = false;
-          _isUsingHint = false;
-        });
-      }
-    });
-  }
-
-  String _getLevelHint() {
-    return "HARD: Create a function that takes a string parameter!\n\nCorrect code uses:\n• Two #include statements\n• Custom function displayMessage()\n• String parameter\n• Formatted output with endl\n• Function call from main()";
   }
 
   void _loadUserData() async {
@@ -183,72 +375,47 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
   }
 
   void resetBlocks() {
-    List<String> correctBlocks = [
-      '#include <iostream>',
-      '#include <string>',
-      'using namespace std;',
-      'void displayMessage(string msg)',
-      '{',
-      'cout << "Message: " << msg << endl;',
-      '}',
-      'int main()',
-      '{',
-      'string text = "Hello World";',
-      'displayMessage(text);',
-      'return 0;',
-      '}'
-    ];
-
-    List<String> incorrectBlocks = [
-      '#include <stdio.h>',
-      'using namespace std',
-      'void displayMessage()',
-      'void showMessage(string msg)',
-      'function displayMessage(msg)',
-      'printf("Message: %s", msg)',
-      'cout >> "Message: " >> msg',
-      'cout << msg',
-      'return 1;',
-      'int main',
-      'main()',
-      'text = "Hello World"',
-      'displayMessage("Hello World")',
-      'std::cout << "Message: " << msg',
-      'cin >> text',
-      'void displayMessage(string)',
-      'String text = "Hello World"',
-      'var text = "Hello World"',
-    ];
-
-    incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(5).toList();
-
-    // Create block items with unique keys
-    allBlockItems.clear();
-    droppedBlockItems.clear();
-
-    // Add all blocks with unique identifiers
-    for (String block in [...correctBlocks, ...selectedIncorrectBlocks]) {
-      allBlockItems.add(BlockItem(block, UniqueKey()));
+    if (gameConfig != null) {
+      _initializeGameFromConfig();
+    } else {
+      allBlocks = [];
+      setState(() {});
     }
-
-    allBlockItems.shuffle();
   }
 
   void startGame() {
+    if (gameConfig == null) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('error.mp3');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Game configuration not loaded. Please retry.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final musicService = Provider.of<MusicService>(context, listen: false);
-    musicService.playSoundEffect('level_start_hard.mp3');
+    musicService.playSoundEffect('level_start.mp3');
+
+    int timerDuration = gameConfig!['timer_duration'] != null
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 240
+        : 240;
 
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 300;
-      droppedBlockItems.clear();
+      remainingSeconds = timerDuration;
+      droppedBlocks.clear();
       isAnsweredCorrectly = false;
       _showHint = false;
       _isUsingHint = false;
       resetBlocks();
     });
+
+    print('🎮 HARD GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
     startTimers();
   }
 
@@ -268,7 +435,7 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
           saveScoreToDatabase(score);
 
           final musicService = Provider.of<MusicService>(context, listen: false);
-          musicService.playSoundEffect('time_up_hard.mp3');
+          musicService.playSoundEffect('time_up.mp3');
 
           showDialog(
             context: context,
@@ -292,7 +459,7 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 180), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 60), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -301,10 +468,12 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
       setState(() {
         score--;
         final musicService = Provider.of<MusicService>(context, listen: false);
-        musicService.playSoundEffect('penalty_hard.mp3');
+        musicService.playSoundEffect('penalty.mp3');
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
+          SnackBar(
+            content: Text("⏰ Time penalty! -1 point. Current score: $score"),
+          ),
         );
       });
     });
@@ -314,14 +483,18 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
     final musicService = Provider.of<MusicService>(context, listen: false);
     musicService.playSoundEffect('reset.mp3');
 
+    int timerDuration = gameConfig!['timer_duration'] != null
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 240
+        : 240;
+
     setState(() {
       score = 3;
-      remainingSeconds = 300;
+      remainingSeconds = timerDuration;
       gameStarted = false;
       isAnsweredCorrectly = false;
       _showHint = false;
       _isUsingHint = false;
-      droppedBlockItems.clear();
+      droppedBlocks.clear();
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
       resetBlocks();
@@ -329,9 +502,19 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
   }
 
   Future<void> saveScoreToDatabase(int score) async {
-    if (currentUser?['id'] == null) return;
+    if (currentUser?['id'] == null) {
+      print('❌ Cannot save score: No user ID');
+      return;
+    }
 
     try {
+      print('💾 ATTEMPTING TO SAVE HARD SCORE:');
+      print('   User ID: ${currentUser!['id']}');
+      print('   Language: C++_Hard');
+      print('   Level: 1');
+      print('   Score: $score/3');
+      print('   Completed: ${score == 3}');
+
       final response = await ApiService.saveScoreWithDifficulty(
         currentUser!['id'],
         'C++',
@@ -341,19 +524,35 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
         score == 3,
       );
 
+      print('📡 SERVER RESPONSE: $response');
+
       if (response['success'] == true) {
         setState(() {
-          level1Completed = score == 3;
+          levelCompleted = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
 
-        print('Score saved successfully: $score for C++ Hard Level 1');
+        print('✅ HARD SCORE SAVED SUCCESSFULLY TO DATABASE');
       } else {
-        print('Failed to save score: ${response['message']}');
+        print('❌ FAILED TO SAVE HARD SCORE: ${response['message']}');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save score: ${response['message']}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
-      print('Error saving score: $e');
+      print('❌ ERROR SAVING HARD SCORE: $e');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Network error saving score: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -361,11 +560,7 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScoresWithDifficulty(
-          currentUser!['id'],
-          'C++',
-          'Hard'
-      );
+      final response = await ApiService.getScoresWithDifficulty(currentUser!['id'], 'C++', 'Hard');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
@@ -374,54 +569,76 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
         if (level1Data != null) {
           setState(() {
             previousScore = level1Data['score'] ?? 0;
-            level1Completed = level1Data['completed'] ?? false;
+            levelCompleted = level1Data['completed'] ?? false;
             hasPreviousScore = true;
-            score = previousScore;
           });
-          print('Loaded previous score: $previousScore for C++ Hard Level 1');
         }
       }
     } catch (e) {
-      print('Error loading score: $e');
+      print('Error loading hard score: $e');
+    }
+  }
+
+  Future<void> refreshScore() async {
+    if (currentUser?['id'] != null) {
+      try {
+        final response = await ApiService.getScoresWithDifficulty(currentUser!['id'], 'C++', 'Hard');
+        if (response['success'] == true && response['scores'] != null) {
+          final scoresData = response['scores'];
+          final level1Data = scoresData['1'];
+
+          setState(() {
+            if (level1Data != null) {
+              previousScore = level1Data['score'] ?? 0;
+              levelCompleted = level1Data['completed'] ?? false;
+              hasPreviousScore = true;
+            } else {
+              hasPreviousScore = false;
+              previousScore = 0;
+              levelCompleted = false;
+            }
+          });
+        }
+      } catch (e) {
+        print('Error refreshing hard score: $e');
+      }
     }
   }
 
   bool isIncorrectBlock(String block) {
+    if (gameConfig != null) {
+      try {
+        List<dynamic> incorrectBlocksJson = json.decode(gameConfig!['incorrect_blocks'] ?? '[]');
+        List<String> incorrectBlocks = List<String>.from(incorrectBlocksJson);
+        return incorrectBlocks.contains(block);
+      } catch (e) {
+        // Fallback to original method
+      }
+    }
+
+    // Fallback incorrect blocks for Hard Level 1
     List<String> incorrectBlocks = [
-      '#include <stdio.h>',
-      'using namespace std',
-      'void displayMessage()',
-      'void showMessage(string msg)',
-      'function displayMessage(msg)',
-      'printf("Message: %s", msg)',
-      'cout >> "Message: " >> msg',
-      'cout << msg',
+      'printf',
+      'cout >>',
+      'System.out.print',
+      'print',
+      'Console.WriteLine',
+      'cin',
       'return 1;',
-      'int main',
-      'main()',
-      'text = "Hello World"',
-      'displayMessage("Hello World")',
-      'std::cout << "Message: " << msg',
-      'cin >> text',
-      'void displayMessage(string)',
-      'String text = "Hello World"',
-      'var text = "Hello World"',
+      'void main()',
     ];
     return incorrectBlocks.contains(block);
   }
 
   void checkAnswer() async {
-    if (isAnsweredCorrectly || droppedBlockItems.isEmpty) return;
+    if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
-    // Convert to text for checking
-    List<String> droppedBlocksText = droppedBlockItems.map((item) => item.text).toList();
-
-    bool hasIncorrectBlock = droppedBlocksText.any((block) => isIncorrectBlock(block));
+    bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
-      musicService.playSoundEffect('error_hard.mp3');
+      musicService.playSoundEffect('error.mp3');
 
       if (score > 1) {
         setState(() {
@@ -441,7 +658,7 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
 
-        musicService.playSoundEffect('game_over_hard.mp3');
+        musicService.playSoundEffect('game_over.mp3');
 
         showDialog(
           context: context,
@@ -464,18 +681,22 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
       return;
     }
 
-    String answer = droppedBlocksText.join(' ');
+    String answer = droppedBlocks.join(' ');
     String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
 
-    bool hasTwoIncludes = normalizedAnswer.contains('#include<iostream>') && normalizedAnswer.contains('#include<string>');
-    bool hasFunction = normalizedAnswer.contains('voiddisplaymessage(stringmsg)');
-    bool hasFunctionBody = normalizedAnswer.contains('cout<<"message:"<<msg<<endl;');
-    bool hasMain = normalizedAnswer.contains('intmain()');
-    bool hasVariable = normalizedAnswer.contains('stringtext="helloworld";');
-    bool hasFunctionCall = normalizedAnswer.contains('displaymessage(text);');
-    bool hasReturn = normalizedAnswer.contains('return0;');
+    bool isCorrect = false;
 
-    if (hasTwoIncludes && hasFunction && hasFunctionBody && hasMain && hasVariable && hasFunctionCall && hasReturn) {
+    if (gameConfig != null) {
+      String expectedAnswer = gameConfig!['correct_answer'] ?? '';
+      String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+      isCorrect = normalizedAnswer == normalizedExpected;
+    } else {
+      // Fallback check for Hard Level 1
+      String expected = 'intmain(){intresult=calculateFactorial(5);cout<<"Factorial:"<<result;return0;}intcalculateFactorial(intn){if(n<=1)return1;returnn*calculateFactorial(n-1);}';
+      isCorrect = normalizedAnswer == expected;
+    }
+
+    if (isCorrect) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -486,13 +707,10 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
       saveScoreToDatabase(score);
 
       if (score == 3) {
-        musicService.playSoundEffect('perfect_hard.mp3');
+        musicService.playSoundEffect('perfect.mp3');
       } else {
-        musicService.playSoundEffect('success_hard.mp3');
+        musicService.playSoundEffect('success.mp3');
       }
-
-      final gameScore = score;
-      final leaderboardPoints = score * 30;
 
       showDialog(
         context: context,
@@ -502,56 +720,33 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent! You built an advanced C++ program with functions!"),
+              Text("Excellent work C++ Expert!"),
               SizedBox(height: 10),
-              Text("Game Score: $gameScore/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-              Text("Leaderboard Points: $leaderboardPoints/90", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+              Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've mastered Hard Level!",
-                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                  "🎉 Perfect! You've unlocked Level 2 Hard!",
+                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) for full completion!",
+                  "⚠️ Get a perfect score (3/3) to unlock the next level!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
-              SizedBox(height: 10),
-              Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red),
-                ),
-                child: Text(
-                  "🎯 Hard Difficulty: 30× Points Multiplier!",
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
               SizedBox(height: 10),
               Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  "Message: Hello World",
+                  _expectedOutput.isNotEmpty ? _expectedOutput : 'Factorial: 120',
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
                     fontSize: 16,
                   ),
                 ),
-              ),
-              SizedBox(height: 10),
-              Text(
-                "💎 Advanced Feature: You created a custom function!",
-                style: TextStyle(color: Colors.cyan, fontSize: 12),
               ),
             ],
           ),
@@ -564,9 +759,10 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
                   musicService.playSoundEffect('level_complete.mp3');
                   Navigator.pushReplacementNamed(context, '/cpp_level2_hard');
                 } else {
-                  Navigator.pushReplacementNamed(context, '/levels',
-                      arguments: {'language': 'C++', // Use the actual language
-                        'difficulty': 'hard'});
+                  Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                    'language': 'C++',
+                    'difficulty': 'Hard'
+                  });
                 }
               },
               child: Text(score == 3 ? "Next Level" : "Go Back"),
@@ -575,14 +771,16 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
         ),
       );
     } else {
-      musicService.playSoundEffect('wrong_hard.mp3');
+      musicService.playSoundEffect('wrong.mp3');
 
       if (score > 1) {
         setState(() {
           score--;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Incomplete program. -1 point. Current score: $score")),
+          SnackBar(
+            content: Text("❌ Incorrect arrangement. -1 point. Current score: $score"),
+          ),
         );
       } else {
         setState(() {
@@ -592,13 +790,13 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
 
-        musicService.playSoundEffect('game_over_hard.mp3');
+        musicService.playSoundEffect('game_over.mp3');
 
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("Remember to build the complete C++ program with function and all necessary parts."),
+            content: Text("You lost all your points."),
             actions: [
               TextButton(
                 onPressed: () {
@@ -625,58 +823,102 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
     if (!_showHint) return SizedBox();
 
     return Positioned(
-      top: 60 * _scaleFactor,
-      left: 20 * _scaleFactor,
-      right: 20 * _scaleFactor,
-      child: Container(
+        top: 60 * _scaleFactor,
+        left: 20 * _scaleFactor,
+        right: 20 * _scaleFactor,
+        child: Container(
         padding: EdgeInsets.all(16 * _scaleFactor),
-        decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.95),
-          borderRadius: BorderRadius.circular(12 * _scaleFactor),
-          border: Border.all(color: Colors.redAccent, width: 2 * _scaleFactor),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 8 * _scaleFactor,
-              offset: Offset(0, 4 * _scaleFactor),
-            )
-          ],
+    decoration: BoxDecoration(
+    color: Colors.orange.withOpacity(0.95),
+    borderRadius: BorderRadius.circular(12 * _scaleFactor),
+    border: Border.all(color: Colors.orangeAccent, width: 2 * _scaleFactor),
+    boxShadow: [
+    BoxShadow(
+    color: Colors.black.withOpacity(0.3),
+    blurRadius: 8 * _scaleFactor,
+    offset: Offset(0, 4 * _scaleFactor),
+    )
+    ],
+    ),
+    child: Column(
+    children: [
+    Row(
+    children: [
+    Icon(Icons.lightbulb, color: Colors.white, size: 20 * _scaleFactor),
+    SizedBox(width: 8 * _scaleFactor),
+    Text(
+    '💡 Hint Activated!',
+    style: TextStyle(
+    color: Colors.white,
+    fontSize: 16 * _scaleFactor,
+    fontWeight: FontWeight.bold,
+    ),
+    ),
+    ],
+    ),
+    SizedBox(height: 10 * _scaleFactor),
+    Text(
+    _currentHint,
+    style: TextStyle(
+    color: Colors.white,
+    fontSize: 14 * _scaleFactor,
+    height: 1.4,
+    ),
+    textAlign: TextAlign.center,
+    ),
+    SizedBox(height: 10 * _scaleFactor),
+    Text(
+    'Hint will disappear in 5 seconds...',
+    style: TextStyle(
+    color: Colors.white,
+    fontSize: 12 * _scaleFactor,
+    fontStyle: FontStyle.italic,
+    ),
+    ),
+    ],
+    ),
         ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Icon(Icons.lightbulb, color: Colors.white, size: 20 * _scaleFactor),
-                SizedBox(width: 8 * _scaleFactor),
-                Text(
-                  '💡 Hint Activated!',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16 * _scaleFactor,
-                    fontWeight: FontWeight.bold,
-                  ),
+    );
+  }
+
+  Widget _buildHintButton() {
+    return Positioned(
+      bottom: 20 * _scaleFactor,
+      right: 20 * _scaleFactor,
+      child: GestureDetector(
+        onTap: _useHintCard,
+        child: Container(
+          padding: EdgeInsets.all(12 * _scaleFactor),
+          decoration: BoxDecoration(
+            color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
+            borderRadius: BorderRadius.circular(20 * _scaleFactor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 4 * _scaleFactor,
+                offset: Offset(0, 2 * _scaleFactor),
+              )
+            ],
+            border: Border.all(
+              color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
+              width: 2 * _scaleFactor,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lightbulb_outline, color: Colors.white, size: 20 * _scaleFactor),
+              SizedBox(width: 6 * _scaleFactor),
+              Text(
+                '$_availableHintCards',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18 * _scaleFactor,
                 ),
-              ],
-            ),
-            SizedBox(height: 10 * _scaleFactor),
-            Text(
-              _currentHint,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14 * _scaleFactor,
               ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 10 * _scaleFactor),
-            Text(
-              'Correct blocks are being placed automatically...',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 12 * _scaleFactor,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -719,119 +961,143 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
           ),
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
-            child: _buildCodeContent(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 30 * _scaleFactor,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: _buildLineNumbers(),
+                      ),
+                    ),
+                    SizedBox(width: 16 * _scaleFactor),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: _buildCodeLines(),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCodeContent() {
-    if (droppedBlockItems.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '// Drag blocks to build your advanced program',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 12 * _scaleFactor,
-              fontFamily: 'monospace',
-            ),
-          ),
-        ],
-      );
-    }
-
-    List<Widget> codeLines = [];
-    int lineNumber = 1;
-
-    for (BlockItem blockItem in droppedBlockItems) {
-      String block = blockItem.text;
-      bool isPreprocessor = block.contains('#include');
-      bool isKeyword = block.contains('using namespace') ||
-          block.contains('int main()') ||
-          block.contains('return 0') ||
-          block.contains('string text') ||
-          block.contains('cout <<') ||
-          block.contains('void displayMessage');
-      bool isIncorrect = isIncorrectBlock(block);
-
-      Color textColor = Colors.white;
-      if (isPreprocessor) {
-        textColor = Color(0xFFCE9178);
-      } else if (isKeyword && !isIncorrect) {
-        textColor = Color(0xFF569CD6);
-      } else if (isIncorrect) {
-        textColor = Colors.red;
-      }
-
-      String displayCode = block;
-
-      if (block != '#include <iostream>' &&
-          block != '#include <string>' &&
-          block != 'using namespace std;' &&
-          block != 'void displayMessage(string msg)' &&
-          block != 'int main()' &&
-          block != '{' &&
-          block != '}') {
-        displayCode = '    $block';
-      }
-
-      codeLines.add(_buildCodeLineWithNumber(lineNumber++, displayCode,
-          textColor: textColor,
-          isIncorrect: isIncorrect
-      ));
-
-      if (block == 'using namespace std;' || block == '}') {
-        codeLines.add(SizedBox(height: 8 * _scaleFactor));
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: codeLines,
-    );
+  List<Widget> _buildLineNumbers() {
+    return List.generate(_codeStructure.length, (index) {
+      return _buildCodeLine(index + 1);
+    });
   }
 
-  Widget _buildCodeLineWithNumber(int lineNumber, String code, {Color? textColor, bool isIncorrect = false}) {
-    Color finalTextColor = textColor ?? Colors.white;
+  List<Widget> _buildCodeLines() {
+    List<Widget> lines = [];
 
-    if (isIncorrect) {
-      finalTextColor = Colors.red;
+    for (int i = 0; i < _codeStructure.length; i++) {
+      String line = _codeStructure[i];
+
+      if (line.contains('// Your code here')) {
+        lines.add(_buildUserCodeLine(getPreviewCode()));
+      } else if (line.trim().isEmpty) {
+        lines.add(Container(height: 20 * _scaleFactor));
+      } else {
+        lines.add(_buildSyntaxHighlightedLine(line));
+      }
+    }
+
+    return lines;
+  }
+
+  Widget _buildUserCodeLine(String code) {
+    if (code.isEmpty) {
+      return Container(
+        height: 20 * _scaleFactor,
+        child: Text(
+          '        ',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 12 * _scaleFactor,
+            fontFamily: 'monospace',
+          ),
+        ),
+      );
     }
 
     return Container(
       height: 20 * _scaleFactor,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 30 * _scaleFactor,
-            child: Text(
-              lineNumber.toString().padLeft(2, ' '),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '    ',
+              style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12 * _scaleFactor),
+            ),
+            TextSpan(
+              text: code,
               style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 12 * _scaleFactor,
+                color: Colors.greenAccent[400],
                 fontFamily: 'monospace',
+                fontSize: 12 * _scaleFactor,
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ),
-          SizedBox(width: 16 * _scaleFactor),
-          Expanded(
-            child: Text(
-              code,
-              style: TextStyle(
-                color: finalTextColor,
-                fontSize: 12 * _scaleFactor,
-                fontFamily: 'monospace',
-                fontWeight: isIncorrect ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _buildCodeLine(int lineNumber) {
+    return Container(
+      height: 20 * _scaleFactor,
+      child: Text(
+        lineNumber.toString().padLeft(2, ' '),
+        style: TextStyle(
+          color: Colors.grey[600],
+          fontSize: 12 * _scaleFactor,
+          fontFamily: 'monospace',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSyntaxHighlightedLine(String code) {
+    Color textColor = Colors.white;
+
+    if (code.trim().startsWith('#include')) {
+      textColor = Color(0xFFCE9178);
+    } else if (code.contains('int main') || code.contains('using namespace') || code.contains('return')) {
+      textColor = Color(0xFF569CD6);
+    } else if (code.trim().startsWith('//')) {
+      textColor = Color(0xFF6A9955);
+    } else if (code.contains('"') || code.contains("'")) {
+      textColor = Color(0xFFCE9178);
+    } else if (code.contains('{') || code.contains('}')) {
+      textColor = Colors.white;
+    }
+
+    return Container(
+      height: 20 * _scaleFactor,
+      child: Text(
+        code,
+        style: TextStyle(
+          color: textColor,
+          fontSize: 12 * _scaleFactor,
+          fontFamily: 'monospace',
+        ),
+      ),
+    );
+  }
+
+  String getPreviewCode() {
+    return droppedBlocks.join(' ');
   }
 
   @override
@@ -849,9 +1115,111 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("⚡ C++ Hard - Level 1", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.red,
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0D1B2A),
+                Color(0xFF1B263B),
+                Color(0xFF415A77),
+              ],
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.red),
+                SizedBox(height: 20),
+                Text(
+                  "Loading Hard Game Configuration...",
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "From Database",
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (errorMessage != null && !gameStarted) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("⚡ C++ Hard - Level 1", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.red,
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0D1B2A),
+                Color(0xFF1B263B),
+                Color(0xFF415A77),
+              ],
+            ),
+          ),
+          child: Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.warning_amber, color: Colors.red, size: 50),
+                  SizedBox(height: 20),
+                  Text(
+                    "Configuration Warning",
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _loadGameConfig,
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    child: Text("Retry Loading"),
+                  ),
+                  SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                        'language': 'C++',
+                        'difficulty': 'Hard'
+                      });
+                    },
+                    child: Text("Back to Levels", style: TextStyle(color: Colors.red)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
-      final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
+      final newScaleFactor = newScreenWidth < _baseScreenWidth
+          ? newScreenWidth / _baseScreenWidth
+          : 1.0;
 
       if (newScaleFactor != _scaleFactor) {
         setState(() {
@@ -862,9 +1230,10 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("⚡ C++ - Level 1 (Hard)", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        title: Text("⚡ C++ Hard - Level 1", style: TextStyle(fontSize: 18 * _scaleFactor)),
         backgroundColor: Colors.red,
-        actions: gameStarted ? [
+        actions: gameStarted
+            ? [
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor),
             child: Row(
@@ -878,7 +1247,8 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
               ],
             ),
           ),
-        ] : [],
+        ]
+            : [],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -886,9 +1256,9 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF2D1B2A),
-              Color(0xFF3B263B),
-              Color(0xFF5A2A44),
+              Color(0xFF0D1B2A),
+              Color(0xFF1B263B),
+              Color(0xFF415A77),
             ],
           ),
         ),
@@ -897,46 +1267,7 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
             gameStarted ? buildGameUI() : buildStartScreen(),
             if (gameStarted && !isAnsweredCorrectly) ...[
               _buildHintDisplay(),
-              Positioned(
-                bottom: 20 * _scaleFactor,
-                right: 20 * _scaleFactor,
-                child: GestureDetector(
-                  onTap: _useHintCard,
-                  child: Container(
-                    padding: EdgeInsets.all(12 * _scaleFactor),
-                    decoration: BoxDecoration(
-                      color: _availableHintCards > 0 ? Colors.red : Colors.grey,
-                      borderRadius: BorderRadius.circular(20 * _scaleFactor),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 4 * _scaleFactor,
-                          offset: Offset(0, 2 * _scaleFactor),
-                        )
-                      ],
-                      border: Border.all(
-                        color: _availableHintCards > 0 ? Colors.redAccent : Colors.grey,
-                        width: 2 * _scaleFactor,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.lightbulb_outline, color: Colors.white, size: 20 * _scaleFactor),
-                        SizedBox(width: 6 * _scaleFactor),
-                        Text(
-                          '$_availableHintCards',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18 * _scaleFactor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+              _buildHintButton(),
             ],
           ],
         ),
@@ -945,11 +1276,6 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
   }
 
   Widget buildStartScreen() {
-    final displayGameScore = previousScore;
-    final displayLeaderboardPoints = previousScore * 30;
-    final maxGameScore = 3;
-    final maxLeaderboardPoints = 90;
-
     return Center(
       child: SingleChildScrollView(
         padding: EdgeInsets.all(16 * _scaleFactor),
@@ -957,16 +1283,16 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              onPressed: () {
+              onPressed: gameConfig != null ? () {
                 final musicService = Provider.of<MusicService>(context, listen: false);
                 musicService.playSoundEffect('button_click.mp3');
                 startGame();
-              },
+              } : null,
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Hard", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text(gameConfig != null ? "Start" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.red,
+                backgroundColor: gameConfig != null ? Colors.red : Colors.grey,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
@@ -1003,25 +1329,20 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
               ),
             ),
 
-            if (level1Completed)
+            if (levelCompleted)
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Hard Level completed with perfect score!",
+                      "✅ Level 1 Hard completed with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "🎮 Game Score: $displayGameScore/$maxGameScore",
-                      style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                    Text(
-                      "🏆 Leaderboard Points: $displayLeaderboardPoints/$maxLeaderboardPoints",
-                      style: TextStyle(color: Colors.blue, fontSize: 14 * _scaleFactor, fontWeight: FontWeight.bold),
+                      "You've unlocked Level 2 Hard!",
+                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1033,24 +1354,13 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
                 child: Column(
                   children: [
                     Text(
-                      "📊 Your previous hard score:",
-                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
+                      "📊 Your previous score: $previousScore/3",
+                      style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Game: $displayGameScore/$maxGameScore",
-                      style: TextStyle(color: Colors.white, fontSize: 14 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                    Text(
-                      "Leaderboard: $displayLeaderboardPoints/$maxLeaderboardPoints",
-                      style: TextStyle(color: Colors.blue, fontSize: 14 * _scaleFactor, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 5 * _scaleFactor),
-                    Text(
-                      "Try again to get a perfect score!",
+                      "Try again to get a perfect score and unlock Level 2!",
                       style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -1063,7 +1373,7 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
                   child: Column(
                     children: [
                       Text(
-                        "😅 Your previous score: $displayGameScore/$maxGameScore",
+                        "😅 Your previous score: $previousScore/3",
                         style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
@@ -1089,37 +1399,19 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
               child: Column(
                 children: [
                   Text(
-                    "🎯 Hard Level Objective",
+                    gameConfig?['objective'] ?? "🎯 Hard Level 1 Objective",
                     style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.red[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Build an advanced C++ program with custom functions using all 13 blocks",
+                    gameConfig?['objective'] ?? "Complete the C++ Hard Level 1 challenge with functions and recursion",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.red[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(8 * _scaleFactor),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(8 * _scaleFactor),
-                      border: Border.all(color: Colors.red),
-                    ),
-                    child: Text(
-                      "🎁 Hard Difficulty: 30× Points Multiplier!",
-                      style: TextStyle(
-                        fontSize: 14 * _scaleFactor,
-                        color: Colors.red[800],
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎮 Perfect Score (3/3) = 90 Leaderboard Points",
+                    "🎁 Get a perfect score (3/3) to unlock Level 2 Hard!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
@@ -1128,14 +1420,14 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
                         fontStyle: FontStyle.italic
                     ),
                   ),
-                  SizedBox(height: 5 * _scaleFactor),
+                  SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "(Easy: 30 points, Medium: 60 points, Hard: 90 points)",
+                    "🏆 3× POINTS MULTIPLIER",
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontSize: 11 * _scaleFactor,
-                        color: Colors.purple,
-                        fontStyle: FontStyle.italic
+                        fontSize: 14 * _scaleFactor,
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold
                     ),
                   ),
                 ],
@@ -1157,8 +1449,7 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Short Story',
-                    style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text('📖 Short Story', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
                 onPressed: () {
@@ -1169,32 +1460,30 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
                   });
                 },
                 icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
-                label: Text(isTagalog ? 'English' : 'Tagalog',
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+                label: Text(isTagalog ? 'English' : 'Tagalog', style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
               ),
             ],
           ),
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Ngayon, si Alex ay naging advanced C++ programmer! Gusto niyang gumawa ng custom function para mas organized ang kanyang code. Tulungan siyang buuin ang program na may function na nagdi-display ng mensahe!'
-                : 'Now, Alex has become an advanced C++ programmer! He wants to create a custom function to make his code more organized. Help him build a program with a function that displays messages!',
+                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Hard Level 1 ng C++ programming! Pinakamahirap na hamon sa functions at recursion.')
+                : (gameConfig?['story_english'] ?? 'This is C++ Hard Level 1! The ultimate challenge with functions and recursion.'),
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Build the advanced C++ program with function using all 13 blocks',
+          Text(_instructionText,
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          // UPDATED: Larger target area to fit all blocks
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 280 * _scaleFactor, // Increased height
-              maxHeight: 400 * _scaleFactor, // Increased max height
+              minHeight: 140 * _scaleFactor,
+              maxHeight: 200 * _scaleFactor,
             ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
@@ -1202,46 +1491,43 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
               border: Border.all(color: Colors.red, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
-            child: DragTarget<BlockItem>(
+            child: DragTarget<String>(
               onWillAccept: (data) {
-                // Allow any block to be dropped
-                return true;
+                return !droppedBlocks.contains(data);
               },
-              onAccept: (BlockItem data) {
+              onAccept: (data) {
                 if (!isAnsweredCorrectly) {
                   final musicService = Provider.of<MusicService>(context, listen: false);
                   musicService.playSoundEffect('block_drop.mp3');
 
                   setState(() {
-                    // Only add if not already in dropped blocks
-                    if (!droppedBlockItems.contains(data)) {
-                      droppedBlockItems.add(data);
-                    }
-                    allBlockItems.remove(data);
+                    droppedBlocks.add(data);
+                    allBlocks.remove(data);
                   });
                 }
               },
               builder: (context, candidateData, rejectedData) {
                 return SingleChildScrollView(
                   child: Wrap(
-                    spacing: 6 * _scaleFactor, // Reduced spacing
-                    runSpacing: 6 * _scaleFactor, // Reduced run spacing
+                    spacing: 8 * _scaleFactor,
+                    runSpacing: 8 * _scaleFactor,
                     alignment: WrapAlignment.center,
                     crossAxisAlignment: WrapCrossAlignment.center,
-                    children: droppedBlockItems.map((blockItem) {
-                      return Draggable<BlockItem>(
-                        data: blockItem,
+                    children: droppedBlocks.map((block) {
+                      return Draggable<String>(
+                        data: block,
                         feedback: Material(
                           color: Colors.transparent,
-                          child: puzzleBlock(blockItem.text, Colors.redAccent),
+                          child: puzzleBlock(block, Colors.redAccent),
                         ),
-                        childWhenDragging: puzzleBlock(blockItem.text, Colors.redAccent.withOpacity(0.5)),
-                        child: puzzleBlock(blockItem.text, Colors.redAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.redAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.redAccent),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
+
                           setState(() {
-                            currentlyDraggedBlock = blockItem.text;
+                            currentlyDraggedBlock = block;
                           });
                         },
                         onDragEnd: (details) {
@@ -1253,10 +1539,10 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
                             Future.delayed(Duration(milliseconds: 50), () {
                               if (mounted) {
                                 setState(() {
-                                  if (!allBlockItems.contains(blockItem)) {
-                                    allBlockItems.add(blockItem);
+                                  if (!allBlocks.contains(block)) {
+                                    allBlocks.add(block);
                                   }
-                                  droppedBlockItems.remove(blockItem);
+                                  droppedBlocks.remove(block);
                                 });
                               }
                             });
@@ -1271,16 +1557,15 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
           ),
 
           SizedBox(height: 20 * _scaleFactor),
-          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          Text(_codePreviewTitle, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
           SizedBox(height: 10 * _scaleFactor),
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
 
-          // UPDATED: Larger available blocks area
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 180 * _scaleFactor, // Increased height
+              minHeight: 100 * _scaleFactor,
             ),
             padding: EdgeInsets.all(12 * _scaleFactor),
             decoration: BoxDecoration(
@@ -1288,29 +1573,30 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
               borderRadius: BorderRadius.circular(12 * _scaleFactor),
             ),
             child: Wrap(
-              spacing: 6 * _scaleFactor, // Reduced spacing
-              runSpacing: 8 * _scaleFactor, // Reduced run spacing
+              spacing: 8 * _scaleFactor,
+              runSpacing: 10 * _scaleFactor,
               alignment: WrapAlignment.center,
               crossAxisAlignment: WrapCrossAlignment.center,
-              children: allBlockItems.map((blockItem) {
+              children: allBlocks.map((block) {
                 return isAnsweredCorrectly
-                    ? puzzleBlock(blockItem.text, Colors.grey)
-                    : Draggable<BlockItem>(
-                  data: blockItem,
+                    ? puzzleBlock(block, Colors.grey)
+                    : Draggable<String>(
+                  data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(blockItem.text, Colors.deepPurple),
+                    child: puzzleBlock(block, Colors.red),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(blockItem.text, Colors.deepPurple),
+                    child: puzzleBlock(block, Colors.red),
                   ),
-                  child: puzzleBlock(blockItem.text, Colors.deepPurple),
+                  child: puzzleBlock(block, Colors.red),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
+
                     setState(() {
-                      currentlyDraggedBlock = blockItem.text;
+                      currentlyDraggedBlock = block;
                     });
                   },
                   onDragEnd: (details) {
@@ -1322,8 +1608,8 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
                       Future.delayed(Duration(milliseconds: 50), () {
                         if (mounted) {
                           setState(() {
-                            if (!allBlockItems.contains(blockItem)) {
-                              allBlockItems.add(blockItem);
+                            if (!allBlocks.contains(block)) {
+                              allBlocks.add(block);
                             }
                           });
                         }
@@ -1339,7 +1625,7 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
           ElevatedButton.icon(
             onPressed: isAnsweredCorrectly ? null : () {
               final musicService = Provider.of<MusicService>(context, listen: false);
-              musicService.playSoundEffect('compile_hard.mp3');
+              musicService.playSoundEffect('compile.mp3');
               checkAnswer();
             },
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
@@ -1354,6 +1640,7 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
           ),
 
           SizedBox(height: 10 * _scaleFactor),
+
           TextButton(
             onPressed: () {
               final musicService = Provider.of<MusicService>(context, listen: false);
@@ -1367,30 +1654,47 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
     );
   }
 
-  // UPDATED: Smaller puzzle blocks to fit more in the target area
   Widget puzzleBlock(String text, Color color) {
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontFamily: 'monospace',
+          fontSize: 12 * _scaleFactor,
+          color: Colors.black,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )
+      ..layout();
+
+    final textWidth = textPainter.width;
+    final minWidth = 80 * _scaleFactor;
+    final maxWidth = 240 * _scaleFactor;
+
     return Container(
       constraints: BoxConstraints(
-        minWidth: 70 * _scaleFactor, // Smaller minimum width
-        maxWidth: 160 * _scaleFactor, // Smaller maximum width
+        minWidth: minWidth,
+        maxWidth: maxWidth,
       ),
-      margin: EdgeInsets.symmetric(horizontal: 2 * _scaleFactor),
+      margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 10 * _scaleFactor, // Reduced padding
-        vertical: 8 * _scaleFactor, // Reduced padding
+        horizontal: 12 * _scaleFactor,
+        vertical: 10 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(15 * _scaleFactor),
-          bottomRight: Radius.circular(15 * _scaleFactor),
+          topLeft: Radius.circular(20 * _scaleFactor),
+          bottomRight: Radius.circular(20 * _scaleFactor),
         ),
-        border: Border.all(color: Colors.black87, width: 1.5 * _scaleFactor),
+        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor),
         boxShadow: [
           BoxShadow(
             color: Colors.black45,
-            blurRadius: 4 * _scaleFactor,
-            offset: Offset(2 * _scaleFactor, 2 * _scaleFactor),
+            blurRadius: 6 * _scaleFactor,
+            offset: Offset(3 * _scaleFactor, 3 * _scaleFactor),
           )
         ],
       ),
@@ -1399,8 +1703,15 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 10 * _scaleFactor, // Smaller font size
+          fontSize: 12 * _scaleFactor,
           color: Colors.black,
+          shadows: [
+            Shadow(
+              offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
+              blurRadius: 2 * _scaleFactor,
+              color: Colors.white.withOpacity(0.8),
+            ),
+          ],
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.visible,
@@ -1408,21 +1719,4 @@ class _CppLevel1HardState extends State<CppLevel1Hard> {
       ),
     );
   }
-}
-
-class BlockItem {
-  final String text;
-  final Key key;
-
-  BlockItem(this.text, this.key);
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-          other is BlockItem &&
-              runtimeType == other.runtimeType &&
-              key == other.key;
-
-  @override
-  int get hashCode => key.hashCode;
 }

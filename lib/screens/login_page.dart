@@ -342,13 +342,18 @@ class _LoginPageState extends State<LoginPage> {
 
                   const SizedBox(height: 20),
 
-                  // Sign Up Link
-                  TextButton(
-                    onPressed: _navigateToSignUp,
-                    child: const Text(
-                      "Don't have an account? Sign Up",
-                      style: TextStyle(color: Colors.teal),
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text("Don't have an account? "),
+                      TextButton(
+                        onPressed: _navigateToSignUp,
+                        child: const Text(
+                          "Sign Up",
+                          style: TextStyle(color: Colors.teal),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

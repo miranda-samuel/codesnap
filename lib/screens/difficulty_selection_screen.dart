@@ -1,3 +1,4 @@
+// difficulty_selection_screen.dart - UPDATED
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
@@ -159,7 +160,6 @@ class _DifficultySelectionScreenState extends State<DifficultySelectionScreen> {
     });
   }
 
-  // ✅ FIXED: Calculate progress for each difficulty with correct max scores
   Map<String, dynamic> _getDifficultyProgress(int difficultyIndex) {
     String difficultyName = _difficulties[difficultyIndex]['name'];
     int multiplier = _difficulties[difficultyIndex]['multiplier'];
@@ -182,11 +182,8 @@ class _DifficultySelectionScreenState extends State<DifficultySelectionScreen> {
 
     int completed = 0;
     int totalScore = 0;
+    int maxPossibleScore = 10 * 3 * multiplier;
 
-    // ✅ FIXED: Different max scores for each difficulty
-    int maxPossibleScore = 10 * 3 * multiplier; // 10 levels × 3 stars × multiplier
-
-    // Check levels 1-10 for the current difficulty
     for (int level = 1; level <= 10; level++) {
       final levelData = currentScores[level];
       if (levelData != null) {
@@ -194,14 +191,12 @@ class _DifficultySelectionScreenState extends State<DifficultySelectionScreen> {
         bool isCompleted = levelData['completed'] ?? false;
 
         if (isCompleted) completed++;
-        totalScore += score * multiplier; // ✅ Apply multiplier to score
+        totalScore += score * multiplier;
       }
     }
 
     double progress = completed / 10;
     int percentage = (progress * 100).toInt();
-
-    print('📊 $difficultyName Progress - Completed: $completed/10, Score: $totalScore/$maxPossibleScore (Multiplier: ${multiplier}×)');
 
     return {
       'completed': completed,

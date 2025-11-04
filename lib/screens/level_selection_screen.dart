@@ -1,3 +1,4 @@
+// level_selection_screen.dart - UPDATED
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
@@ -372,15 +373,6 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
     );
   }
 
-  String _getDifficultyMultiplier() {
-    switch (selectedDifficulty) {
-      case 'Easy': return '1';
-      case 'Medium': return '2';
-      case 'Hard': return '3';
-      default: return '1';
-    }
-  }
-
   Widget _buildLevelCard({
     required int levelNumber,
     required String title,
@@ -509,7 +501,6 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                       height: 24,
                       child: Row(
                         children: [
-                          // ✅ FIXED: Always show score (0/3, 1/3, 2/3, or 3/3)
                           Icon(
                             score > 0 ? Icons.star : Icons.star_border,
                             color: score > 0 ? Colors.amber : Colors.grey,
@@ -518,7 +509,7 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
                           SizedBox(width: 2),
                           Flexible(
                             child: Text(
-                              '$score/3', // ✅ LAGING IPAPAKITA ANG ACTUAL SCORE (0/3, 1/3, etc.)
+                              '$score/3',
                               style: TextStyle(
                                 color: score > 0 ? Colors.amber : Colors.grey,
                                 fontSize: 12,

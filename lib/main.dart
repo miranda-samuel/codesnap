@@ -321,4 +321,3 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
     );
   }
 }
-
