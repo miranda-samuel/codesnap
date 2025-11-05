@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'dart:convert';
 import '../../../services/api_service.dart';
 import '../../../services/user_preferences.dart';
 import '../../../services/music_service.dart';
@@ -20,12 +20,12 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level1Completed = false;
+  bool levelCompleted = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 240; // 3 minutes for Python medium
+  int remainingSeconds = 150;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -34,19 +34,245 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
+  Map<String, dynamic>? gameConfig;
+  bool isLoading = true;
+  String? errorMessage;
+
+  // HINT SYSTEM
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
   bool _isUsingHint = false;
 
+  // Configurable elements from database
+  String _codePreviewTitle = '💻 Code Preview:';
+  String _instructionText = '🧩 Arrange the blocks to create a Python program that calculates the sum of two numbers';
+  List<String> _codeStructure = [];
+  String _expectedOutput = 'Sum: 15';
+
   @override
   void initState() {
     super.initState();
-    resetBlocks();
+    _loadGameConfig();
     _loadUserData();
     _calculateScaleFactor();
     _startGameMusic();
     _loadHintCards();
+  }
+
+  Future<void> _loadGameConfig() async {
+    try {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+
+      // FIXED: Use correct method name for medium difficulty
+      final response = await ApiService.getGameConfigWithDifficulty('Python', 'Medium', 1);
+
+      print('🔍 PYTHON MEDIUM GAME CONFIG RESPONSE:');
+      print('   Success: ${response['success']}');
+      print('   Message: ${response['message']}');
+
+      if (response['success'] == true && response['game'] != null) {
+        setState(() {
+          gameConfig = response['game'];
+          _initializeGameFromConfig();
+        });
+      } else {
+        setState(() {
+          errorMessage = response['message'] ?? 'Failed to load medium game configuration';
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading medium game config: $e');
+      setState(() {
+        errorMessage = 'Connection error: $e';
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  void _initializeGameFromConfig() {
+    if (gameConfig == null) return;
+
+    try {
+      print('🔄 INITIALIZING PYTHON MEDIUM GAME FROM CONFIG');
+
+      // Load timer duration from database
+      if (gameConfig!['timer_duration'] != null) {
+        int timerDuration = int.tryParse(gameConfig!['timer_duration'].toString()) ?? 150;
+        setState(() {
+          remainingSeconds = timerDuration;
+        });
+        print('⏰ Timer duration loaded: $timerDuration seconds');
+      }
+
+      // Load instruction text from database
+      if (gameConfig!['instruction_text'] != null) {
+        setState(() {
+          _instructionText = gameConfig!['instruction_text'].toString();
+        });
+        print('📝 Instruction text loaded: $_instructionText');
+      }
+
+      // Load code preview title from database
+      if (gameConfig!['code_preview_title'] != null) {
+        setState(() {
+          _codePreviewTitle = gameConfig!['code_preview_title'].toString();
+        });
+        print('💻 Code preview title loaded: $_codePreviewTitle');
+      }
+
+      // Load code structure from database
+      if (gameConfig!['code_structure'] != null) {
+        if (gameConfig!['code_structure'] is List) {
+          setState(() {
+            _codeStructure = List<String>.from(gameConfig!['code_structure']);
+          });
+        } else {
+          String codeStructureStr = gameConfig!['code_structure']?.toString() ?? '[]';
+          try {
+            List<dynamic> codeStructureJson = json.decode(codeStructureStr);
+            setState(() {
+              _codeStructure = List<String>.from(codeStructureJson);
+            });
+          } catch (e) {
+            print('❌ Error parsing code structure: $e');
+            setState(() {
+              _codeStructure = _getDefaultCodeStructure();
+            });
+          }
+        }
+        print('📝 Code structure loaded: $_codeStructure');
+      } else {
+        setState(() {
+          _codeStructure = _getDefaultCodeStructure();
+        });
+      }
+
+      // Load expected output from database
+      if (gameConfig!['expected_output'] != null) {
+        setState(() {
+          _expectedOutput = gameConfig!['expected_output'].toString();
+        });
+        print('🎯 Expected output loaded: $_expectedOutput');
+      }
+
+      // Load hint from database
+      if (gameConfig!['hint_text'] != null) {
+        setState(() {
+          _currentHint = gameConfig!['hint_text'].toString();
+        });
+        print('💡 Hint loaded from database: $_currentHint');
+      } else {
+        setState(() {
+          _currentHint = _getDefaultHint();
+        });
+        print('💡 Using default hint');
+      }
+
+      // Parse blocks with better error handling
+      List<String> correctBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
+      List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
+
+      print('✅ Correct Blocks: $correctBlocks');
+      print('✅ Incorrect Blocks: $incorrectBlocks');
+
+      // Combine and shuffle blocks
+      allBlocks = [
+        ...correctBlocks,
+        ...incorrectBlocks,
+      ]..shuffle();
+
+      print('🎮 All Blocks Final: $allBlocks');
+
+    } catch (e) {
+      print('❌ Error parsing medium game config: $e');
+      _initializeDefaultBlocks();
+    }
+  }
+
+  List<String> _getDefaultCodeStructure() {
+    return [
+      "# Python Calculator Program",
+      "",
+      "# Declare variables",
+      "# Calculate sum",
+      "# Print result",
+      "",
+      "# Program ends here"
+    ];
+  }
+
+  List<String> _parseBlocks(dynamic blocksData, String type) {
+    List<String> blocks = [];
+
+    if (blocksData == null) {
+      return _getDefaultBlocks(type);
+    }
+
+    try {
+      if (blocksData is List) {
+        blocks = List<String>.from(blocksData);
+      } else if (blocksData is String) {
+        String blocksStr = blocksData.trim();
+
+        if (blocksStr.startsWith('[') && blocksStr.endsWith(']')) {
+          // Parse as JSON array
+          List<dynamic> blocksJson = json.decode(blocksStr);
+          blocks = List<String>.from(blocksJson);
+        } else {
+          // Parse as comma-separated string
+          blocks = blocksStr.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+        }
+      }
+    } catch (e) {
+      print('❌ Error parsing $type blocks: $e');
+      blocks = _getDefaultBlocks(type);
+    }
+
+    return blocks;
+  }
+
+  List<String> _getDefaultBlocks(String type) {
+    if (type == 'correct') {
+      return [
+        'num1 = 10',
+        'num2 = 5',
+        'sum = num1 + num2',
+        'print("Sum:", sum)'
+      ];
+    } else {
+      return [
+        'int num1 = 10',
+        'float num2 = 5',
+        'sum = num1 + num2;',
+        'cout << "Sum: " << sum;',
+        'printf("Sum: %d", sum)'
+      ];
+    }
+  }
+
+  String _getDefaultHint() {
+    return "💡 Hint: Python doesn't require variable declaration with types. Use simple assignment and the print() function with comma separation.";
+  }
+
+  void _initializeDefaultBlocks() {
+    allBlocks = [
+      'num1 = 10',
+      'num2 = 5',
+      'sum = num1 + num2',
+      'print("Sum:", sum)',
+      'int num1 = 10',
+      'float num2 = 5',
+      'sum = num1 + num2;',
+      'cout << "Sum: " << sum;',
+      'printf("Sum: %d", sum)'
+    ]..shuffle();
   }
 
   void _startGameMusic() {
@@ -92,7 +318,6 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
       setState(() {
         _isUsingHint = true;
         _showHint = true;
-        _currentHint = _getLevelHint();
         _availableHintCards--;
       });
 
@@ -101,7 +326,14 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
         await DailyChallengeService.useHintCard(user['id']);
       }
 
-      _autoDragCorrectBlocks();
+      Future.delayed(Duration(seconds: 5), () {
+        if (mounted) {
+          setState(() {
+            _showHint = false;
+            _isUsingHint = false;
+          });
+        }
+      });
     } else if (_availableHintCards <= 0) {
       final musicService = Provider.of<MusicService>(context, listen: false);
       musicService.playSoundEffect('error.mp3');
@@ -115,52 +347,6 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
     }
   }
 
-  void _autoDragCorrectBlocks() {
-    List<String> correctBlocks = [
-      'def calculate_area(length, width):',
-      'area = length * width',
-      'return area',
-      'length = 10',
-      'width = 5',
-      'result = calculate_area(length, width)',
-      'print(f"Area: {result}")'
-    ];
-
-    setState(() {
-      droppedBlocks.clear();
-    });
-
-    int delay = 0;
-    for (String block in correctBlocks) {
-      Future.delayed(Duration(milliseconds: delay), () {
-        if (mounted) {
-          setState(() {
-            if (!droppedBlocks.contains(block)) {
-              droppedBlocks.add(block);
-            }
-            if (allBlocks.contains(block)) {
-              allBlocks.remove(block);
-            }
-          });
-        }
-      });
-      delay += 400;
-    }
-
-    Future.delayed(Duration(milliseconds: delay + 800), () {
-      if (mounted) {
-        setState(() {
-          _showHint = false;
-          _isUsingHint = false;
-        });
-      }
-    });
-  }
-
-  String _getLevelHint() {
-    return "MEDIUM: Build a complete Python program with function definition, variables, and function call!";
-  }
-
   void _loadUserData() async {
     final user = await UserPreferences.getUser();
     setState(() {
@@ -171,58 +357,47 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
   }
 
   void resetBlocks() {
-    List<String> correctBlocks = [
-      'def calculate_area(length, width):',
-      'area = length * width',
-      'return area',
-      'length = 10',
-      'width = 5',
-      'result = calculate_area(length, width)',
-      'print(f"Area: {result}")'
-    ];
-
-    List<String> incorrectBlocks = [
-      'function calculate_area(length, width)',
-      'def calculate_area:',
-      'area == length * width',
-      'return area;',
-      'let length = 10',
-      'var width = 5',
-      'result = calculate_area()',
-      'print("Area: " + result)',
-      'console.log(f"Area: {result}")',
-      'def main():',
-      'System.out.print(result)',
-      'area = length * width;',
-      'return',
-      'print(result)',
-      'length = "10"',
-      'width = "5"',
-    ];
-
-    incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(4).toList();
-
-    allBlocks = [
-      ...correctBlocks,
-      ...selectedIncorrectBlocks,
-    ]..shuffle();
+    if (gameConfig != null) {
+      _initializeGameFromConfig();
+    } else {
+      _initializeDefaultBlocks();
+    }
+    setState(() {});
   }
 
   void startGame() {
+    if (gameConfig == null) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('error.mp3');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Game configuration not loaded. Please retry.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final musicService = Provider.of<MusicService>(context, listen: false);
     musicService.playSoundEffect('level_start.mp3');
+
+    int timerDuration = gameConfig!['timer_duration'] != null
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 150
+        : 150;
 
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 240;
+      remainingSeconds = timerDuration;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       _showHint = false;
       _isUsingHint = false;
       resetBlocks();
     });
+
+    print('🎮 PYTHON MEDIUM GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
     startTimers();
   }
 
@@ -266,7 +441,7 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 120), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 45), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -278,7 +453,9 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
         musicService.playSoundEffect('penalty.mp3');
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
+          SnackBar(
+            content: Text("⏰ Time penalty! -1 point. Current score: $score"),
+          ),
         );
       });
     });
@@ -288,9 +465,13 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
     final musicService = Provider.of<MusicService>(context, listen: false);
     musicService.playSoundEffect('reset.mp3');
 
+    int timerDuration = gameConfig!['timer_duration'] != null
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 150
+        : 150;
+
     setState(() {
       score = 3;
-      remainingSeconds = 240;
+      remainingSeconds = timerDuration;
       gameStarted = false;
       isAnsweredCorrectly = false;
       _showHint = false;
@@ -303,9 +484,21 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
   }
 
   Future<void> saveScoreToDatabase(int score) async {
-    if (currentUser?['id'] == null) return;
+    if (currentUser?['id'] == null) {
+      print('❌ Cannot save score: No user ID');
+      return;
+    }
 
     try {
+      print('💾 SAVING PYTHON MEDIUM SCORE:');
+      print('   User ID: ${currentUser!['id']}');
+      print('   Language: Python');
+      print('   Level: 1');
+      print('   Difficulty: Medium');
+      print('   Score: $score/3');
+      print('   Completed: ${score == 3}');
+
+      // FIXED: Use correct method name for medium difficulty
       final response = await ApiService.saveScoreWithDifficulty(
         currentUser!['id'],
         'Python',
@@ -315,19 +508,21 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
         score == 3,
       );
 
+      print('📡 SERVER RESPONSE: $response');
+
       if (response['success'] == true) {
         setState(() {
-          level1Completed = score == 3;
+          levelCompleted = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
 
-        print('Score saved successfully: $score for Python Medium Level 1');
+        print('✅ PYTHON MEDIUM SCORE SAVED SUCCESSFULLY TO DATABASE');
       } else {
-        print('Failed to save score: ${response['message']}');
+        print('❌ FAILED TO SAVE SCORE: ${response['message']}');
       }
     } catch (e) {
-      print('Error saving score: $e');
+      print('❌ ERROR SAVING PYTHON MEDIUM SCORE: $e');
     }
   }
 
@@ -335,11 +530,8 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScoresWithDifficulty(
-          currentUser!['id'],
-          'Python',
-          'Medium'
-      );
+      // FIXED: Use correct method name for medium difficulty
+      final response = await ApiService.getScoresWithDifficulty(currentUser!['id'], 'Python', 'Medium');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
@@ -348,36 +540,33 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
         if (level1Data != null) {
           setState(() {
             previousScore = level1Data['score'] ?? 0;
-            level1Completed = level1Data['completed'] ?? false;
+            levelCompleted = level1Data['completed'] ?? false;
             hasPreviousScore = true;
-            score = previousScore;
           });
-          print('Loaded previous score: $previousScore for Python Medium Level 1');
         }
       }
     } catch (e) {
-      print('Error loading score: $e');
+      print('Error loading Python medium score: $e');
     }
   }
 
   bool isIncorrectBlock(String block) {
+    if (gameConfig != null) {
+      try {
+        List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
+        return incorrectBlocks.contains(block);
+      } catch (e) {
+        print('Error checking incorrect block: $e');
+      }
+    }
+
+    // Default incorrect blocks for Python Medium
     List<String> incorrectBlocks = [
-      'function calculate_area(length, width)',
-      'def calculate_area:',
-      'area == length * width',
-      'return area;',
-      'let length = 10',
-      'var width = 5',
-      'result = calculate_area()',
-      'print("Area: " + result)',
-      'console.log(f"Area: {result}")',
-      'def main():',
-      'System.out.print(result)',
-      'area = length * width;',
-      'return',
-      'print(result)',
-      'length = "10"',
-      'width = "5"',
+      'int num1 = 10',
+      'float num2 = 5',
+      'sum = num1 + num2;',
+      'cout << "Sum: " << sum;',
+      'printf("Sum: %d", sum)'
     ];
     return incorrectBlocks.contains(block);
   }
@@ -387,6 +576,7 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
+    // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
@@ -398,7 +588,7 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ You used incorrect Python syntax! -1 point. Current score: $score"),
+            content: Text("❌ You used incorrect code! -1 point. Current score: $score"),
             backgroundColor: Colors.red,
           ),
         );
@@ -416,7 +606,7 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("You used incorrect Python syntax and lost all points!"),
+            content: Text("You used incorrect code and lost all points!"),
             actions: [
               TextButton(
                 onPressed: () {
@@ -433,18 +623,24 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
       return;
     }
 
-    String answer = droppedBlocks.join('\n');
+    // Check correct answer
+    String answer = droppedBlocks.join(' ');
     String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
 
-    bool hasFunctionDef = normalizedAnswer.contains('defcalculate_area(length,width):');
-    bool hasAreaCalculation = normalizedAnswer.contains('area=length*width');
-    bool hasReturn = normalizedAnswer.contains('returnarea');
-    bool hasLength = normalizedAnswer.contains('length=10');
-    bool hasWidth = normalizedAnswer.contains('width=5');
-    bool hasFunctionCall = normalizedAnswer.contains('result=calculate_area(length,width)');
-    bool hasPrint = normalizedAnswer.contains('print(f"area:{result}")');
+    bool isCorrect = false;
 
-    if (hasFunctionDef && hasAreaCalculation && hasReturn && hasLength && hasWidth && hasFunctionCall && hasPrint) {
+    if (gameConfig != null) {
+      // Use configured correct answer
+      String expectedAnswer = gameConfig!['correct_answer'] ?? '';
+      String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+      isCorrect = normalizedAnswer == normalizedExpected;
+    } else {
+      // Fallback check for Python Level 1 Medium
+      String expected = 'num1=10num2=5sum=num1+num2print("sum:",sum)';
+      isCorrect = normalizedAnswer == expected;
+    }
+
+    if (isCorrect) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -454,14 +650,12 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
 
       saveScoreToDatabase(score);
 
+      // PLAY SUCCESS SOUND BASED ON SCORE
       if (score == 3) {
         musicService.playSoundEffect('perfect.mp3');
       } else {
         musicService.playSoundEffect('success.mp3');
       }
-
-      final gameScore = score;
-      final leaderboardPoints = score * 20; // Medium: 20× multiplier
 
       showDialog(
         context: context,
@@ -471,45 +665,27 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent! You built a complete Python program!"),
+              Text("Excellent work Python Programmer!"),
               SizedBox(height: 10),
-              Text("Game Score: $gameScore/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-              Text("Leaderboard Points: $leaderboardPoints/60", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+              Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've mastered Python Medium Level!",
+                  "🎉 Perfect! You've mastered Medium Level!",
                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) for full completion!",
+                  "⚠️ Get a perfect score (3/3) to unlock more challenges!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
-              SizedBox(height: 10),
-              Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green),
-                ),
-                child: Text(
-                  "🎯 Medium Difficulty: 20× Points Multiplier!",
-                  style: TextStyle(
-                    color: Colors.green,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
               SizedBox(height: 10),
               Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  "Area: 50",
+                  _expectedOutput,
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
@@ -524,15 +700,12 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
               onPressed: () {
                 musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
-                if (score == 3) {
-                  musicService.playSoundEffect('level_complete.mp3');
-                  Navigator.pushReplacementNamed(context, '/python_level2_medium');
-                } else {
-                  Navigator.pushReplacementNamed(context, '/levels',
-                      arguments: {'language': 'Python', 'difficulty': 'medium'});
-                }
+                Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                  'language': 'Python',
+                  'difficulty': 'Medium'
+                });
               },
-              child: Text(score == 3 ? "Next Level" : "Go Back"),
+              child: Text("Back to Levels"),
             )
           ],
         ),
@@ -545,7 +718,9 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
           score--;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Incomplete Python program. -1 point. Current score: $score")),
+          SnackBar(
+            content: Text("❌ Incorrect arrangement. -1 point. Current score: $score"),
+          ),
         );
       } else {
         setState(() {
@@ -561,7 +736,7 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("Remember to build a complete Python program with function definition and proper syntax."),
+            content: Text("You lost all your points."),
             actions: [
               TextButton(
                 onPressed: () {
@@ -594,9 +769,9 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
       child: Container(
         padding: EdgeInsets.all(16 * _scaleFactor),
         decoration: BoxDecoration(
-          color: Colors.green.withOpacity(0.95),
+          color: Colors.orange.withOpacity(0.95),
           borderRadius: BorderRadius.circular(12 * _scaleFactor),
-          border: Border.all(color: Colors.greenAccent, width: 2 * _scaleFactor),
+          border: Border.all(color: Colors.orangeAccent, width: 2 * _scaleFactor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.3),
@@ -627,12 +802,13 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 14 * _scaleFactor,
+                height: 1.4,
               ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Correct blocks are being placed automatically...',
+              'Hint will disappear in 5 seconds...',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 12 * _scaleFactor,
@@ -645,6 +821,50 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
     );
   }
 
+  Widget _buildHintButton() {
+    return Positioned(
+      bottom: 20 * _scaleFactor,
+      right: 20 * _scaleFactor,
+      child: GestureDetector(
+        onTap: _useHintCard,
+        child: Container(
+          padding: EdgeInsets.all(12 * _scaleFactor),
+          decoration: BoxDecoration(
+            color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
+            borderRadius: BorderRadius.circular(20 * _scaleFactor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 4 * _scaleFactor,
+                offset: Offset(0, 2 * _scaleFactor),
+              )
+            ],
+            border: Border.all(
+              color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
+              width: 2 * _scaleFactor,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lightbulb_outline, color: Colors.white, size: 20 * _scaleFactor),
+              SizedBox(width: 6 * _scaleFactor),
+              Text(
+                '$_availableHintCards',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18 * _scaleFactor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Code Preview Widget
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -670,7 +890,7 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'area_calculator.py',
+                  'calculator.py',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -682,90 +902,98 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
           ),
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
-            child: _buildCodeContent(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _buildOrganizedCodePreview(),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCodeContent() {
+  List<Widget> _buildOrganizedCodePreview() {
+    List<Widget> codeLines = [];
+
+    for (int i = 0; i < _codeStructure.length; i++) {
+      String line = _codeStructure[i];
+
+      if (line.contains('# Declare variables') || line.contains('# Calculate sum') || line.contains('# Print result')) {
+        // Add user's dragged code in the correct position
+        codeLines.add(_buildUserCodeSection(line));
+      } else if (line.trim().isEmpty) {
+        codeLines.add(SizedBox(height: 16 * _scaleFactor));
+      } else {
+        codeLines.add(_buildSyntaxHighlightedLine(line, i + 1));
+      }
+    }
+
+    return codeLines;
+  }
+
+  Widget _buildUserCodeSection(String commentLine) {
     if (droppedBlocks.isEmpty) {
-      return Column(
+      return Container(
+        padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
+        child: Text(
+          '$commentLine',
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 12 * _scaleFactor,
+            fontFamily: 'monospace',
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '# Drag blocks to build your Python program',
+            commentLine,
             style: TextStyle(
               color: Colors.grey[600],
               fontSize: 12 * _scaleFactor,
               fontFamily: 'monospace',
+              fontStyle: FontStyle.italic,
             ),
           ),
+          for (String block in droppedBlocks)
+            Container(
+              margin: EdgeInsets.only(bottom: 4 * _scaleFactor),
+              child: Text(
+                block,
+                style: TextStyle(
+                  color: Colors.greenAccent[400],
+                  fontSize: 12 * _scaleFactor,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
         ],
-      );
-    }
-
-    List<Widget> codeLines = [];
-    int lineNumber = 1;
-
-    for (String block in droppedBlocks) {
-      bool isFunctionDef = block.contains('def ');
-      bool isReturn = block.contains('return ');
-      bool isPrint = block.contains('print(');
-      bool isVariable = block.contains('=') && !isFunctionDef && !isReturn;
-      bool isIncorrect = isIncorrectBlock(block);
-
-      Color textColor = Colors.white;
-      if (isFunctionDef) {
-        textColor = Color(0xFF569CD6); // Blue for function def
-      } else if (isReturn) {
-        textColor = Color(0xFFC586C0); // Purple for return
-      } else if (isPrint) {
-        textColor = Color(0xFFCE9178); // Orange for print
-      } else if (isVariable && !isIncorrect) {
-        textColor = Color(0xFF9CDCFE); // Light blue for variables
-      } else if (isIncorrect) {
-        textColor = Colors.red;
-      }
-
-      String displayCode = block;
-
-      // Add indentation for function body
-      if (block != 'def calculate_area(length, width):' &&
-          !block.contains('length =') &&
-          !block.contains('width =') &&
-          !block.contains('result =') &&
-          !block.contains('print(')) {
-        displayCode = '    $block';
-      }
-
-      codeLines.add(_buildCodeLineWithNumber(lineNumber++, displayCode,
-          textColor: textColor,
-          isIncorrect: isIncorrect
-      ));
-
-      // Add spacing after function definition
-      if (block == 'def calculate_area(length, width):') {
-        codeLines.add(SizedBox(height: 8 * _scaleFactor));
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: codeLines,
+      ),
     );
   }
 
-  Widget _buildCodeLineWithNumber(int lineNumber, String code, {Color? textColor, bool isIncorrect = false}) {
-    Color finalTextColor = textColor ?? Colors.white;
+  Widget _buildSyntaxHighlightedLine(String code, int lineNumber) {
+    Color textColor = Colors.white;
+    String displayCode = code;
 
-    if (isIncorrect) {
-      finalTextColor = Colors.red;
+    // Python syntax highlighting rules
+    if (code.trim().startsWith('#')) {
+      textColor = Color(0xFF6A9955); // Comments - green
+    } else if (code.contains('print(')) {
+      textColor = Color(0xFF569CD6); // Functions - blue
+    } else if (code.contains('"') || code.contains("'")) {
+      textColor = Color(0xFFCE9178); // Strings - orange
     }
 
     return Container(
-      height: 20 * _scaleFactor,
+      padding: EdgeInsets.symmetric(vertical: 2 * _scaleFactor),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -783,12 +1011,11 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
           SizedBox(width: 16 * _scaleFactor),
           Expanded(
             child: Text(
-              code,
+              displayCode,
               style: TextStyle(
-                color: finalTextColor,
+                color: textColor,
                 fontSize: 12 * _scaleFactor,
                 fontFamily: 'monospace',
-                fontWeight: isIncorrect ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           ),
@@ -812,9 +1039,111 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("🐍 Python - Level 1 Medium", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.orange,
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0D1B2A),
+                Color(0xFF1B263B),
+                Color(0xFF415A77),
+              ],
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.orange),
+                SizedBox(height: 20),
+                Text(
+                  "Loading Python Medium Game Configuration...",
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "From Database",
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (errorMessage != null && !gameStarted) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("🐍 Python - Level 1 Medium", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.orange,
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0D1B2A),
+                Color(0xFF1B263B),
+                Color(0xFF415A77),
+              ],
+            ),
+          ),
+          child: Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.warning_amber, color: Colors.orange, size: 50),
+                  SizedBox(height: 20),
+                  Text(
+                    "Configuration Warning",
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _loadGameConfig,
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                    child: Text("Retry Loading"),
+                  ),
+                  SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                        'language': 'Python',
+                        'difficulty': 'Medium'
+                      });
+                    },
+                    child: Text("Back to Levels", style: TextStyle(color: Colors.orange)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
-      final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
+      final newScaleFactor = newScreenWidth < _baseScreenWidth
+          ? newScreenWidth / _baseScreenWidth
+          : 1.0;
 
       if (newScaleFactor != _scaleFactor) {
         setState(() {
@@ -825,9 +1154,10 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("🐍 Python - Level 1 (Medium)", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.green,
-        actions: gameStarted ? [
+        title: Text("🐍 Python - Level 1 Medium", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.orange,
+        actions: gameStarted
+            ? [
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor),
             child: Row(
@@ -841,7 +1171,8 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
               ],
             ),
           ),
-        ] : [],
+        ]
+            : [],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -860,46 +1191,7 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
             gameStarted ? buildGameUI() : buildStartScreen(),
             if (gameStarted && !isAnsweredCorrectly) ...[
               _buildHintDisplay(),
-              Positioned(
-                bottom: 20 * _scaleFactor,
-                right: 20 * _scaleFactor,
-                child: GestureDetector(
-                  onTap: _useHintCard,
-                  child: Container(
-                    padding: EdgeInsets.all(12 * _scaleFactor),
-                    decoration: BoxDecoration(
-                      color: _availableHintCards > 0 ? Colors.green : Colors.grey,
-                      borderRadius: BorderRadius.circular(20 * _scaleFactor),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 4 * _scaleFactor,
-                          offset: Offset(0, 2 * _scaleFactor),
-                        )
-                      ],
-                      border: Border.all(
-                        color: _availableHintCards > 0 ? Colors.greenAccent : Colors.grey,
-                        width: 2 * _scaleFactor,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.lightbulb_outline, color: Colors.white, size: 20 * _scaleFactor),
-                        SizedBox(width: 6 * _scaleFactor),
-                        Text(
-                          '$_availableHintCards',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18 * _scaleFactor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+              _buildHintButton(),
             ],
           ],
         ),
@@ -908,11 +1200,6 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
   }
 
   Widget buildStartScreen() {
-    final displayGameScore = previousScore;
-    final displayLeaderboardPoints = previousScore * 20;
-    final maxGameScore = 3;
-    final maxLeaderboardPoints = 60;
-
     return Center(
       child: SingleChildScrollView(
         padding: EdgeInsets.all(16 * _scaleFactor),
@@ -920,36 +1207,37 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              onPressed: () {
+              onPressed: gameConfig != null ? () {
                 final musicService = Provider.of<MusicService>(context, listen: false);
                 musicService.playSoundEffect('button_click.mp3');
                 startGame();
-              },
+              } : null,
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Medium", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text(gameConfig != null ? "Start Medium Level" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.green,
+                backgroundColor: gameConfig != null ? Colors.orange : Colors.grey,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
 
+            // Display available hint cards in start screen
             Container(
               padding: EdgeInsets.all(12 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.2),
+                color: Colors.orange.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.green),
+                border: Border.all(color: Colors.orange),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.lightbulb_outline, color: Colors.green, size: 20 * _scaleFactor),
+                  Icon(Icons.lightbulb_outline, color: Colors.orange, size: 20 * _scaleFactor),
                   SizedBox(width: 8 * _scaleFactor),
                   Text(
                     'Hint Cards: $_availableHintCards',
                     style: TextStyle(
-                      color: Colors.green,
+                      color: Colors.orange,
                       fontSize: 16 * _scaleFactor,
                       fontWeight: FontWeight.bold,
                     ),
@@ -966,25 +1254,20 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
               ),
             ),
 
-            if (level1Completed)
+            if (levelCompleted)
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Medium Level completed with perfect score!",
+                      "✅ Medium level completed with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "🎮 Game Score: $displayGameScore/$maxGameScore",
-                      style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                    Text(
-                      "🏆 Leaderboard Points: $displayLeaderboardPoints/$maxLeaderboardPoints",
-                      style: TextStyle(color: Colors.blue, fontSize: 14 * _scaleFactor, fontWeight: FontWeight.bold),
+                      "Great job mastering medium difficulty!",
+                      style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -996,25 +1279,14 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
                 child: Column(
                   children: [
                     Text(
-                      "📊 Your previous medium score:",
-                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 5 * _scaleFactor),
-                    Text(
-                      "Game: $displayGameScore/$maxGameScore",
-                      style: TextStyle(color: Colors.white, fontSize: 14 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                    Text(
-                      "Leaderboard: $displayLeaderboardPoints/$maxLeaderboardPoints",
-                      style: TextStyle(color: Colors.blue, fontSize: 14 * _scaleFactor, fontWeight: FontWeight.bold),
+                      "📊 Your previous score: $previousScore/3",
+                      style: TextStyle(color: Colors.orange, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
                       "Try again to get a perfect score!",
-                      style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
+                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1026,14 +1298,14 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
                   child: Column(
                     children: [
                       Text(
-                        "😅 Your previous score: $displayGameScore/$maxGameScore",
-                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                        "😅 Your previous score: $previousScore/3",
+                        style: TextStyle(color: Colors.orange, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
                         "Don't give up! You can do better this time!",
-                        style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
+                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1045,59 +1317,31 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.green[50]!.withOpacity(0.9),
+                color: Colors.orange[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.green[200]!),
+                border: Border.all(color: Colors.orange[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎯 Medium Level Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.green[800]),
+                    gameConfig?['objective'] ?? "🎯 Python Level 1 Medium Objective",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.orange[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Build a complete Python program with function definition, variables, and function call",
+                    gameConfig?['objective'] ?? "Create a Python program that calculates the sum of two numbers using variables and arithmetic operations",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.green[700]),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(8 * _scaleFactor),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(8 * _scaleFactor),
-                      border: Border.all(color: Colors.green),
-                    ),
-                    child: Text(
-                      "🎁 Medium Difficulty: 20× Points Multiplier!",
-                      style: TextStyle(
-                        fontSize: 14 * _scaleFactor,
-                        color: Colors.green[800],
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.orange[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎮 Perfect Score (3/3) = 60 Leaderboard Points",
+                    "⚡ Medium Difficulty: More complex logic and shorter time!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
                         color: Colors.purple,
                         fontWeight: FontWeight.bold,
-                        fontStyle: FontStyle.italic
-                    ),
-                  ),
-                  SizedBox(height: 5 * _scaleFactor),
-                  Text(
-                    "(Easy: 30 points, Medium: 60 points, Hard: 90 points)",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 11 * _scaleFactor,
-                        color: Colors.purple,
                         fontStyle: FontStyle.italic
                     ),
                   ),
@@ -1120,8 +1364,7 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Short Story',
-                    style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text('📖 Short Story', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
                 onPressed: () {
@@ -1132,22 +1375,21 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
                   });
                 },
                 icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
-                label: Text(isTagalog ? 'English' : 'Tagalog',
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+                label: Text(isTagalog ? 'English' : 'Tagalog', style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
               ),
             ],
           ),
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Si Maria ay gustong gumawa ng Python program para kalkulahin ang area ng rectangle! Kailangan niyang gumamit ng function, variables, at function call. Tulungan siyang buuin ang program!'
-                : 'Maria wants to create a Python program to calculate the area of a rectangle! She needs to use a function, variables, and function call. Help her build the program!',
+                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Medium Level ng Python programming! Lumikha ng program na nagkukwenta ng suma ng dalawang numero.')
+                : (gameConfig?['story_english'] ?? 'This is Python Medium Level! Create a program that calculates the sum of two numbers.'),
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Build the complete Python program using all 7 blocks',
+          Text(_instructionText,
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
@@ -1161,7 +1403,7 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.green, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.orange, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -1191,13 +1433,14 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
                         data: block,
                         feedback: Material(
                           color: Colors.transparent,
-                          child: puzzleBlock(block, Colors.greenAccent),
+                          child: puzzleBlock(block, Colors.orangeAccent),
                         ),
-                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.greenAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.orangeAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.orangeAccent),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
+
                           setState(() {
                             currentlyDraggedBlock = block;
                           });
@@ -1229,7 +1472,7 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
           ),
 
           SizedBox(height: 20 * _scaleFactor),
-          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          Text(_codePreviewTitle, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
           SizedBox(height: 10 * _scaleFactor),
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
@@ -1256,16 +1499,17 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
                   data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(block, Colors.lightGreen),
+                    child: puzzleBlock(block, Colors.orange),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.lightGreen),
+                    child: puzzleBlock(block, Colors.orange),
                   ),
-                  child: puzzleBlock(block, Colors.lightGreen),
+                  child: puzzleBlock(block, Colors.orange),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
+
                     setState(() {
                       currentlyDraggedBlock = block;
                     });
@@ -1302,7 +1546,7 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: Colors.orange,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -1311,6 +1555,7 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
           ),
 
           SizedBox(height: 10 * _scaleFactor),
+
           TextButton(
             onPressed: () {
               final musicService = Provider.of<MusicService>(context, listen: false);
@@ -1336,7 +1581,8 @@ class _PythonLevel1MediumState extends State<PythonLevel1Medium> {
         ),
       ),
       textDirection: TextDirection.ltr,
-    )..layout();
+    )
+      ..layout();
 
     final textWidth = textPainter.width;
     final minWidth = 80 * _scaleFactor;

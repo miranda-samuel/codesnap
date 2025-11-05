@@ -184,7 +184,7 @@ class ApiService {
     }
   }
 
-  // ✅ UPDATED: Get Game Configuration from database - FIXED VERSION
+  // ✅ UPDATED: Get Game Configuration from database - WITH DIFFICULTY SUPPORT
   static Future<Map<String, dynamic>> getGameConfig(String language, int level) async {
     try {
       print('🎮 GETTING GAME CONFIG - Language: $language, Level: $level');
@@ -196,6 +196,7 @@ class ApiService {
         body: jsonEncode({
           'language': language,
           'level': level,
+          'difficulty': 'Easy', // Default to Easy for backward compatibility
         }),
       ).timeout(Duration(seconds: 10));
 
@@ -208,58 +209,7 @@ class ApiService {
 
         if (data['success'] == true && data['game'] != null) {
           print('✅ GAME CONFIG LOADED SUCCESSFULLY FROM DATABASE');
-
-          // Parse the JSON strings from database
-          final game = data['game'];
-
-          // Parse correct_blocks JSON
-          try {
-            if (game['correct_blocks'] is String) {
-              game['correct_blocks'] = json.decode(game['correct_blocks']);
-            }
-          } catch (e) {
-            print('❌ Error parsing correct_blocks: $e');
-            game['correct_blocks'] = [];
-          }
-
-          // Parse incorrect_blocks JSON
-          try {
-            if (game['incorrect_blocks'] is String) {
-              game['incorrect_blocks'] = json.decode(game['incorrect_blocks']);
-            }
-          } catch (e) {
-            print('❌ Error parsing incorrect_blocks: $e');
-            game['incorrect_blocks'] = [];
-          }
-
-          // Parse code_structure JSON
-          try {
-            if (game['code_structure'] is String) {
-              game['code_structure'] = json.decode(game['code_structure']);
-            }
-          } catch (e) {
-            print('❌ Error parsing code_structure: $e');
-            game['code_structure'] = [
-              "#include <iostream>",
-              "using namespace std;",
-              "",
-              "int main() {",
-              "    // Your code here",
-              "    return 0;",
-              "}"
-            ];
-          }
-
-          // Ensure timer_duration is int
-          game['timer_duration'] = _safeIntConversion(game['timer_duration']);
-
-          print('🎯 PARSED GAME CONFIG:');
-          print('   Correct Blocks: ${game['correct_blocks']}');
-          print('   Incorrect Blocks: ${game['incorrect_blocks']}');
-          print('   Code Structure: ${game['code_structure']}');
-          print('   Timer Duration: ${game['timer_duration']}');
-
-          return data;
+          return _processGameConfigResponse(data);
         } else {
           print('❌ GAME CONFIG NOT FOUND IN DATABASE: ${data['message']}');
           return {
@@ -292,70 +242,29 @@ class ApiService {
   // ✅ NEW: Get game config with difficulty support
   static Future<Map<String, dynamic>> getGameConfigWithDifficulty(String language, String difficulty, int level) async {
     try {
-      String languageKey = '${language}_$difficulty';
-      print('🎮 GETTING GAME CONFIG WITH DIFFICULTY - Language: $languageKey, Level: $level');
+      print('🎮 GETTING GAME CONFIG WITH DIFFICULTY - Language: $language, Difficulty: $difficulty, Level: $level');
 
       final response = await http.post(
         Uri.parse('$baseUrl/get_game_config.php'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'language': languageKey,
+          'language': language,
           'level': level,
+          'difficulty': difficulty,
         }),
       ).timeout(Duration(seconds: 10));
 
+      print('🔍 DIFFICULTY CONFIG RESPONSE STATUS: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        print('📋 DIFFICULTY GAME CONFIG RESPONSE SUCCESS: ${data['success']}');
 
         if (data['success'] == true && data['game'] != null) {
           print('✅ GAME CONFIG WITH DIFFICULTY LOADED SUCCESSFULLY');
-
-          // Parse the JSON strings from database
-          final game = data['game'];
-
-          // Parse correct_blocks JSON
-          try {
-            if (game['correct_blocks'] is String) {
-              game['correct_blocks'] = json.decode(game['correct_blocks']);
-            }
-          } catch (e) {
-            print('❌ Error parsing correct_blocks: $e');
-            game['correct_blocks'] = [];
-          }
-
-          // Parse incorrect_blocks JSON
-          try {
-            if (game['incorrect_blocks'] is String) {
-              game['incorrect_blocks'] = json.decode(game['incorrect_blocks']);
-            }
-          } catch (e) {
-            print('❌ Error parsing incorrect_blocks: $e');
-            game['incorrect_blocks'] = [];
-          }
-
-          // Parse code_structure JSON
-          try {
-            if (game['code_structure'] is String) {
-              game['code_structure'] = json.decode(game['code_structure']);
-            }
-          } catch (e) {
-            print('❌ Error parsing code_structure: $e');
-            game['code_structure'] = [
-              "#include <iostream>",
-              "using namespace std;",
-              "",
-              "int main() {",
-              "    // Your code here",
-              "    return 0;",
-              "}"
-            ];
-          }
-
-          // Ensure timer_duration is int
-          game['timer_duration'] = _safeIntConversion(game['timer_duration']);
-
-          return data;
+          return _processGameConfigResponse(data);
         } else {
+          print('❌ GAME CONFIG WITH DIFFICULTY NOT FOUND: ${data['message']}');
           return {
             'success': false,
             'message': data['message'] ?? 'Game configuration not found in database'
@@ -378,6 +287,61 @@ class ApiService {
         'message': 'Connection error: $e'
       };
     }
+  }
+
+  // Helper method to process game config response
+  static Map<String, dynamic> _processGameConfigResponse(Map<String, dynamic> data) {
+    final game = data['game'];
+
+    // Parse correct_blocks JSON
+    try {
+      if (game['correct_blocks'] is String) {
+        game['correct_blocks'] = json.decode(game['correct_blocks']);
+      }
+    } catch (e) {
+      print('❌ Error parsing correct_blocks: $e');
+      game['correct_blocks'] = [];
+    }
+
+    // Parse incorrect_blocks JSON
+    try {
+      if (game['incorrect_blocks'] is String) {
+        game['incorrect_blocks'] = json.decode(game['incorrect_blocks']);
+      }
+    } catch (e) {
+      print('❌ Error parsing incorrect_blocks: $e');
+      game['incorrect_blocks'] = [];
+    }
+
+    // Parse code_structure JSON
+    try {
+      if (game['code_structure'] is String) {
+        game['code_structure'] = json.decode(game['code_structure']);
+      }
+    } catch (e) {
+      print('❌ Error parsing code_structure: $e');
+      // Provide default structure based on language
+      game['code_structure'] = [
+        "#include <iostream>",
+        "using namespace std;",
+        "",
+        "int main() {",
+        "    // Your code here",
+        "    return 0;",
+        "}"
+      ];
+    }
+
+    // Ensure timer_duration is int
+    game['timer_duration'] = _safeIntConversion(game['timer_duration']);
+
+    print('🎯 PARSED GAME CONFIG:');
+    print('   Correct Blocks: ${game['correct_blocks']}');
+    print('   Incorrect Blocks: ${game['incorrect_blocks']}');
+    print('   Code Structure: ${game['code_structure']}');
+    print('   Timer Duration: ${game['timer_duration']}');
+
+    return data;
   }
 
   static Future<Map<String, dynamic>> resetScores(int userId, String language) async {

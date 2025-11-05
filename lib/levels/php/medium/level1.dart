@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'dart:convert';
 import '../../../services/api_service.dart';
 import '../../../services/user_preferences.dart';
 import '../../../services/music_service.dart';
@@ -20,33 +20,268 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level1Completed = false;
+  bool levelCompleted = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
-  int score = 3;
-  int remainingSeconds = 240; // 3 minutes for PHP medium
+  int score = 5; // Increased from 3 to 5
+  int remainingSeconds = 180; // Increased from 120 to 180
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
+  // Track currently dragged block
   String? currentlyDraggedBlock;
+
+  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
+  // Game configuration from database
+  Map<String, dynamic>? gameConfig;
+  bool isLoading = true;
+  String? errorMessage;
+
+  // HINT SYSTEM
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
   bool _isUsingHint = false;
 
+  // Configurable elements from database
+  String _codePreviewTitle = '💻 Code Preview:';
+  String _instructionText = '🧩 Arrange the blocks to form the correct PHP code with variables';
+  List<String> _codeStructure = [];
+  String _expectedOutput = 'Hello John! Welcome to PHP.';
+
   @override
   void initState() {
     super.initState();
-    resetBlocks();
+    _loadGameConfig();
     _loadUserData();
     _calculateScaleFactor();
     _startGameMusic();
     _loadHintCards();
+  }
+
+  Future<void> _loadGameConfig() async {
+    try {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+
+      final response = await ApiService.getGameConfig('PHP', 2); // Level 2 for medium difficulty
+
+      print('🔍 PHP MEDIUM GAME CONFIG RESPONSE:');
+      print('   Success: ${response['success']}');
+      print('   Message: ${response['message']}');
+
+      if (response['success'] == true && response['game'] != null) {
+        setState(() {
+          gameConfig = response['game'];
+          _initializeGameFromConfig();
+        });
+      } else {
+        setState(() {
+          errorMessage = response['message'] ?? 'Failed to load game configuration from database';
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading game config: $e');
+      setState(() {
+        errorMessage = 'Connection error: $e';
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  void _initializeGameFromConfig() {
+    if (gameConfig == null) return;
+
+    try {
+      print('🔄 INITIALIZING PHP MEDIUM GAME FROM CONFIG');
+
+      // Load timer duration from database
+      if (gameConfig!['timer_duration'] != null) {
+        int timerDuration = int.tryParse(gameConfig!['timer_duration'].toString()) ?? 180;
+        setState(() {
+          remainingSeconds = timerDuration;
+        });
+        print('⏰ Timer duration loaded: $timerDuration seconds');
+      }
+
+      // Load instruction text from database
+      if (gameConfig!['instruction_text'] != null) {
+        setState(() {
+          _instructionText = gameConfig!['instruction_text'].toString();
+        });
+        print('📝 Instruction text loaded: $_instructionText');
+      }
+
+      // Load code preview title from database
+      if (gameConfig!['code_preview_title'] != null) {
+        setState(() {
+          _codePreviewTitle = gameConfig!['code_preview_title'].toString();
+        });
+        print('💻 Code preview title loaded: $_codePreviewTitle');
+      }
+
+      // Load code structure from database
+      if (gameConfig!['code_structure'] != null) {
+        if (gameConfig!['code_structure'] is List) {
+          setState(() {
+            _codeStructure = List<String>.from(gameConfig!['code_structure']);
+          });
+        } else {
+          String codeStructureStr = gameConfig!['code_structure']?.toString() ?? '[]';
+          try {
+            List<dynamic> codeStructureJson = json.decode(codeStructureStr);
+            setState(() {
+              _codeStructure = List<String>.from(codeStructureJson);
+            });
+          } catch (e) {
+            print('❌ Error parsing code structure: $e');
+            setState(() {
+              _codeStructure = _getDefaultCodeStructure();
+            });
+          }
+        }
+        print('📝 Code structure loaded: $_codeStructure');
+      } else {
+        setState(() {
+          _codeStructure = _getDefaultCodeStructure();
+        });
+      }
+
+      // Load expected output from database
+      if (gameConfig!['expected_output'] != null) {
+        setState(() {
+          _expectedOutput = gameConfig!['expected_output'].toString();
+        });
+        print('🎯 Expected output loaded: $_expectedOutput');
+      }
+
+      // Load hint from database
+      if (gameConfig!['hint_text'] != null) {
+        setState(() {
+          _currentHint = gameConfig!['hint_text'].toString();
+        });
+        print('💡 Hint loaded from database: $_currentHint');
+      } else {
+        setState(() {
+          _currentHint = _getDefaultHint();
+        });
+        print('💡 Using default hint');
+      }
+
+      // Parse blocks with better error handling
+      List<String> correctBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
+      List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
+
+      print('✅ Correct Blocks: $correctBlocks');
+      print('✅ Incorrect Blocks: $incorrectBlocks');
+
+      // Combine and shuffle blocks
+      allBlocks = [
+        ...correctBlocks,
+        ...incorrectBlocks,
+      ]..shuffle();
+
+      print('🎮 All Blocks Final: $allBlocks');
+
+    } catch (e) {
+      print('❌ Error parsing game config: $e');
+      _initializeDefaultBlocks();
+    }
+  }
+
+  List<String> _getDefaultCodeStructure() {
+    return [
+      "<?php",
+      "",
+      "// Define variables here",
+      "",
+      "// Output the result here",
+      "",
+      "?>"
+    ];
+  }
+
+  List<String> _parseBlocks(dynamic blocksData, String type) {
+    List<String> blocks = [];
+
+    if (blocksData == null) {
+      return _getDefaultBlocks(type);
+    }
+
+    try {
+      if (blocksData is List) {
+        blocks = List<String>.from(blocksData);
+      } else if (blocksData is String) {
+        String blocksStr = blocksData.trim();
+
+        if (blocksStr.startsWith('[') && blocksStr.endsWith(']')) {
+          // Parse as JSON array
+          List<dynamic> blocksJson = json.decode(blocksStr);
+          blocks = List<String>.from(blocksJson);
+        } else {
+          // Parse as comma-separated string
+          blocks = blocksStr.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+        }
+      }
+    } catch (e) {
+      print('❌ Error parsing $type blocks: $e');
+      blocks = _getDefaultBlocks(type);
+    }
+
+    return blocks;
+  }
+
+  List<String> _getDefaultBlocks(String type) {
+    if (type == 'correct') {
+      return [
+        '\$name = "John";',
+        'echo "Hello " . \$name . "!";',
+        'echo "Welcome to PHP.";'
+      ];
+    } else {
+      return [
+        'var name = "John"',
+        'printf("Hello %s", name);',
+        'cout << "Hello " << name;',
+        'System.out.println("Hello " + name);',
+        'print("Hello " + name)',
+        'Console.WriteLine("Hello " + name);',
+        '\$name = John;', // Missing quotes
+        'echo Hello . \$name;', // Missing quotes
+        'echo "Welcome to PHP"', // Missing semicolon
+      ];
+    }
+  }
+
+  String _getDefaultHint() {
+    return "💡 Hint: Use variables with \$ symbol. Concatenate strings with . operator. Don't forget quotes and semicolons!";
+  }
+
+  void _initializeDefaultBlocks() {
+    allBlocks = [
+      '\$name = "John";',
+      'echo "Hello " . \$name . "!";',
+      'echo "Welcome to PHP.";',
+      'var name = "John"',
+      'printf("Hello %s", name);',
+      'cout << "Hello " << name;',
+      'System.out.println("Hello " + name);',
+      'print("Hello " + name)',
+      'Console.WriteLine("Hello " + name);',
+      '\$name = John;',
+      'echo Hello . \$name;',
+      'echo "Welcome to PHP"',
+    ]..shuffle();
   }
 
   void _startGameMusic() {
@@ -92,7 +327,6 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
       setState(() {
         _isUsingHint = true;
         _showHint = true;
-        _currentHint = _getLevelHint();
         _availableHintCards--;
       });
 
@@ -101,7 +335,14 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
         await DailyChallengeService.useHintCard(user['id']);
       }
 
-      _autoDragCorrectBlocks();
+      Future.delayed(Duration(seconds: 5), () {
+        if (mounted) {
+          setState(() {
+            _showHint = false;
+            _isUsingHint = false;
+          });
+        }
+      });
     } else if (_availableHintCards <= 0) {
       final musicService = Provider.of<MusicService>(context, listen: false);
       musicService.playSoundEffect('error.mp3');
@@ -115,53 +356,6 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
     }
   }
 
-  void _autoDragCorrectBlocks() {
-    List<String> correctBlocks = [
-      '<?php',
-      '\$name = "Juan";',
-      '\$age = 25;',
-      'echo "Name: " . \$name;',
-      'echo "Age: " . \$age;',
-      '\$message = "Welcome to PHP!";',
-      'echo \$message;',
-      '?>'
-    ];
-
-    setState(() {
-      droppedBlocks.clear();
-    });
-
-    int delay = 0;
-    for (String block in correctBlocks) {
-      Future.delayed(Duration(milliseconds: delay), () {
-        if (mounted) {
-          setState(() {
-            if (!droppedBlocks.contains(block)) {
-              droppedBlocks.add(block);
-            }
-            if (allBlocks.contains(block)) {
-              allBlocks.remove(block);
-            }
-          });
-        }
-      });
-      delay += 400;
-    }
-
-    Future.delayed(Duration(milliseconds: delay + 800), () {
-      if (mounted) {
-        setState(() {
-          _showHint = false;
-          _isUsingHint = false;
-        });
-      }
-    });
-  }
-
-  String _getLevelHint() {
-    return "MEDIUM: Build a complete PHP script with variables and echo statements! Remember PHP starts with <?php and ends with ?>";
-  }
-
   void _loadUserData() async {
     final user = await UserPreferences.getUser();
     setState(() {
@@ -172,61 +366,47 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
   }
 
   void resetBlocks() {
-    List<String> correctBlocks = [
-      '<?php',
-      '\$name = "Juan";',
-      '\$age = 25;',
-      'echo "Name: " . \$name;',
-      'echo "Age: " . \$age;',
-      '\$message = "Welcome to PHP!";',
-      'echo \$message;',
-      '?>'
-    ];
-
-    List<String> incorrectBlocks = [
-      '<?php',
-      '<?',
-      '?>',
-      'var name = "Juan";',
-      'name = "Juan"',
-      'String name = "Juan";',
-      'console.log("Name: " + name);',
-      'print("Name: " . name);',
-      'echo "Name: " + \$name;',
-      'printf("Name: %s", name);',
-      '\$name = Juan;',
-      'echo "Name: " . name;',
-      'let name = "Juan";',
-      'const name = "Juan";',
-      'System.out.print("Name: " + name);',
-      'cout << "Name: " << name;',
-      'echo "Name: \$name";',
-      '\$message = Welcome to PHP!;',
-    ];
-
-    incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(4).toList();
-
-    allBlocks = [
-      ...correctBlocks,
-      ...selectedIncorrectBlocks,
-    ]..shuffle();
+    if (gameConfig != null) {
+      _initializeGameFromConfig();
+    } else {
+      _initializeDefaultBlocks();
+    }
+    setState(() {});
   }
 
   void startGame() {
+    if (gameConfig == null) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('error.mp3');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Game configuration not loaded. Please retry.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final musicService = Provider.of<MusicService>(context, listen: false);
     musicService.playSoundEffect('level_start.mp3');
 
+    int timerDuration = gameConfig!['timer_duration'] != null
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 180
+        : 180;
+
     setState(() {
       gameStarted = true;
-      score = 3;
-      remainingSeconds = 240;
+      score = 5;
+      remainingSeconds = timerDuration;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       _showHint = false;
       _isUsingHint = false;
       resetBlocks();
     });
+
+    print('🎮 PHP MEDIUM GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
     startTimers();
   }
 
@@ -270,7 +450,8 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 120), (timer) {
+    // Score reduction every 45 seconds (faster than easy level)
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 45), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -282,7 +463,9 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
         musicService.playSoundEffect('penalty.mp3');
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
+          SnackBar(
+            content: Text("⏰ Time penalty! -1 point. Current score: $score"),
+          ),
         );
       });
     });
@@ -292,9 +475,13 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
     final musicService = Provider.of<MusicService>(context, listen: false);
     musicService.playSoundEffect('reset.mp3');
 
+    int timerDuration = gameConfig!['timer_duration'] != null
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 180
+        : 180;
+
     setState(() {
-      score = 3;
-      remainingSeconds = 240;
+      score = 5;
+      remainingSeconds = timerDuration;
       gameStarted = false;
       isAnsweredCorrectly = false;
       _showHint = false;
@@ -307,31 +494,42 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
   }
 
   Future<void> saveScoreToDatabase(int score) async {
-    if (currentUser?['id'] == null) return;
+    if (currentUser?['id'] == null) {
+      print('❌ Cannot save score: No user ID');
+      return;
+    }
 
     try {
-      final response = await ApiService.saveScoreWithDifficulty(
+      print('💾 SAVING PHP MEDIUM SCORE:');
+      print('   User ID: ${currentUser!['id']}');
+      print('   Language: PHP');
+      print('   Level: 2'); // Level 2 for medium
+      print('   Score: $score/5');
+      print('   Completed: ${score == 5}');
+
+      final response = await ApiService.saveScore(
         currentUser!['id'],
         'PHP',
-        'Medium',
-        1,
+        2, // Level 2 for medium
         score,
-        score == 3,
+        score == 5,
       );
+
+      print('📡 SERVER RESPONSE: $response');
 
       if (response['success'] == true) {
         setState(() {
-          level1Completed = score == 3;
+          levelCompleted = score == 5;
           previousScore = score;
           hasPreviousScore = true;
         });
 
-        print('Score saved successfully: $score for PHP Medium Level 1');
+        print('✅ PHP MEDIUM SCORE SAVED SUCCESSFULLY TO DATABASE');
       } else {
-        print('Failed to save score: ${response['message']}');
+        print('❌ FAILED TO SAVE SCORE: ${response['message']}');
       }
     } catch (e) {
-      print('Error saving score: $e');
+      print('❌ ERROR SAVING PHP MEDIUM SCORE: $e');
     }
   }
 
@@ -339,51 +537,46 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScoresWithDifficulty(
-          currentUser!['id'],
-          'PHP',
-          'Medium'
-      );
+      final response = await ApiService.getScores(currentUser!['id'], 'PHP');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level1Data = scoresData['1'];
+        final level2Data = scoresData['2']; // Level 2 for medium
 
-        if (level1Data != null) {
+        if (level2Data != null) {
           setState(() {
-            previousScore = level1Data['score'] ?? 0;
-            level1Completed = level1Data['completed'] ?? false;
+            previousScore = level2Data['score'] ?? 0;
+            levelCompleted = level2Data['completed'] ?? false;
             hasPreviousScore = true;
-            score = previousScore;
           });
-          print('Loaded previous score: $previousScore for PHP Medium Level 1');
         }
       }
     } catch (e) {
-      print('Error loading score: $e');
+      print('Error loading PHP medium score: $e');
     }
   }
 
   bool isIncorrectBlock(String block) {
+    if (gameConfig != null) {
+      try {
+        List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
+        return incorrectBlocks.contains(block);
+      } catch (e) {
+        print('Error checking incorrect block: $e');
+      }
+    }
+
+    // Default incorrect blocks for PHP Medium
     List<String> incorrectBlocks = [
-      '<?php',
-      '<?',
-      '?>',
-      'var name = "Juan";',
-      'name = "Juan"',
-      'String name = "Juan";',
-      'console.log("Name: " + name);',
-      'print("Name: " . name);',
-      'echo "Name: " + \$name;',
-      'printf("Name: %s", name);',
-      '\$name = Juan;',
-      'echo "Name: " . name;',
-      'let name = "Juan";',
-      'const name = "Juan";',
-      'System.out.print("Name: " + name);',
-      'cout << "Name: " << name;',
-      'echo "Name: \$name";',
-      '\$message = Welcome to PHP!;',
+      'var name = "John"',
+      'printf("Hello %s", name);',
+      'cout << "Hello " << name;',
+      'System.out.println("Hello " + name);',
+      'print("Hello " + name)',
+      'Console.WriteLine("Hello " + name);',
+      '\$name = John;',
+      'echo Hello . \$name;',
+      'echo "Welcome to PHP"',
     ];
     return incorrectBlocks.contains(block);
   }
@@ -393,6 +586,7 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
+    // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
@@ -404,7 +598,7 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ You used incorrect PHP syntax! -1 point. Current score: $score"),
+            content: Text("❌ You used incorrect code! -1 point. Current score: $score"),
             backgroundColor: Colors.red,
           ),
         );
@@ -422,7 +616,7 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("You used incorrect PHP syntax and lost all points!"),
+            content: Text("You used incorrect code and lost all points!"),
             actions: [
               TextButton(
                 onPressed: () {
@@ -439,19 +633,28 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
       return;
     }
 
+    // Check correct answer - more complex logic for medium level
     String answer = droppedBlocks.join('\n');
     String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
 
-    bool hasPhpStart = normalizedAnswer.contains('<?php');
-    bool hasNameVar = normalizedAnswer.contains('\$name="juan";');
-    bool hasAgeVar = normalizedAnswer.contains('\$age=25;');
-    bool hasNameEcho = normalizedAnswer.contains('echo"name:".\$name;');
-    bool hasAgeEcho = normalizedAnswer.contains('echo"age:".\$age;');
-    bool hasMessageVar = normalizedAnswer.contains('\$message="welcometophp!";');
-    bool hasMessageEcho = normalizedAnswer.contains('echo\$message;');
-    bool hasPhpEnd = normalizedAnswer.contains('?>');
+    bool isCorrect = false;
 
-    if (hasPhpStart && hasNameVar && hasAgeVar && hasNameEcho && hasAgeEcho && hasMessageVar && hasMessageEcho && hasPhpEnd) {
+    if (gameConfig != null) {
+      // Use configured correct answer
+      String expectedAnswer = gameConfig!['correct_answer'] ?? '';
+      String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+      isCorrect = normalizedAnswer == normalizedExpected;
+    } else {
+      // Fallback check for PHP Medium Level
+      // Should contain variable declaration and two echo statements
+      bool hasVariable = droppedBlocks.any((block) => block.contains('\$name = "John"'));
+      bool hasFirstEcho = droppedBlocks.any((block) => block.contains('echo "Hello " . \$name . "!"'));
+      bool hasSecondEcho = droppedBlocks.any((block) => block.contains('echo "Welcome to PHP."'));
+
+      isCorrect = hasVariable && hasFirstEcho && hasSecondEcho;
+    }
+
+    if (isCorrect) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -461,14 +664,12 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
 
       saveScoreToDatabase(score);
 
-      if (score == 3) {
+      // PLAY SUCCESS SOUND BASED ON SCORE
+      if (score == 5) {
         musicService.playSoundEffect('perfect.mp3');
       } else {
         musicService.playSoundEffect('success.mp3');
       }
-
-      final gameScore = score;
-      final leaderboardPoints = score * 20; // Medium: 20× multiplier
 
       showDialog(
         context: context,
@@ -478,80 +679,32 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent! You built a complete PHP script!"),
+              Text("Excellent work PHP Developer!"),
               SizedBox(height: 10),
-              Text("Game Score: $gameScore/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-              Text("Leaderboard Points: $leaderboardPoints/60", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+              Text("Your Score: $score/5", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
-              if (score == 3)
+              if (score == 5)
                 Text(
-                  "🎉 Perfect! You've mastered PHP Medium Level 1!",
+                  "🎉 Perfect! You've mastered Medium Level!",
                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) for full completion!",
+                  "⚠️ Get a perfect score (5/5) to unlock advanced levels!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
-              SizedBox(height: 10),
-              Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.purple.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.purple),
-                ),
-                child: Text(
-                  "🎯 Medium Difficulty: 20× Points Multiplier!",
-                  style: TextStyle(
-                    color: Colors.purple,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
               SizedBox(height: 10),
               Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Name: Juan",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'monospace',
-                        fontSize: 14,
-                      ),
-                    ),
-                    Text(
-                      "Age: 25",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'monospace',
-                        fontSize: 14,
-                      ),
-                    ),
-                    Text(
-                      "Welcome to PHP!",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'monospace',
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 10),
-              Text(
-                "💡 PHP Tip: Variables start with \$, use . for string concatenation!",
-                style: TextStyle(
-                  color: Colors.purple,
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
+                child: Text(
+                  _expectedOutput,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'monospace',
+                    fontSize: 16,
+                  ),
                 ),
               ),
             ],
@@ -561,15 +714,17 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
               onPressed: () {
                 musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
-                if (score == 3) {
+                if (score == 5) {
                   musicService.playSoundEffect('level_complete.mp3');
-                  Navigator.pushReplacementNamed(context, '/php_level2_medium');
+                  Navigator.pushReplacementNamed(context, '/php_level3'); // Next level
                 } else {
-                  Navigator.pushReplacementNamed(context, '/levels',
-                      arguments: {'language': 'PHP', 'difficulty': 'medium'});
+                  Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                    'language': 'PHP',
+                    'difficulty': 'Medium'
+                  });
                 }
               },
-              child: Text(score == 3 ? "Next Level" : "Go Back"),
+              child: Text(score == 5 ? "Next Level" : "Go Back"),
             )
           ],
         ),
@@ -582,7 +737,9 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
           score--;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Incomplete PHP script. -1 point. Current score: $score")),
+          SnackBar(
+            content: Text("❌ Incorrect arrangement. -1 point. Current score: $score"),
+          ),
         );
       } else {
         setState(() {
@@ -598,7 +755,7 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("Remember to build a complete PHP script with proper opening/closing tags and variable syntax."),
+            content: Text("You lost all your points."),
             actions: [
               TextButton(
                 onPressed: () {
@@ -631,9 +788,9 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
       child: Container(
         padding: EdgeInsets.all(16 * _scaleFactor),
         decoration: BoxDecoration(
-          color: Colors.purple.withOpacity(0.95),
+          color: Colors.orange.withOpacity(0.95),
           borderRadius: BorderRadius.circular(12 * _scaleFactor),
-          border: Border.all(color: Colors.purpleAccent, width: 2 * _scaleFactor),
+          border: Border.all(color: Colors.orangeAccent, width: 2 * _scaleFactor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.3),
@@ -664,12 +821,13 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 14 * _scaleFactor,
+                height: 1.4,
               ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Correct blocks are being placed automatically...',
+              'Hint will disappear in 5 seconds...',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 12 * _scaleFactor,
@@ -682,6 +840,50 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
     );
   }
 
+  Widget _buildHintButton() {
+    return Positioned(
+      bottom: 20 * _scaleFactor,
+      right: 20 * _scaleFactor,
+      child: GestureDetector(
+        onTap: _useHintCard,
+        child: Container(
+          padding: EdgeInsets.all(12 * _scaleFactor),
+          decoration: BoxDecoration(
+            color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
+            borderRadius: BorderRadius.circular(20 * _scaleFactor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 4 * _scaleFactor,
+                offset: Offset(0, 2 * _scaleFactor),
+              )
+            ],
+            border: Border.all(
+              color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
+              width: 2 * _scaleFactor,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lightbulb_outline, color: Colors.white, size: 20 * _scaleFactor),
+              SizedBox(width: 6 * _scaleFactor),
+              Text(
+                '$_availableHintCards',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18 * _scaleFactor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Code Preview Widget
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -707,7 +909,7 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'welcome.php',
+                  'variables.php',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -719,81 +921,101 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
           ),
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
-            child: _buildCodeContent(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _buildOrganizedCodePreview(),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCodeContent() {
-    if (droppedBlocks.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '// Drag blocks to build your PHP script',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 12 * _scaleFactor,
-              fontFamily: 'monospace',
-            ),
+  List<Widget> _buildOrganizedCodePreview() {
+    List<Widget> codeLines = [];
+
+    for (int i = 0; i < _codeStructure.length; i++) {
+      String line = _codeStructure[i];
+
+      if (line.contains('// Define variables here') || line.contains('// Output the result here')) {
+        // Add user's dragged code in the correct position
+        codeLines.add(_buildUserCodeSection(line));
+      } else if (line.trim().isEmpty) {
+        codeLines.add(SizedBox(height: 16 * _scaleFactor));
+      } else {
+        codeLines.add(_buildSyntaxHighlightedLine(line, i + 1));
+      }
+    }
+
+    return codeLines;
+  }
+
+  Widget _buildUserCodeSection(String placeholder) {
+    List<String> relevantBlocks = [];
+
+    if (placeholder.contains('Define variables')) {
+      relevantBlocks = droppedBlocks.where((block) => block.contains('\$name')).toList();
+    } else if (placeholder.contains('Output the result')) {
+      relevantBlocks = droppedBlocks.where((block) => block.contains('echo')).toList();
+    }
+
+    if (relevantBlocks.isEmpty) {
+      return Container(
+        padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
+        child: Text(
+          placeholder,
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 12 * _scaleFactor,
+            fontFamily: 'monospace',
+            fontStyle: FontStyle.italic,
           ),
-        ],
+        ),
       );
     }
 
-    List<Widget> codeLines = [];
-    int lineNumber = 1;
-
-    for (String block in droppedBlocks) {
-      bool isPhpTag = block.contains('<?') || block.contains('?>');
-      bool isVariable = block.contains('\$') && block.contains('=') && !block.contains('echo');
-      bool isEcho = block.contains('echo');
-      bool isStringConcat = block.contains('.');
-      bool isIncorrect = isIncorrectBlock(block);
-
-      Color textColor = Colors.white;
-      if (isPhpTag) {
-        textColor = Color(0xFF569CD6); // Blue for PHP tags
-      } else if (isVariable && !isIncorrect) {
-        textColor = Color(0xFF9CDCFE); // Light blue for variables
-      } else if (isEcho && !isIncorrect) {
-        textColor = Color(0xFFCE9178); // Orange for echo
-      } else if (isStringConcat && !isIncorrect) {
-        textColor = Color(0xFFDCDCAA); // Yellow for string operations
-      } else if (isIncorrect) {
-        textColor = Colors.red;
-      }
-
-      String displayCode = block;
-
-      codeLines.add(_buildCodeLineWithNumber(lineNumber++, displayCode,
-          textColor: textColor,
-          isIncorrect: isIncorrect
-      ));
-
-      // Add spacing after PHP start tag
-      if (block == '<?php') {
-        codeLines.add(SizedBox(height: 8 * _scaleFactor));
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: codeLines,
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (String block in relevantBlocks)
+            Container(
+              margin: EdgeInsets.only(bottom: 4 * _scaleFactor),
+              child: Text(
+                block,
+                style: TextStyle(
+                  color: Colors.purpleAccent[400],
+                  fontSize: 12 * _scaleFactor,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
-  Widget _buildCodeLineWithNumber(int lineNumber, String code, {Color? textColor, bool isIncorrect = false}) {
-    Color finalTextColor = textColor ?? Colors.white;
+  Widget _buildSyntaxHighlightedLine(String code, int lineNumber) {
+    Color textColor = Colors.white;
+    String displayCode = code;
 
-    if (isIncorrect) {
-      finalTextColor = Colors.red;
+    // PHP syntax highlighting rules
+    if (code.trim().startsWith('<?php') || code.trim().startsWith('?>')) {
+      textColor = Color(0xFF569CD6); // PHP tags - blue
+    } else if (code.trim().startsWith('//')) {
+      textColor = Color(0xFF6A9955); // Comments - green
+    } else if (code.contains('echo') || code.contains('\$name')) {
+      textColor = Color(0xFFDCDCAA); // Functions and variables - yellow
+    } else if (code.contains('"') || code.contains("'")) {
+      textColor = Color(0xFFCE9178); // Strings - orange
+    } else if (code.contains(';') || code.contains('.')) {
+      textColor = Colors.white; // Semicolons and operators - white
     }
 
     return Container(
-      height: 20 * _scaleFactor,
+      padding: EdgeInsets.symmetric(vertical: 2 * _scaleFactor),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -811,12 +1033,11 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
           SizedBox(width: 16 * _scaleFactor),
           Expanded(
             child: Text(
-              code,
+              displayCode,
               style: TextStyle(
-                color: finalTextColor,
+                color: textColor,
                 fontSize: 12 * _scaleFactor,
                 fontFamily: 'monospace',
-                fontWeight: isIncorrect ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           ),
@@ -840,9 +1061,111 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("🐘 PHP - Level 2 (Medium)", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.purple[700],
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0D1B2A),
+                Color(0xFF1B263B),
+                Color(0xFF415A77),
+              ],
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.purple[700]),
+                SizedBox(height: 20),
+                Text(
+                  "Loading PHP Medium Game Configuration...",
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "From Database",
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (errorMessage != null && !gameStarted) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("🐘 PHP - Level 2 (Medium)", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.purple[700],
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0D1B2A),
+                Color(0xFF1B263B),
+                Color(0xFF415A77),
+              ],
+            ),
+          ),
+          child: Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.warning_amber, color: Colors.purple[700], size: 50),
+                  SizedBox(height: 20),
+                  Text(
+                    "Configuration Warning",
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _loadGameConfig,
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.purple[700]),
+                    child: Text("Retry Loading"),
+                  ),
+                  SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                        'language': 'PHP',
+                        'difficulty': 'Medium'
+                      });
+                    },
+                    child: Text("Back to Levels", style: TextStyle(color: Colors.purple[700])),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
-      final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
+      final newScaleFactor = newScreenWidth < _baseScreenWidth
+          ? newScreenWidth / _baseScreenWidth
+          : 1.0;
 
       if (newScaleFactor != _scaleFactor) {
         setState(() {
@@ -853,9 +1176,10 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("🐘 PHP - Level 1 (Medium)", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.purple,
-        actions: gameStarted ? [
+        title: Text("🐘 PHP - Level 2 (Medium)", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.purple[700],
+        actions: gameStarted
+            ? [
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor),
             child: Row(
@@ -869,7 +1193,8 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
               ],
             ),
           ),
-        ] : [],
+        ]
+            : [],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -888,46 +1213,7 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
             gameStarted ? buildGameUI() : buildStartScreen(),
             if (gameStarted && !isAnsweredCorrectly) ...[
               _buildHintDisplay(),
-              Positioned(
-                bottom: 20 * _scaleFactor,
-                right: 20 * _scaleFactor,
-                child: GestureDetector(
-                  onTap: _useHintCard,
-                  child: Container(
-                    padding: EdgeInsets.all(12 * _scaleFactor),
-                    decoration: BoxDecoration(
-                      color: _availableHintCards > 0 ? Colors.purple : Colors.grey,
-                      borderRadius: BorderRadius.circular(20 * _scaleFactor),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 4 * _scaleFactor,
-                          offset: Offset(0, 2 * _scaleFactor),
-                        )
-                      ],
-                      border: Border.all(
-                        color: _availableHintCards > 0 ? Colors.purpleAccent : Colors.grey,
-                        width: 2 * _scaleFactor,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.lightbulb_outline, color: Colors.white, size: 20 * _scaleFactor),
-                        SizedBox(width: 6 * _scaleFactor),
-                        Text(
-                          '$_availableHintCards',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18 * _scaleFactor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+              _buildHintButton(),
             ],
           ],
         ),
@@ -936,11 +1222,6 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
   }
 
   Widget buildStartScreen() {
-    final displayGameScore = previousScore;
-    final displayLeaderboardPoints = previousScore * 20;
-    final maxGameScore = 3;
-    final maxLeaderboardPoints = 60;
-
     return Center(
       child: SingleChildScrollView(
         padding: EdgeInsets.all(16 * _scaleFactor),
@@ -948,36 +1229,37 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              onPressed: () {
+              onPressed: gameConfig != null ? () {
                 final musicService = Provider.of<MusicService>(context, listen: false);
                 musicService.playSoundEffect('button_click.mp3');
                 startGame();
-              },
+              } : null,
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Medium", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text(gameConfig != null ? "Start Medium Level" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.purple,
+                backgroundColor: gameConfig != null ? Colors.purple[700]! : Colors.grey,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
 
+            // Display available hint cards in start screen
             Container(
               padding: EdgeInsets.all(12 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.purple.withOpacity(0.2),
+                color: Colors.purple[700]!.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.purple),
+                border: Border.all(color: Colors.purple[700]!),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.lightbulb_outline, color: Colors.purple, size: 20 * _scaleFactor),
+                  Icon(Icons.lightbulb_outline, color: Colors.purple[700], size: 20 * _scaleFactor),
                   SizedBox(width: 8 * _scaleFactor),
                   Text(
                     'Hint Cards: $_availableHintCards',
                     style: TextStyle(
-                      color: Colors.purple,
+                      color: Colors.purple[700],
                       fontSize: 16 * _scaleFactor,
                       fontWeight: FontWeight.bold,
                     ),
@@ -994,25 +1276,20 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
               ),
             ),
 
-            if (level1Completed)
+            if (levelCompleted)
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Medium Level completed with perfect score!",
+                      "✅ Medium level completed with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "🎮 Game Score: $displayGameScore/$maxGameScore",
-                      style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                    Text(
-                      "🏆 Leaderboard Points: $displayLeaderboardPoints/$maxLeaderboardPoints",
-                      style: TextStyle(color: Colors.blue, fontSize: 14 * _scaleFactor, fontWeight: FontWeight.bold),
+                      "You've unlocked Advanced Level!",
+                      style: TextStyle(color: Colors.purple[700], fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1024,25 +1301,14 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
                 child: Column(
                   children: [
                     Text(
-                      "📊 Your previous medium score:",
-                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
+                      "📊 Your previous score: $previousScore/5",
+                      style: TextStyle(color: Colors.purple[700], fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Game: $displayGameScore/$maxGameScore",
-                      style: TextStyle(color: Colors.white, fontSize: 14 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                    Text(
-                      "Leaderboard: $displayLeaderboardPoints/$maxLeaderboardPoints",
-                      style: TextStyle(color: Colors.blue, fontSize: 14 * _scaleFactor, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 5 * _scaleFactor),
-                    Text(
-                      "Try again to get a perfect score!",
-                      style: TextStyle(color: Colors.purple, fontSize: 14 * _scaleFactor),
+                      "Try again to get a perfect score and unlock Advanced Level!",
+                      style: TextStyle(color: Colors.purple[700], fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1054,14 +1320,14 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
                   child: Column(
                     children: [
                       Text(
-                        "😅 Your previous score: $displayGameScore/$maxGameScore",
-                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                        "😅 Your previous score: $previousScore/5",
+                        style: TextStyle(color: Colors.purple[700], fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
                         "Don't give up! You can do better this time!",
-                        style: TextStyle(color: Colors.purple, fontSize: 14 * _scaleFactor),
+                        style: TextStyle(color: Colors.purple[700], fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1073,74 +1339,31 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.purple[50]!.withOpacity(0.9),
+                color: Colors.purple[100]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.purple[200]!),
+                border: Border.all(color: Colors.purple[300]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎯 Medium Level Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.purple[800]),
+                    gameConfig?['objective'] ?? "🎯 PHP Medium Level Objective",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.purple[900]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Build a complete PHP script with variables and output statements",
+                    gameConfig?['objective'] ?? "Learn PHP variables and string concatenation",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700]),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(8 * _scaleFactor),
-                    decoration: BoxDecoration(
-                      color: Colors.purple.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(8 * _scaleFactor),
-                      border: Border.all(color: Colors.purple),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          "🎁 Medium Difficulty: 20× Points Multiplier!",
-                          style: TextStyle(
-                            fontSize: 14 * _scaleFactor,
-                            color: Colors.purple[800],
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: 5 * _scaleFactor),
-                        Text(
-                          "💡 PHP Syntax: Variables start with \$, use . for concatenation",
-                          style: TextStyle(
-                            fontSize: 11 * _scaleFactor,
-                            color: Colors.purple[700],
-                            fontStyle: FontStyle.italic,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[800]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎮 Perfect Score (3/3) = 60 Leaderboard Points",
+                    "🎁 Get a perfect score (5/5) to unlock Advanced Level!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
-                        color: Colors.purple,
+                        color: Colors.purple[700],
                         fontWeight: FontWeight.bold,
-                        fontStyle: FontStyle.italic
-                    ),
-                  ),
-                  SizedBox(height: 5 * _scaleFactor),
-                  Text(
-                    "Output: Name: Juan, Age: 25, Welcome to PHP!",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 11 * _scaleFactor,
-                        color: Colors.purple,
-                        fontFamily: 'monospace',
                         fontStyle: FontStyle.italic
                     ),
                   ),
@@ -1163,8 +1386,7 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Short Story',
-                    style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text('📖 Short Story', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
                 onPressed: () {
@@ -1175,22 +1397,21 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
                   });
                 },
                 icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
-                label: Text(isTagalog ? 'English' : 'Tagalog',
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+                label: Text(isTagalog ? 'English' : 'Tagalog', style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
               ),
             ],
           ),
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Si Maria ay gustong matuto ng PHP programming! Kailangan niyang gumawa ng script na magdi-display ng impormasyon. Tulungan siyang buuin ang PHP script gamit ang tamang syntax!'
-                : 'Maria wants to learn PHP programming! She needs to create a script that displays information. Help her build the PHP script with correct syntax!',
+                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Medium Level ng PHP! Matuto ng variables at string concatenation.')
+                : (gameConfig?['story_english'] ?? 'This is PHP Medium Level! Learn variables and string concatenation.'),
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Build the complete PHP script using all 8 blocks',
+          Text(_instructionText,
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
@@ -1198,13 +1419,13 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 140 * _scaleFactor,
-              maxHeight: 200 * _scaleFactor,
+              minHeight: 160 * _scaleFactor, // Slightly taller for more blocks
+              maxHeight: 250 * _scaleFactor,
             ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.purple, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.purple[700]!, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -1234,13 +1455,14 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
                         data: block,
                         feedback: Material(
                           color: Colors.transparent,
-                          child: puzzleBlock(block, Colors.purpleAccent),
+                          child: puzzleBlock(block, Colors.purple[700]!),
                         ),
-                        childWhenDragging: puzzleBlock(block, Colors.purpleAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.purpleAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.purple[700]!.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.purple[700]!),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
+
                           setState(() {
                             currentlyDraggedBlock = block;
                           });
@@ -1272,7 +1494,7 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
           ),
 
           SizedBox(height: 20 * _scaleFactor),
-          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          Text(_codePreviewTitle, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
           SizedBox(height: 10 * _scaleFactor),
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
@@ -1280,7 +1502,7 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 100 * _scaleFactor,
+              minHeight: 120 * _scaleFactor, // Slightly taller for more blocks
             ),
             padding: EdgeInsets.all(12 * _scaleFactor),
             decoration: BoxDecoration(
@@ -1299,16 +1521,17 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
                   data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(block, Colors.deepPurple),
+                    child: puzzleBlock(block, Colors.purple[700]!),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.deepPurple),
+                    child: puzzleBlock(block, Colors.purple[700]!),
                   ),
-                  child: puzzleBlock(block, Colors.deepPurple),
+                  child: puzzleBlock(block, Colors.purple[700]!),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
+
                     setState(() {
                       currentlyDraggedBlock = block;
                     });
@@ -1345,7 +1568,7 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple,
+              backgroundColor: Colors.purple[700]!,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -1354,6 +1577,7 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
           ),
 
           SizedBox(height: 10 * _scaleFactor),
+
           TextButton(
             onPressed: () {
               final musicService = Provider.of<MusicService>(context, listen: false);
@@ -1379,7 +1603,8 @@ class _PhpLevel1MediumState extends State<PhpLevel1Medium> {
         ),
       ),
       textDirection: TextDirection.ltr,
-    )..layout();
+    )
+      ..layout();
 
     final textWidth = textPainter.width;
     final minWidth = 80 * _scaleFactor;

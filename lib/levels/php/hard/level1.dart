@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'dart:convert';
 import '../../../services/api_service.dart';
 import '../../../services/user_preferences.dart';
 import '../../../services/music_service.dart';
@@ -15,49 +15,319 @@ class PhpLevel1Hard extends StatefulWidget {
 }
 
 class _PhpLevel1HardState extends State<PhpLevel1Hard> {
+  List<String> allBlocks = [];
+  List<String> droppedBlocks = [];
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level1Completed = false;
+  bool levelCompleted = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
-  int score = 3;
-  int remainingSeconds = 300;
+  int score = 8; // Increased for hard level
+  int remainingSeconds = 240; // 4 minutes for hard level
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
+  // Track currently dragged block
   String? currentlyDraggedBlock;
+
+  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
+  // Game configuration from database
+  Map<String, dynamic>? gameConfig;
+  bool isLoading = true;
+  String? errorMessage;
+
+  // HINT SYSTEM
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
   bool _isUsingHint = false;
 
-  // Track block instances with unique IDs
-  List<BlockItem> allBlockItems = [];
-  List<BlockItem> droppedBlockItems = [];
+  // Configurable elements from database
+  String _codePreviewTitle = '💻 Advanced PHP Code:';
+  String _instructionText = '🧩 Build a PHP function with conditional logic and loops';
+  List<String> _codeStructure = [];
+  String _expectedOutput = 'Numbers: 2 4 6 8 10\nEven Count: 5';
 
   @override
   void initState() {
     super.initState();
-    resetBlocks();
+    _loadGameConfig();
     _loadUserData();
     _calculateScaleFactor();
     _startGameMusic();
     _loadHintCards();
   }
 
+  Future<void> _loadGameConfig() async {
+    try {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+
+      final response = await ApiService.getGameConfig('PHP', 3); // Level 3 for hard difficulty
+
+      print('🔍 PHP HARD GAME CONFIG RESPONSE:');
+      print('   Success: ${response['success']}');
+      print('   Message: ${response['message']}');
+
+      if (response['success'] == true && response['game'] != null) {
+        setState(() {
+          gameConfig = response['game'];
+          _initializeGameFromConfig();
+        });
+      } else {
+        setState(() {
+          errorMessage = response['message'] ?? 'Failed to load game configuration from database';
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading game config: $e');
+      setState(() {
+        errorMessage = 'Connection error: $e';
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  void _initializeGameFromConfig() {
+    if (gameConfig == null) return;
+
+    try {
+      print('🔄 INITIALIZING PHP HARD GAME FROM CONFIG');
+
+      // Load timer duration from database
+      if (gameConfig!['timer_duration'] != null) {
+        int timerDuration = int.tryParse(gameConfig!['timer_duration'].toString()) ?? 240;
+        setState(() {
+          remainingSeconds = timerDuration;
+        });
+        print('⏰ Timer duration loaded: $timerDuration seconds');
+      }
+
+      // Load instruction text from database
+      if (gameConfig!['instruction_text'] != null) {
+        setState(() {
+          _instructionText = gameConfig!['instruction_text'].toString();
+        });
+        print('📝 Instruction text loaded: $_instructionText');
+      }
+
+      // Load code preview title from database
+      if (gameConfig!['code_preview_title'] != null) {
+        setState(() {
+          _codePreviewTitle = gameConfig!['code_preview_title'].toString();
+        });
+        print('💻 Code preview title loaded: $_codePreviewTitle');
+      }
+
+      // Load code structure from database
+      if (gameConfig!['code_structure'] != null) {
+        if (gameConfig!['code_structure'] is List) {
+          setState(() {
+            _codeStructure = List<String>.from(gameConfig!['code_structure']);
+          });
+        } else {
+          String codeStructureStr = gameConfig!['code_structure']?.toString() ?? '[]';
+          try {
+            List<dynamic> codeStructureJson = json.decode(codeStructureStr);
+            setState(() {
+              _codeStructure = List<String>.from(codeStructureJson);
+            });
+          } catch (e) {
+            print('❌ Error parsing code structure: $e');
+            setState(() {
+              _codeStructure = _getDefaultCodeStructure();
+            });
+          }
+        }
+        print('📝 Code structure loaded: $_codeStructure');
+      } else {
+        setState(() {
+          _codeStructure = _getDefaultCodeStructure();
+        });
+      }
+
+      // Load expected output from database
+      if (gameConfig!['expected_output'] != null) {
+        setState(() {
+          _expectedOutput = gameConfig!['expected_output'].toString();
+        });
+        print('🎯 Expected output loaded: $_expectedOutput');
+      }
+
+      // Load hint from database
+      if (gameConfig!['hint_text'] != null) {
+        setState(() {
+          _currentHint = gameConfig!['hint_text'].toString();
+        });
+        print('💡 Hint loaded from database: $_currentHint');
+      } else {
+        setState(() {
+          _currentHint = _getDefaultHint();
+        });
+        print('💡 Using default hint');
+      }
+
+      // Parse blocks with better error handling
+      List<String> correctBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
+      List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
+
+      print('✅ Correct Blocks: $correctBlocks');
+      print('✅ Incorrect Blocks: $incorrectBlocks');
+
+      // Combine and shuffle blocks
+      allBlocks = [
+        ...correctBlocks,
+        ...incorrectBlocks,
+      ]..shuffle();
+
+      print('🎮 All Blocks Final: $allBlocks');
+
+    } catch (e) {
+      print('❌ Error parsing game config: $e');
+      _initializeDefaultBlocks();
+    }
+  }
+
+  List<String> _getDefaultCodeStructure() {
+    return [
+      "<?php",
+      "",
+      "function findEvenNumbers(\$numbers) {",
+      "    // Initialize variables here",
+      "    ",
+      "    // Loop through numbers here",
+      "    ",
+      "    // Check condition here",
+      "    ",
+      "    // Return result here",
+      "}",
+      "",
+      "// Test the function",
+      "\$numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];",
+      "\$result = findEvenNumbers(\$numbers);",
+      "echo \"Numbers: \" . \$result['even_string'] . \"\\n\";",
+      "echo \"Even Count: \" . \$result['even_count'];",
+      "",
+      "?>"
+    ];
+  }
+
+  List<String> _parseBlocks(dynamic blocksData, String type) {
+    List<String> blocks = [];
+
+    if (blocksData == null) {
+      return _getDefaultBlocks(type);
+    }
+
+    try {
+      if (blocksData is List) {
+        blocks = List<String>.from(blocksData);
+      } else if (blocksData is String) {
+        String blocksStr = blocksData.trim();
+
+        if (blocksStr.startsWith('[') && blocksStr.endsWith(']')) {
+          // Parse as JSON array
+          List<dynamic> blocksJson = json.decode(blocksStr);
+          blocks = List<String>.from(blocksJson);
+        } else {
+          // Parse as comma-separated string
+          blocks = blocksStr.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+        }
+      }
+    } catch (e) {
+      print('❌ Error parsing $type blocks: $e');
+      blocks = _getDefaultBlocks(type);
+    }
+
+    return blocks;
+  }
+
+  List<String> _getDefaultBlocks(String type) {
+    if (type == 'correct') {
+      return [
+        '\$even_count = 0;',
+        '\$even_string = "";',
+        'foreach (\$numbers as \$num) {',
+        'if (\$num % 2 == 0) {',
+        '\$even_count++;',
+        '\$even_string .= \$num . " ";',
+        '}',
+        '}',
+        'return [\'even_count\' => \$even_count, \'even_string\' => trim(\$even_string)];'
+      ];
+    } else {
+      return [
+        'for (\$i = 0; \$i < count(\$numbers); \$i++) {', // Wrong loop type
+        'if (\$num % 2 != 0) {', // Wrong condition
+        '\$even_count = \$even_count + 1;', // Non-standard increment
+        '\$even_string = \$even_string + \$num + " ";', // Wrong concatenation
+        'return \$even_count;', // Incomplete return
+        'echo \$num;', // Echo inside function
+        'while (\$i < 10) {', // Wrong loop structure
+        'switch (\$num) {', // Wrong control structure
+        '\$even_array[] = \$num;', // Using array instead of string
+        'break;', // Unnecessary break
+        'continue;', // Unnecessary continue
+        'function findEvenNumbers() {', // Missing parameter
+        '\$numbers = [1,2,3,4,5];', // Wrong array
+        'print_r(\$numbers);', // Wrong output function
+      ];
+    }
+  }
+
+  String _getDefaultHint() {
+    return "💡 Hint: Use foreach loop to iterate through array. Check even numbers with modulus operator %. Build result string with concatenation. Return an associative array.";
+  }
+
+  void _initializeDefaultBlocks() {
+    allBlocks = [
+      // Correct blocks
+      '\$even_count = 0;',
+      '\$even_string = "";',
+      'foreach (\$numbers as \$num) {',
+      'if (\$num % 2 == 0) {',
+      '\$even_count++;',
+      '\$even_string .= \$num . " ";',
+      '}',
+      '}',
+      'return [\'even_count\' => \$even_count, \'even_string\' => trim(\$even_string)];',
+
+      // Incorrect blocks
+      'for (\$i = 0; \$i < count(\$numbers); \$i++) {',
+      'if (\$num % 2 != 0) {',
+      '\$even_count = \$even_count + 1;',
+      '\$even_string = \$even_string + \$num + " ";',
+      'return \$even_count;',
+      'echo \$num;',
+      'while (\$i < 10) {',
+      'switch (\$num) {',
+      '\$even_array[] = \$num;',
+      'break;',
+      'continue;',
+      'function findEvenNumbers() {',
+      '\$numbers = [1,2,3,4,5];',
+      'print_r(\$numbers);',
+    ]..shuffle();
+  }
+
   void _startGameMusic() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final musicService = Provider.of<MusicService>(context, listen: false);
       await musicService.stopBackgroundMusic();
-      await musicService.playSoundEffect('game_start_hard.mp3');
+      await musicService.playSoundEffect('game_start.mp3');
       await Future.delayed(Duration(milliseconds: 500));
-      await musicService.playSoundEffect('game_music_hard.mp3');
+      await musicService.playSoundEffect('challenge_music.mp3');
     });
   }
 
@@ -89,12 +359,11 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
   void _useHintCard() async {
     if (_availableHintCards > 0 && !_isUsingHint) {
       final musicService = Provider.of<MusicService>(context, listen: false);
-      musicService.playSoundEffect('hint_use_hard.mp3');
+      musicService.playSoundEffect('hint_use.mp3');
 
       setState(() {
         _isUsingHint = true;
         _showHint = true;
-        _currentHint = _getLevelHint();
         _availableHintCards--;
       });
 
@@ -103,82 +372,25 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
         await DailyChallengeService.useHintCard(user['id']);
       }
 
-      _autoDragCorrectBlocks();
-    } else if (_availableHintCards <= 0) {
-      final musicService = Provider.of<MusicService>(context, listen: false);
-      musicService.playSoundEffect('error_hard.mp3');
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No hint cards! Complete challenges to earn more.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  void _autoDragCorrectBlocks() {
-    List<String> correctBlocks = [
-      '<?php',
-      'function calculateTotal(\$price, \$quantity) {',
-      '\$total = \$price * \$quantity;',
-      'return \$total;',
-      '}',
-      'function displayReceipt(\$items) {',
-      'echo "=== RECEIPT ===\\n";',
-      '\$grandTotal = 0;',
-      'foreach (\$items as \$item) {',
-      '\$itemTotal = calculateTotal(\$item["price"], \$item["quantity"]);',
-      'echo \$item["name"] . ": " . \$itemTotal . "\\n";',
-      '\$grandTotal += \$itemTotal;',
-      '}',
-      'echo "Total: " . \$grandTotal;',
-      '}',
-      '\$shoppingCart = [',
-      '["name" => "Apple", "price" => 25, "quantity" => 3],',
-      '["name" => "Banana", "price" => 10, "quantity" => 5]',
-      '];',
-      'displayReceipt(\$shoppingCart);',
-      '?>'
-    ];
-
-    setState(() {
-      droppedBlockItems.clear();
-    });
-
-    int delay = 0;
-    for (String block in correctBlocks) {
-      Future.delayed(Duration(milliseconds: delay), () {
+      Future.delayed(Duration(seconds: 5), () {
         if (mounted) {
           setState(() {
-            // Find the block in allBlockItems and move it to droppedBlockItems
-            var blockItem = allBlockItems.firstWhere(
-                  (item) => item.text == block && !droppedBlockItems.contains(item),
-              orElse: () => BlockItem(block, UniqueKey()),
-            );
-
-            if (!droppedBlockItems.contains(blockItem)) {
-              droppedBlockItems.add(blockItem);
-            }
-            allBlockItems.remove(blockItem);
+            _showHint = false;
+            _isUsingHint = false;
           });
         }
       });
-      delay += 350;
+    } else if (_availableHintCards <= 0) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('error.mp3');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No hint cards available! Complete daily challenges to earn more.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
     }
-
-    Future.delayed(Duration(milliseconds: delay + 1000), () {
-      if (mounted) {
-        setState(() {
-          _showHint = false;
-          _isUsingHint = false;
-        });
-      }
-    });
-  }
-
-  String _getLevelHint() {
-    return "HARD: Create a PHP program with functions and arrays!\n\nCorrect code uses:\n• PHP opening and closing tags\n• Functions with parameters\n• Arrays and associative arrays\n• foreach loop\n• Function calls and return values\n• String concatenation and output";
   }
 
   void _loadUserData() async {
@@ -191,88 +403,47 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
   }
 
   void resetBlocks() {
-    List<String> correctBlocks = [
-      '<?php',
-      'function calculateTotal(\$price, \$quantity) {',
-      '\$total = \$price * \$quantity;',
-      'return \$total;',
-      '}',
-      'function displayReceipt(\$items) {',
-      'echo "=== RECEIPT ===\\n";',
-      '\$grandTotal = 0;',
-      'foreach (\$items as \$item) {',
-      '\$itemTotal = calculateTotal(\$item["price"], \$item["quantity"]);',
-      'echo \$item["name"] . ": " . \$itemTotal . "\\n";',
-      '\$grandTotal += \$itemTotal;',
-      '}',
-      'echo "Total: " . \$grandTotal;',
-      '}',
-      '\$shoppingCart = [',
-      '["name" => "Apple", "price" => 25, "quantity" => 3],',
-      '["name" => "Banana", "price" => 10, "quantity" => 5]',
-      '];',
-      'displayReceipt(\$shoppingCart);',
-      '?>'
-    ];
-
-    List<String> incorrectBlocks = [
-      '<?php',
-      'function calculateTotal(price, quantity) {',
-      'total = price * quantity;',
-      'return total;',
-      '}',
-      'function displayReceipt(items) {',
-      'print "=== RECEIPT ===";',
-      'grandTotal = 0;',
-      'for (item in items) {',
-      'itemTotal = calculateTotal(item.price, item.quantity);',
-      'echo item.name + ": " + itemTotal;',
-      'grandTotal = grandTotal + itemTotal;',
-      '}',
-      'echo "Total: " . grandTotal;',
-      '}',
-      '\$shoppingCart = array(',
-      'array("name" => "Apple", "price" => 25, "quantity" => 3)',
-      'array("name" => "Banana", "price" => 10, "quantity" => 5)',
-      ');',
-      'displayReceipt(shoppingCart);',
-      '?>',
-      'console.log("Total: " + grandTotal);',
-      'def calculateTotal(price, quantity):',
-      'return price * quantity',
-      'var shoppingCart = [...]',
-      'foreach (\$items as &\$item)'
-    ];
-
-    incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(5).toList();
-
-    // Create block items with unique keys
-    allBlockItems.clear();
-    droppedBlockItems.clear();
-
-    // Add all blocks with unique identifiers
-    for (String block in [...correctBlocks, ...selectedIncorrectBlocks]) {
-      allBlockItems.add(BlockItem(block, UniqueKey()));
+    if (gameConfig != null) {
+      _initializeGameFromConfig();
+    } else {
+      _initializeDefaultBlocks();
     }
-
-    allBlockItems.shuffle();
+    setState(() {});
   }
 
   void startGame() {
+    if (gameConfig == null) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('error.mp3');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Game configuration not loaded. Please retry.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final musicService = Provider.of<MusicService>(context, listen: false);
-    musicService.playSoundEffect('level_start_hard.mp3');
+    musicService.playSoundEffect('challenge_start.mp3');
+
+    int timerDuration = gameConfig!['timer_duration'] != null
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 240
+        : 240;
 
     setState(() {
       gameStarted = true;
-      score = 3;
-      remainingSeconds = 300;
-      droppedBlockItems.clear();
+      score = 8;
+      remainingSeconds = timerDuration;
+      droppedBlocks.clear();
       isAnsweredCorrectly = false;
       _showHint = false;
       _isUsingHint = false;
       resetBlocks();
     });
+
+    print('🎮 PHP HARD GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
     startTimers();
   }
 
@@ -292,7 +463,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
           saveScoreToDatabase(score);
 
           final musicService = Provider.of<MusicService>(context, listen: false);
-          musicService.playSoundEffect('time_up_hard.mp3');
+          musicService.playSoundEffect('time_up.mp3');
 
           showDialog(
             context: context,
@@ -316,7 +487,8 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 180), (timer) {
+    // Score reduction every 30 seconds (faster than medium level)
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 30), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -325,10 +497,12 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
       setState(() {
         score--;
         final musicService = Provider.of<MusicService>(context, listen: false);
-        musicService.playSoundEffect('penalty_hard.mp3');
+        musicService.playSoundEffect('penalty.mp3');
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
+          SnackBar(
+            content: Text("⏰ Time penalty! -1 point. Current score: $score"),
+          ),
         );
       });
     });
@@ -338,14 +512,18 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
     final musicService = Provider.of<MusicService>(context, listen: false);
     musicService.playSoundEffect('reset.mp3');
 
+    int timerDuration = gameConfig!['timer_duration'] != null
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 240
+        : 240;
+
     setState(() {
-      score = 3;
-      remainingSeconds = 300;
+      score = 8;
+      remainingSeconds = timerDuration;
       gameStarted = false;
       isAnsweredCorrectly = false;
       _showHint = false;
       _isUsingHint = false;
-      droppedBlockItems.clear();
+      droppedBlocks.clear();
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
       resetBlocks();
@@ -353,31 +531,42 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
   }
 
   Future<void> saveScoreToDatabase(int score) async {
-    if (currentUser?['id'] == null) return;
+    if (currentUser?['id'] == null) {
+      print('❌ Cannot save score: No user ID');
+      return;
+    }
 
     try {
-      final response = await ApiService.saveScoreWithDifficulty(
+      print('💾 SAVING PHP HARD SCORE:');
+      print('   User ID: ${currentUser!['id']}');
+      print('   Language: PHP');
+      print('   Level: 3'); // Level 3 for hard
+      print('   Score: $score/8');
+      print('   Completed: ${score == 8}');
+
+      final response = await ApiService.saveScore(
         currentUser!['id'],
         'PHP',
-        'Hard',
-        1,
+        3, // Level 3 for hard
         score,
-        score == 3,
+        score == 8,
       );
+
+      print('📡 SERVER RESPONSE: $response');
 
       if (response['success'] == true) {
         setState(() {
-          level1Completed = score == 3;
+          levelCompleted = score == 8;
           previousScore = score;
           hasPreviousScore = true;
         });
 
-        print('Score saved successfully: $score for PHP Hard Level 1');
+        print('✅ PHP HARD SCORE SAVED SUCCESSFULLY TO DATABASE');
       } else {
-        print('Failed to save score: ${response['message']}');
+        print('❌ FAILED TO SAVE SCORE: ${response['message']}');
       }
     } catch (e) {
-      print('Error saving score: $e');
+      print('❌ ERROR SAVING PHP HARD SCORE: $e');
     }
   }
 
@@ -385,70 +574,65 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScoresWithDifficulty(
-          currentUser!['id'],
-          'PHP',
-          'Hard'
-      );
+      final response = await ApiService.getScores(currentUser!['id'], 'PHP');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level1Data = scoresData['1'];
+        final level3Data = scoresData['3']; // Level 3 for hard
 
-        if (level1Data != null) {
+        if (level3Data != null) {
           setState(() {
-            previousScore = level1Data['score'] ?? 0;
-            level1Completed = level1Data['completed'] ?? false;
+            previousScore = level3Data['score'] ?? 0;
+            levelCompleted = level3Data['completed'] ?? false;
             hasPreviousScore = true;
-            score = previousScore;
           });
-          print('Loaded previous score: $previousScore for PHP Hard Level 1');
         }
       }
     } catch (e) {
-      print('Error loading score: $e');
+      print('Error loading PHP hard score: $e');
     }
   }
 
   bool isIncorrectBlock(String block) {
+    if (gameConfig != null) {
+      try {
+        List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
+        return incorrectBlocks.contains(block);
+      } catch (e) {
+        print('Error checking incorrect block: $e');
+      }
+    }
+
+    // Default incorrect blocks for PHP Hard
     List<String> incorrectBlocks = [
-      'function calculateTotal(price, quantity) {',
-      'total = price * quantity;',
-      'return total;',
-      'function displayReceipt(items) {',
-      'print "=== RECEIPT ===";',
-      'grandTotal = 0;',
-      'for (item in items) {',
-      'itemTotal = calculateTotal(item.price, item.quantity);',
-      'echo item.name + ": " + itemTotal;',
-      'grandTotal = grandTotal + itemTotal;',
-      'echo "Total: " . grandTotal;',
-      '\$shoppingCart = array(',
-      'array("name" => "Apple", "price" => 25, "quantity" => 3)',
-      'array("name" => "Banana", "price" => 10, "quantity" => 5)',
-      ');',
-      'displayReceipt(shoppingCart);',
-      'console.log("Total: " + grandTotal);',
-      'def calculateTotal(price, quantity):',
-      'return price * quantity',
-      'var shoppingCart = [...]',
-      'foreach (\$items as &\$item)'
+      'for (\$i = 0; \$i < count(\$numbers); \$i++) {',
+      'if (\$num % 2 != 0) {',
+      '\$even_count = \$even_count + 1;',
+      '\$even_string = \$even_string + \$num + " ";',
+      'return \$even_count;',
+      'echo \$num;',
+      'while (\$i < 10) {',
+      'switch (\$num) {',
+      '\$even_array[] = \$num;',
+      'break;',
+      'continue;',
+      'function findEvenNumbers() {',
+      '\$numbers = [1,2,3,4,5];',
+      'print_r(\$numbers);',
     ];
     return incorrectBlocks.contains(block);
   }
 
   void checkAnswer() async {
-    if (isAnsweredCorrectly || droppedBlockItems.isEmpty) return;
+    if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
-    // Convert to text for checking
-    List<String> droppedBlocksText = droppedBlockItems.map((item) => item.text).toList();
-
-    bool hasIncorrectBlock = droppedBlocksText.any((block) => isIncorrectBlock(block));
+    // Check if any incorrect blocks are used
+    bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
-      musicService.playSoundEffect('error_hard.mp3');
+      musicService.playSoundEffect('error.mp3');
 
       if (score > 1) {
         setState(() {
@@ -456,7 +640,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ You used incorrect PHP syntax! -1 point. Current score: $score"),
+            content: Text("❌ You used incorrect code! -1 point. Current score: $score"),
             backgroundColor: Colors.red,
           ),
         );
@@ -468,13 +652,13 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
 
-        musicService.playSoundEffect('game_over_hard.mp3');
+        musicService.playSoundEffect('game_over.mp3');
 
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("You used incorrect PHP syntax and lost all points!"),
+            content: Text("You used incorrect code and lost all points!"),
             actions: [
               TextButton(
                 onPressed: () {
@@ -491,34 +675,32 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
       return;
     }
 
-    String answer = droppedBlocksText.join(' ');
+    // Check correct answer - complex logic for hard level
+    String answer = droppedBlocks.join('\n');
     String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
 
-    bool hasPhpOpen = normalizedAnswer.contains('<?php');
-    bool hasCalculateFunction = normalizedAnswer.contains('functioncalculatetotal(\$price,\$quantity){');
-    bool hasTotalCalculation = normalizedAnswer.contains('\$total=\$price*\$quantity;');
-    bool hasReturnTotal = normalizedAnswer.contains('return\$total;');
-    bool hasFunctionClose = normalizedAnswer.contains('}');
-    bool hasDisplayFunction = normalizedAnswer.contains('functiondisplayreceipt(\$items){');
-    bool hasEchoReceipt = normalizedAnswer.contains('echo"===receipt===\\n";');
-    bool hasGrandTotal = normalizedAnswer.contains('\$grandtotal=0;');
-    bool hasForeachLoop = normalizedAnswer.contains('foreach(\$itemsas\$item){');
-    bool hasItemTotal = normalizedAnswer.contains('\$itemtotal=calculatetotal(\$item["price"],\$item["quantity"]);');
-    bool hasEchoItem = normalizedAnswer.contains('echo\$item["name"].":".\$itemtotal."\\n";');
-    bool hasAddToGrandTotal = normalizedAnswer.contains('\$grandtotal+=\$itemtotal;');
-    bool hasEchoTotal = normalizedAnswer.contains('echo"total:".\$grandtotal;');
-    bool hasShoppingCart = normalizedAnswer.contains('\$shoppingcart=[');
-    bool hasAppleItem = normalizedAnswer.contains('["name"=>"apple","price"=>25,"quantity"=>3],');
-    bool hasBananaItem = normalizedAnswer.contains('["name"=>"banana","price"=>10,"quantity"=>5]');
-    bool hasArrayClose = normalizedAnswer.contains('];');
-    bool hasFunctionCall = normalizedAnswer.contains('displayreceipt(\$shoppingcart);');
-    bool hasPhpClose = normalizedAnswer.contains('?>');
+    bool isCorrect = false;
 
-    if (hasPhpOpen && hasCalculateFunction && hasTotalCalculation && hasReturnTotal &&
-        hasFunctionClose && hasDisplayFunction && hasEchoReceipt && hasGrandTotal &&
-        hasForeachLoop && hasItemTotal && hasEchoItem && hasAddToGrandTotal &&
-        hasEchoTotal && hasShoppingCart && hasAppleItem && hasBananaItem &&
-        hasArrayClose && hasFunctionCall && hasPhpClose) {
+    if (gameConfig != null) {
+      // Use configured correct answer
+      String expectedAnswer = gameConfig!['correct_answer'] ?? '';
+      String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+      isCorrect = normalizedAnswer == normalizedExpected;
+    } else {
+      // Fallback check for PHP Hard Level
+      // Should contain all required elements for the function
+      bool hasInitialization = droppedBlocks.any((block) => block.contains('\$even_count = 0')) &&
+          droppedBlocks.any((block) => block.contains('\$even_string = ""'));
+      bool hasLoop = droppedBlocks.any((block) => block.contains('foreach (\$numbers as \$num)'));
+      bool hasCondition = droppedBlocks.any((block) => block.contains('if (\$num % 2 == 0)'));
+      bool hasIncrement = droppedBlocks.any((block) => block.contains('\$even_count++'));
+      bool hasConcatenation = droppedBlocks.any((block) => block.contains('\$even_string .= \$num . " "'));
+      bool hasReturn = droppedBlocks.any((block) => block.contains('return [\'even_count\' => \$even_count'));
+
+      isCorrect = hasInitialization && hasLoop && hasCondition && hasIncrement && hasConcatenation && hasReturn;
+    }
+
+    if (isCorrect) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -528,104 +710,86 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
 
       saveScoreToDatabase(score);
 
-      if (score == 3) {
-        musicService.playSoundEffect('perfect_hard.mp3');
+      // PLAY SUCCESS SOUND BASED ON SCORE
+      if (score == 8) {
+        musicService.playSoundEffect('perfect.mp3');
       } else {
-        musicService.playSoundEffect('success_hard.mp3');
+        musicService.playSoundEffect('success.mp3');
       }
-
-      final gameScore = score;
-      final leaderboardPoints = score * 30;
 
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text("✅ Correct!"),
+          title: Text("🎉 Master Level Completed!"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent! You built an advanced PHP program with functions and arrays!"),
+              Text("Outstanding PHP Mastery!", style: TextStyle(fontWeight: FontWeight.bold)),
               SizedBox(height: 10),
-              Text("Game Score: $gameScore/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-              Text("Leaderboard Points: $leaderboardPoints/90", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+              Text("Your Score: $score/8", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
-              if (score == 3)
+              if (score == 8)
                 Text(
-                  "🎉 Perfect! You've mastered PHP Hard Level!",
+                  "🏆 PHP Expert Unlocked!",
                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) for full completion!",
+                  "⚠️ Get a perfect score (8/8) to become a PHP Expert!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
+              Text("Function Output:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.purple.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.purple),
-                ),
+                padding: EdgeInsets.all(10),
+                color: Colors.black,
                 child: Text(
-                  "🎯 Hard Difficulty: 30× Points Multiplier!",
+                  _expectedOutput,
                   style: TextStyle(
-                    color: Colors.purple,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    color: Colors.white,
+                    fontFamily: 'monospace',
+                    fontSize: 14,
                   ),
                 ),
               ),
               SizedBox(height: 10),
-              Text("Program Output:", style: TextStyle(fontWeight: FontWeight.bold)),
-              Container(
-                padding: EdgeInsets.all(10),
-                color: Colors.black,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("=== RECEIPT ===", style: TextStyle(color: Colors.white, fontFamily: 'monospace')),
-                    Text("Apple: 75", style: TextStyle(color: Colors.white, fontFamily: 'monospace')),
-                    Text("Banana: 50", style: TextStyle(color: Colors.white, fontFamily: 'monospace')),
-                    Text("Total: 125", style: TextStyle(color: Colors.white, fontFamily: 'monospace')),
-                  ],
-                ),
-              ),
-              SizedBox(height: 10),
               Text(
-                "💎 Advanced Features: Functions, arrays, foreach loops, string concatenation!",
-                style: TextStyle(color: Colors.cyan, fontSize: 12),
+                "You've successfully built a function with:\n• Loop iteration\n• Conditional logic\n• String concatenation\n• Array return",
+                style: TextStyle(fontSize: 12, color: Colors.grey[700]),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () {
-                musicService.playSoundEffect('click.mp3');
+                musicService.playSoundEffect('level_complete.mp3');
                 Navigator.pop(context);
-                if (score == 3) {
-                  musicService.playSoundEffect('level_complete.mp3');
-                  Navigator.pushReplacementNamed(context, '/php_level2_hard');
+                if (score == 8) {
+                  Navigator.pushReplacementNamed(context, '/php_expert_levels');
                 } else {
-                  Navigator.pushReplacementNamed(context, '/levels',
-                      arguments: {'language': 'PHP', 'difficulty': 'hard'});
+                  Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                    'language': 'PHP',
+                    'difficulty': 'Hard'
+                  });
                 }
               },
-              child: Text(score == 3 ? "Next Level" : "Go Back"),
+              child: Text(score == 8 ? "Expert Levels" : "Go Back"),
             )
           ],
         ),
       );
     } else {
-      musicService.playSoundEffect('wrong_hard.mp3');
+      musicService.playSoundEffect('wrong.mp3');
 
       if (score > 1) {
         setState(() {
           score--;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Incomplete PHP program. -1 point. Current score: $score")),
+          SnackBar(
+            content: Text("❌ Incorrect function logic. -1 point. Current score: $score"),
+          ),
         );
       } else {
         setState(() {
@@ -635,13 +799,13 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
 
-        musicService.playSoundEffect('game_over_hard.mp3');
+        musicService.playSoundEffect('game_over.mp3');
 
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
-            title: Text("💀 Game Over"),
-            content: Text("Remember to build the complete PHP program with functions, arrays, and proper syntax."),
+            title: Text("💀 Challenge Failed"),
+            content: Text("You lost all your points. Practice more and try again!"),
             actions: [
               TextButton(
                 onPressed: () {
@@ -649,7 +813,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
                   Navigator.pop(context);
                   resetGame();
                 },
-                child: Text("Retry"),
+                child: Text("Retry Challenge"),
               )
             ],
           ),
@@ -674,9 +838,9 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
       child: Container(
         padding: EdgeInsets.all(16 * _scaleFactor),
         decoration: BoxDecoration(
-          color: Colors.purple.withOpacity(0.95),
+          color: Colors.deepPurple.withOpacity(0.95),
           borderRadius: BorderRadius.circular(12 * _scaleFactor),
-          border: Border.all(color: Colors.purpleAccent, width: 2 * _scaleFactor),
+          border: Border.all(color: Colors.deepPurpleAccent, width: 2 * _scaleFactor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.3),
@@ -689,10 +853,10 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
           children: [
             Row(
               children: [
-                Icon(Icons.lightbulb, color: Colors.white, size: 20 * _scaleFactor),
+                Icon(Icons.lightbulb, color: Colors.yellow, size: 20 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  '💡 Hint Activated!',
+                  '💡 Expert Hint Activated!',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16 * _scaleFactor,
@@ -707,14 +871,15 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 14 * _scaleFactor,
+                height: 1.4,
               ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Correct blocks are being placed automatically...',
+              'Expert hint will disappear in 5 seconds...',
               style: TextStyle(
-                color: Colors.white,
+                color: Colors.yellow,
                 fontSize: 12 * _scaleFactor,
                 fontStyle: FontStyle.italic,
               ),
@@ -725,13 +890,57 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
     );
   }
 
+  Widget _buildHintButton() {
+    return Positioned(
+      bottom: 20 * _scaleFactor,
+      right: 20 * _scaleFactor,
+      child: GestureDetector(
+        onTap: _useHintCard,
+        child: Container(
+          padding: EdgeInsets.all(12 * _scaleFactor),
+          decoration: BoxDecoration(
+            color: _availableHintCards > 0 ? Colors.deepPurple : Colors.grey,
+            borderRadius: BorderRadius.circular(20 * _scaleFactor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 4 * _scaleFactor,
+                offset: Offset(0, 2 * _scaleFactor),
+              )
+            ],
+            border: Border.all(
+              color: _availableHintCards > 0 ? Colors.deepPurpleAccent : Colors.grey,
+              width: 2 * _scaleFactor,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lightbulb_outline, color: Colors.white, size: 20 * _scaleFactor),
+              SizedBox(width: 6 * _scaleFactor),
+              Text(
+                '$_availableHintCards',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18 * _scaleFactor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Code Preview Widget
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(8 * _scaleFactor),
-        border: Border.all(color: Colors.grey[700]!),
+        border: Border.all(color: Colors.deepPurple),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -750,7 +959,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'shopping_cart.php',
+                  'advanced_function.php',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -762,107 +971,130 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
           ),
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
-            child: _buildCodeContent(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _buildOrganizedCodePreview(),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCodeContent() {
-    if (droppedBlockItems.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '// Drag blocks to build your PHP program',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 12 * _scaleFactor,
-              fontFamily: 'monospace',
-            ),
+  List<Widget> _buildOrganizedCodePreview() {
+    List<Widget> codeLines = [];
+
+    for (int i = 0; i < _codeStructure.length; i++) {
+      String line = _codeStructure[i];
+
+      if (line.contains('// Initialize') ||
+          line.contains('// Loop through') ||
+          line.contains('// Check condition') ||
+          line.contains('// Return result')) {
+        // Add user's dragged code in the correct position
+        codeLines.add(_buildUserCodeSection(line));
+      } else if (line.trim().isEmpty) {
+        codeLines.add(SizedBox(height: 16 * _scaleFactor));
+      } else {
+        codeLines.add(_buildSyntaxHighlightedLine(line, i + 1));
+      }
+    }
+
+    return codeLines;
+  }
+
+  Widget _buildUserCodeSection(String placeholder) {
+    List<String> relevantBlocks = [];
+
+    if (placeholder.contains('Initialize')) {
+      relevantBlocks = droppedBlocks.where((block) =>
+      block.contains('= 0') || block.contains('= ""')).toList();
+    } else if (placeholder.contains('Loop through')) {
+      relevantBlocks = droppedBlocks.where((block) =>
+          block.contains('foreach')).toList();
+    } else if (placeholder.contains('Check condition')) {
+      relevantBlocks = droppedBlocks.where((block) =>
+      block.contains('if (') && block.contains('% 2 == 0')).toList();
+    } else if (placeholder.contains('Return result')) {
+      relevantBlocks = droppedBlocks.where((block) =>
+          block.contains('return [')).toList();
+    } else {
+      // For other sections, show operations
+      relevantBlocks = droppedBlocks.where((block) =>
+      block.contains('++') || block.contains('.=') || block.contains('}')).toList();
+    }
+
+    if (relevantBlocks.isEmpty) {
+      return Container(
+        padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
+        child: Text(
+          placeholder,
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 12 * _scaleFactor,
+            fontFamily: 'monospace',
+            fontStyle: FontStyle.italic,
           ),
-        ],
+        ),
       );
     }
 
-    List<Widget> codeLines = [];
-    int lineNumber = 1;
-
-    for (BlockItem blockItem in droppedBlockItems) {
-      String block = blockItem.text;
-      bool isPhpTag = block.contains('<?') || block.contains('?>');
-      bool isFunction = block.contains('function ');
-      bool isVariable = block.contains('\$') && block.contains('=');
-      bool isEcho = block.contains('echo ');
-      bool isLoop = block.contains('foreach');
-      bool isArray = block.contains('[') && block.contains(']');
-      bool isReturn = block.contains('return ');
-      bool isIncorrect = isIncorrectBlock(block);
-
-      Color textColor = Colors.white;
-      if (isPhpTag) {
-        textColor = Color(0xFF569CD6);
-      } else if (isFunction) {
-        textColor = Color(0xFFDCDCAA);
-      } else if (isVariable) {
-        textColor = Color(0xFF9CDCFE);
-      } else if (isEcho) {
-        textColor = Color(0xFFCE9178);
-      } else if (isLoop) {
-        textColor = Color(0xFFC586C0);
-      } else if (isArray) {
-        textColor = Color(0xFFCE9178);
-      } else if (isReturn) {
-        textColor = Color(0xFF569CD6);
-      } else if (isIncorrect) {
-        textColor = Colors.red;
-      }
-
-      String displayCode = block;
-
-      // Add proper indentation
-      if (block.startsWith('\$') ||
-          block.contains('echo ') ||
-          block.contains('return ') ||
-          block.contains('\$itemTotal =') ||
-          block.contains('\$grandTotal +=')) {
-        displayCode = '    \$block';
-      }
-
-      // Additional indentation for loop body
-      if (block.contains('\$itemTotal = calculateTotal') ||
-          block.contains('echo \$item["name"]') ||
-          block.contains('\$grandTotal += \$itemTotal')) {
-        displayCode = '        $block';
-      }
-
-      codeLines.add(_buildCodeLineWithNumber(lineNumber++, displayCode,
-          textColor: textColor,
-          isIncorrect: isIncorrect
-      ));
-
-      // Add spacing between functions
-      if (block == '}' || block == '];') {
-        codeLines.add(SizedBox(height: 8 * _scaleFactor));
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: codeLines,
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (String block in relevantBlocks)
+            Container(
+              margin: EdgeInsets.only(bottom: 4 * _scaleFactor),
+              child: Text(
+                block,
+                style: TextStyle(
+                  color: _getBlockColor(block),
+                  fontSize: 12 * _scaleFactor,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
-  Widget _buildCodeLineWithNumber(int lineNumber, String code, {Color? textColor, bool isIncorrect = false}) {
-    Color finalTextColor = textColor ?? Colors.white;
+  Color _getBlockColor(String block) {
+    if (block.contains('foreach')) return Colors.cyanAccent;
+    if (block.contains('if (')) return Colors.greenAccent;
+    if (block.contains('return')) return Colors.orangeAccent;
+    if (block.contains('++') || block.contains('.=')) return Colors.yellowAccent;
+    return Colors.purpleAccent;
+  }
 
-    if (isIncorrect) {
-      finalTextColor = Colors.red;
+  Widget _buildSyntaxHighlightedLine(String code, int lineNumber) {
+    Color textColor = Colors.white;
+    String displayCode = code;
+
+    // PHP syntax highlighting rules for advanced code
+    if (code.trim().startsWith('<?php') || code.trim().startsWith('?>')) {
+      textColor = Color(0xFF569CD6); // PHP tags - blue
+    } else if (code.trim().startsWith('//')) {
+      textColor = Color(0xFF6A9955); // Comments - green
+    } else if (code.contains('function')) {
+      textColor = Color(0xFFDCDCAA); // Function definition - yellow
+    } else if (code.contains('\$') && code.contains('=')) {
+      textColor = Color(0xFF9CDCFE); // Variable assignment - light blue
+    } else if (code.contains('echo')) {
+      textColor = Color(0xFFD7BA7D); // Output - gold
+    } else if (code.contains('[') && code.contains(']')) {
+      textColor = Color(0xFFCE9178); // Arrays - orange
+    } else if (code.contains('foreach') || code.contains('if (')) {
+      textColor = Color(0xFFC586C0); // Control structures - pink
+    } else if (code.contains('return')) {
+      textColor = Color(0xFFD16969); // Return - red
     }
 
     return Container(
-      height: 20 * _scaleFactor,
+      padding: EdgeInsets.symmetric(vertical: 2 * _scaleFactor),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -880,12 +1112,11 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
           SizedBox(width: 16 * _scaleFactor),
           Expanded(
             child: Text(
-              code,
+              displayCode,
               style: TextStyle(
-                color: finalTextColor,
+                color: textColor,
                 fontSize: 12 * _scaleFactor,
                 fontFamily: 'monospace',
-                fontWeight: isIncorrect ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           ),
@@ -909,9 +1140,111 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("🐘 PHP - Level 3 (Hard)", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.deepPurple,
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0D1B2A),
+                Color(0xFF1B263B),
+                Color(0xFF415A77),
+              ],
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.deepPurple),
+                SizedBox(height: 20),
+                Text(
+                  "Loading PHP Hard Challenge...",
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "Expert Level Configuration",
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (errorMessage != null && !gameStarted) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("🐘 PHP - Level 3 (Hard)", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.deepPurple,
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0D1B2A),
+                Color(0xFF1B263B),
+                Color(0xFF415A77),
+              ],
+            ),
+          ),
+          child: Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.warning_amber, color: Colors.deepPurple, size: 50),
+                  SizedBox(height: 20),
+                  Text(
+                    "Expert Challenge Warning",
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _loadGameConfig,
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
+                    child: Text("Retry Loading"),
+                  ),
+                  SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                        'language': 'PHP',
+                        'difficulty': 'Hard'
+                      });
+                    },
+                    child: Text("Back to Levels", style: TextStyle(color: Colors.deepPurple)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
-      final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
+      final newScaleFactor = newScreenWidth < _baseScreenWidth
+          ? newScreenWidth / _baseScreenWidth
+          : 1.0;
 
       if (newScaleFactor != _scaleFactor) {
         setState(() {
@@ -922,9 +1255,10 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("⚡ PHP - Level 1 (Hard)", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.purple,
-        actions: gameStarted ? [
+        title: Text("🐘 PHP - Level 3 (Hard)", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.deepPurple,
+        actions: gameStarted
+            ? [
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor),
             child: Row(
@@ -938,7 +1272,8 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
               ],
             ),
           ),
-        ] : [],
+        ]
+            : [],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -946,9 +1281,9 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF2D1B69),
-              Color(0xFF3B267B),
-              Color(0xFF5A2A8C),
+              Color(0xFF0D1B2A),
+              Color(0xFF1B263B),
+              Color(0xFF415A77),
             ],
           ),
         ),
@@ -957,46 +1292,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
             gameStarted ? buildGameUI() : buildStartScreen(),
             if (gameStarted && !isAnsweredCorrectly) ...[
               _buildHintDisplay(),
-              Positioned(
-                bottom: 20 * _scaleFactor,
-                right: 20 * _scaleFactor,
-                child: GestureDetector(
-                  onTap: _useHintCard,
-                  child: Container(
-                    padding: EdgeInsets.all(12 * _scaleFactor),
-                    decoration: BoxDecoration(
-                      color: _availableHintCards > 0 ? Colors.purple : Colors.grey,
-                      borderRadius: BorderRadius.circular(20 * _scaleFactor),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 4 * _scaleFactor,
-                          offset: Offset(0, 2 * _scaleFactor),
-                        )
-                      ],
-                      border: Border.all(
-                        color: _availableHintCards > 0 ? Colors.purpleAccent : Colors.grey,
-                        width: 2 * _scaleFactor,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.lightbulb_outline, color: Colors.white, size: 20 * _scaleFactor),
-                        SizedBox(width: 6 * _scaleFactor),
-                        Text(
-                          '$_availableHintCards',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18 * _scaleFactor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+              _buildHintButton(),
             ],
           ],
         ),
@@ -1005,48 +1301,85 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
   }
 
   Widget buildStartScreen() {
-    final displayGameScore = previousScore;
-    final displayLeaderboardPoints = previousScore * 30;
-    final maxGameScore = 3;
-    final maxLeaderboardPoints = 90;
-
     return Center(
       child: SingleChildScrollView(
         padding: EdgeInsets.all(16 * _scaleFactor),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Container(
+              padding: EdgeInsets.all(16 * _scaleFactor),
+              decoration: BoxDecoration(
+                color: Colors.deepPurple.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(20 * _scaleFactor),
+                border: Border.all(color: Colors.deepPurpleAccent, width: 3 * _scaleFactor),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    blurRadius: 10 * _scaleFactor,
+                    offset: Offset(0, 5 * _scaleFactor),
+                  )
+                ],
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.psychology, color: Colors.yellow, size: 40 * _scaleFactor),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Text(
+                    "EXPERT CHALLENGE",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20 * _scaleFactor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Text(
+                    "PHP Function Mastery",
+                    style: TextStyle(
+                      color: Colors.yellow,
+                      fontSize: 16 * _scaleFactor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 30 * _scaleFactor),
+
             ElevatedButton.icon(
-              onPressed: () {
+              onPressed: gameConfig != null ? () {
                 final musicService = Provider.of<MusicService>(context, listen: false);
-                musicService.playSoundEffect('button_click.mp3');
+                musicService.playSoundEffect('challenge_accept.mp3');
                 startGame();
-              },
-              icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Hard", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              } : null,
+              icon: Icon(Icons.play_arrow, size: 24 * _scaleFactor),
+              label: Text(gameConfig != null ? "START EXPERT CHALLENGE" : "Config Missing",
+                  style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.purple,
+                padding: EdgeInsets.symmetric(horizontal: 32 * _scaleFactor, vertical: 16 * _scaleFactor),
+                backgroundColor: gameConfig != null ? Colors.deepPurple : Colors.grey,
+                foregroundColor: Colors.white,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
 
+            // Display available hint cards in start screen
             Container(
               padding: EdgeInsets.all(12 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.purple.withOpacity(0.2),
+                color: Colors.deepPurple.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.purple),
+                border: Border.all(color: Colors.deepPurple),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.lightbulb_outline, color: Colors.purple, size: 20 * _scaleFactor),
+                  Icon(Icons.lightbulb_outline, color: Colors.yellow, size: 20 * _scaleFactor),
                   SizedBox(width: 8 * _scaleFactor),
                   Text(
-                    'Hint Cards: $_availableHintCards',
+                    'Expert Hint Cards: $_availableHintCards',
                     style: TextStyle(
-                      color: Colors.purple,
+                      color: Colors.yellow,
                       fontSize: 16 * _scaleFactor,
                       fontWeight: FontWeight.bold,
                     ),
@@ -1056,62 +1389,54 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Use hint cards during the game for help!',
+              'Use hint cards for advanced function guidance!',
               style: TextStyle(
                 color: Colors.white70,
                 fontSize: 12 * _scaleFactor,
               ),
             ),
 
-            if (level1Completed)
+            if (levelCompleted)
               Padding(
-                padding: EdgeInsets.only(top: 10 * _scaleFactor),
-                child: Column(
-                  children: [
-                    Text(
-                      "✅ Hard Level completed with perfect score!",
-                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 5 * _scaleFactor),
-                    Text(
-                      "🎮 Game Score: $displayGameScore/$maxGameScore",
-                      style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                    Text(
-                      "🏆 Leaderboard Points: $displayLeaderboardPoints/$maxLeaderboardPoints",
-                      style: TextStyle(color: Colors.blue, fontSize: 14 * _scaleFactor, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+                padding: EdgeInsets.only(top: 20 * _scaleFactor),
+                child: Container(
+                  padding: EdgeInsets.all(16 * _scaleFactor),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12 * _scaleFactor),
+                    border: Border.all(color: Colors.green),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        "🏆 PHP EXPERT UNLOCKED!",
+                        style: TextStyle(color: Colors.green, fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 5 * _scaleFactor),
+                      Text(
+                        "Perfect Score: 8/8",
+                        style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
               )
             else if (hasPreviousScore && previousScore > 0)
               Padding(
-                padding: EdgeInsets.only(top: 10 * _scaleFactor),
+                padding: EdgeInsets.only(top: 20 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "📊 Your previous hard score:",
-                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
+                      "📊 Your previous expert score: $previousScore/8",
+                      style: TextStyle(color: Colors.deepPurple, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Game: $displayGameScore/$maxGameScore",
-                      style: TextStyle(color: Colors.white, fontSize: 14 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                    Text(
-                      "Leaderboard: $displayLeaderboardPoints/$maxLeaderboardPoints",
-                      style: TextStyle(color: Colors.blue, fontSize: 14 * _scaleFactor, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 5 * _scaleFactor),
-                    Text(
-                      "Try again to get a perfect score!",
-                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                      "Master functions, loops, and conditions to achieve perfection!",
+                      style: TextStyle(color: Colors.deepPurple, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1119,18 +1444,18 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
               )
             else if (hasPreviousScore && previousScore == 0)
                 Padding(
-                  padding: EdgeInsets.only(top: 10 * _scaleFactor),
+                  padding: EdgeInsets.only(top: 20 * _scaleFactor),
                   child: Column(
                     children: [
                       Text(
-                        "😅 Your previous score: $displayGameScore/$maxGameScore",
-                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                        "💪 Expert Challenge Awaits!",
+                        style: TextStyle(color: Colors.deepPurple, fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
-                        "Don't give up! You can do better this time!",
-                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                        "This is the ultimate test of your PHP skills!",
+                        style: TextStyle(color: Colors.deepPurple, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1139,63 +1464,50 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
 
             SizedBox(height: 30 * _scaleFactor),
             Container(
-              padding: EdgeInsets.all(16 * _scaleFactor),
+              padding: EdgeInsets.all(20 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.purple[50]!.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.purple[200]!),
+                color: Colors.deepPurple[50]!.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(16 * _scaleFactor),
+                border: Border.all(color: Colors.deepPurple[300]!),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 8 * _scaleFactor,
+                    offset: Offset(0, 4 * _scaleFactor),
+                  )
+                ],
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎯 Hard Level Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.purple[800]),
+                    "🎯 EXPERT OBJECTIVE",
+                    style: TextStyle(fontSize: 20 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.deepPurple[900]),
                     textAlign: TextAlign.center,
                   ),
-                  SizedBox(height: 10 * _scaleFactor),
+                  SizedBox(height: 15 * _scaleFactor),
                   Text(
-                    "Build an advanced PHP program with functions, arrays, and loops for a shopping cart system using all 13 blocks",
+                    gameConfig?['objective'] ?? "Build a complete PHP function that:\n• Takes an array of numbers\n• Uses foreach loop\n• Implements conditional logic\n• Counts even numbers\n• Builds result string\n• Returns associative array",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.deepPurple[800], height: 1.5),
                   ),
-                  SizedBox(height: 10 * _scaleFactor),
+                  SizedBox(height: 15 * _scaleFactor),
                   Container(
-                    padding: EdgeInsets.all(8 * _scaleFactor),
+                    padding: EdgeInsets.all(12 * _scaleFactor),
                     decoration: BoxDecoration(
-                      color: Colors.purple.withOpacity(0.3),
+                      color: Colors.amber[50],
                       borderRadius: BorderRadius.circular(8 * _scaleFactor),
-                      border: Border.all(color: Colors.purple),
+                      border: Border.all(color: Colors.amber),
                     ),
                     child: Text(
-                      "🎁 Hard Difficulty: 30× Points Multiplier!",
-                      style: TextStyle(
-                        fontSize: 14 * _scaleFactor,
-                        color: Colors.purple[800],
-                        fontWeight: FontWeight.bold,
-                      ),
+                      "🏆 Get perfect score (8/8) to unlock PHP Expert Status!",
                       textAlign: TextAlign.center,
-                    ),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Text(
-                    "🎮 Perfect Score (3/3) = 90 Leaderboard Points",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 12 * _scaleFactor,
-                        color: Colors.purple,
-                        fontWeight: FontWeight.bold,
-                        fontStyle: FontStyle.italic
-                    ),
-                  ),
-                  SizedBox(height: 5 * _scaleFactor),
-                  Text(
-                    "(Easy: 30 points, Medium: 60 points, Hard: 90 points)",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 11 * _scaleFactor,
-                        color: Colors.purple,
-                        fontStyle: FontStyle.italic
+                      style: TextStyle(
+                          fontSize: 12 * _scaleFactor,
+                          color: Colors.deepPurple,
+                          fontWeight: FontWeight.bold,
+                          fontStyle: FontStyle.italic
+                      ),
                     ),
                   ),
                 ],
@@ -1217,7 +1529,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Short Story',
+                child: Text('📖 Expert Challenge Story',
                     style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
@@ -1229,79 +1541,89 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
                   });
                 },
                 icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
-                label: Text(isTagalog ? 'English' : 'Tagalog',
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+                label: Text(isTagalog ? 'English' : 'Tagalog', style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
               ),
             ],
           ),
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Si Juan ay gustong gumawa ng online shopping cart system gamit ang PHP! Kailangan niyang gumawa ng functions para kalkulahin ang total at mag-display ng receipt. Tulungan siyang buuin ang program!'
-                : 'Juan wants to create an online shopping cart system using PHP! He needs to create functions to calculate totals and display receipts. Help him build the program!',
+                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Hard Level ng PHP! Bumuo ng function na may loops at conditional logic. Ipakita ang iyong galing sa programming!')
+                : (gameConfig?['story_english'] ?? 'This is PHP Hard Level! Build a complete function with loops and conditional logic. Show your programming mastery!'),
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Build the advanced PHP program with functions and arrays using all 13 blocks',
-              style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
-              textAlign: TextAlign.center),
+          Container(
+            padding: EdgeInsets.all(16 * _scaleFactor),
+            decoration: BoxDecoration(
+              color: Colors.deepPurple.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12 * _scaleFactor),
+              border: Border.all(color: Colors.deepPurpleAccent),
+            ),
+            child: Text(_instructionText,
+                style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center),
+          ),
           SizedBox(height: 20 * _scaleFactor),
 
-          // UPDATED: Larger target area to fit all blocks
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 280 * _scaleFactor, // Increased height
-              maxHeight: 400 * _scaleFactor, // Increased max height
+              minHeight: 200 * _scaleFactor,
+              maxHeight: 300 * _scaleFactor,
             ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.purple, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.deepPurple, width: 3.0 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.deepPurple.withOpacity(0.5),
+                  blurRadius: 8 * _scaleFactor,
+                  offset: Offset(0, 4 * _scaleFactor),
+                )
+              ],
             ),
-            child: DragTarget<BlockItem>(
+            child: DragTarget<String>(
               onWillAccept: (data) {
-                // Allow any block to be dropped
-                return true;
+                return !droppedBlocks.contains(data);
               },
-              onAccept: (BlockItem data) {
+              onAccept: (data) {
                 if (!isAnsweredCorrectly) {
                   final musicService = Provider.of<MusicService>(context, listen: false);
                   musicService.playSoundEffect('block_drop.mp3');
 
                   setState(() {
-                    // Only add if not already in dropped blocks
-                    if (!droppedBlockItems.contains(data)) {
-                      droppedBlockItems.add(data);
-                    }
-                    allBlockItems.remove(data);
+                    droppedBlocks.add(data);
+                    allBlocks.remove(data);
                   });
                 }
               },
               builder: (context, candidateData, rejectedData) {
                 return SingleChildScrollView(
                   child: Wrap(
-                    spacing: 6 * _scaleFactor, // Reduced spacing
-                    runSpacing: 6 * _scaleFactor, // Reduced run spacing
+                    spacing: 8 * _scaleFactor,
+                    runSpacing: 8 * _scaleFactor,
                     alignment: WrapAlignment.center,
                     crossAxisAlignment: WrapCrossAlignment.center,
-                    children: droppedBlockItems.map((blockItem) {
-                      return Draggable<BlockItem>(
-                        data: blockItem,
+                    children: droppedBlocks.map((block) {
+                      return Draggable<String>(
+                        data: block,
                         feedback: Material(
                           color: Colors.transparent,
-                          child: puzzleBlock(blockItem.text, Colors.purpleAccent),
+                          child: puzzleBlock(block, _getBlockColor(block)),
                         ),
-                        childWhenDragging: puzzleBlock(blockItem.text, Colors.purpleAccent.withOpacity(0.5)),
-                        child: puzzleBlock(blockItem.text, Colors.purpleAccent),
+                        childWhenDragging: puzzleBlock(block, _getBlockColor(block).withOpacity(0.5)),
+                        child: puzzleBlock(block, _getBlockColor(block)),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
+
                           setState(() {
-                            currentlyDraggedBlock = blockItem.text;
+                            currentlyDraggedBlock = block;
                           });
                         },
                         onDragEnd: (details) {
@@ -1313,10 +1635,10 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
                             Future.delayed(Duration(milliseconds: 50), () {
                               if (mounted) {
                                 setState(() {
-                                  if (!allBlockItems.contains(blockItem)) {
-                                    allBlockItems.add(blockItem);
+                                  if (!allBlocks.contains(block)) {
+                                    allBlocks.add(block);
                                   }
-                                  droppedBlockItems.remove(blockItem);
+                                  droppedBlocks.remove(block);
                                 });
                               }
                             });
@@ -1331,46 +1653,47 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
           ),
 
           SizedBox(height: 20 * _scaleFactor),
-          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          Text(_codePreviewTitle, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
           SizedBox(height: 10 * _scaleFactor),
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
 
-          // UPDATED: Larger available blocks area
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 180 * _scaleFactor, // Increased height
+              minHeight: 150 * _scaleFactor,
             ),
             padding: EdgeInsets.all(12 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[800]!.withOpacity(0.3),
               borderRadius: BorderRadius.circular(12 * _scaleFactor),
+              border: Border.all(color: Colors.deepPurple.withOpacity(0.5)),
             ),
             child: Wrap(
-              spacing: 6 * _scaleFactor, // Reduced spacing
-              runSpacing: 8 * _scaleFactor, // Reduced run spacing
+              spacing: 8 * _scaleFactor,
+              runSpacing: 10 * _scaleFactor,
               alignment: WrapAlignment.center,
               crossAxisAlignment: WrapCrossAlignment.center,
-              children: allBlockItems.map((blockItem) {
+              children: allBlocks.map((block) {
                 return isAnsweredCorrectly
-                    ? puzzleBlock(blockItem.text, Colors.grey)
-                    : Draggable<BlockItem>(
-                  data: blockItem,
+                    ? puzzleBlock(block, Colors.grey)
+                    : Draggable<String>(
+                  data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(blockItem.text, Colors.deepPurple),
+                    child: puzzleBlock(block, _getBlockColor(block)),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(blockItem.text, Colors.deepPurple),
+                    child: puzzleBlock(block, _getBlockColor(block)),
                   ),
-                  child: puzzleBlock(blockItem.text, Colors.deepPurple),
+                  child: puzzleBlock(block, _getBlockColor(block)),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
+
                     setState(() {
-                      currentlyDraggedBlock = blockItem.text;
+                      currentlyDraggedBlock = block;
                     });
                   },
                   onDragEnd: (details) {
@@ -1382,8 +1705,8 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
                       Future.delayed(Duration(milliseconds: 50), () {
                         if (mounted) {
                           setState(() {
-                            if (!allBlockItems.contains(blockItem)) {
-                              allBlockItems.add(blockItem);
+                            if (!allBlocks.contains(block)) {
+                              allBlocks.add(block);
                             }
                           });
                         }
@@ -1399,58 +1722,80 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
           ElevatedButton.icon(
             onPressed: isAnsweredCorrectly ? null : () {
               final musicService = Provider.of<MusicService>(context, listen: false);
-              musicService.playSoundEffect('compile_hard.mp3');
+              musicService.playSoundEffect('compile.mp3');
               checkAnswer();
             },
-            icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
-            label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
+            icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
+            label: Text("RUN FUNCTION", style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple,
+              backgroundColor: Colors.deepPurple,
+              foregroundColor: Colors.white,
               padding: EdgeInsets.symmetric(
-                horizontal: 24 * _scaleFactor,
-                vertical: 16 * _scaleFactor,
+                horizontal: 32 * _scaleFactor,
+                vertical: 18 * _scaleFactor,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12 * _scaleFactor),
               ),
             ),
           ),
 
           SizedBox(height: 10 * _scaleFactor),
+
           TextButton(
             onPressed: () {
               final musicService = Provider.of<MusicService>(context, listen: false);
               musicService.playSoundEffect('button_click.mp3');
               resetGame();
             },
-            child: Text("🔁 Retry", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+            child: Text("🔄 Restart Challenge", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
-  // UPDATED: Smaller puzzle blocks to fit more in the target area
   Widget puzzleBlock(String text, Color color) {
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontFamily: 'monospace',
+          fontSize: 11 * _scaleFactor, // Slightly smaller for complex code
+          color: Colors.black,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )
+      ..layout();
+
+    final textWidth = textPainter.width;
+    final minWidth = 80 * _scaleFactor;
+    final maxWidth = 280 * _scaleFactor;
+
     return Container(
       constraints: BoxConstraints(
-        minWidth: 70 * _scaleFactor, // Smaller minimum width
-        maxWidth: 160 * _scaleFactor, // Smaller maximum width
+        minWidth: minWidth,
+        maxWidth: maxWidth,
       ),
-      margin: EdgeInsets.symmetric(horizontal: 2 * _scaleFactor),
+      margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 10 * _scaleFactor, // Reduced padding
-        vertical: 8 * _scaleFactor, // Reduced padding
+        horizontal: 12 * _scaleFactor,
+        vertical: 10 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(15 * _scaleFactor),
-          bottomRight: Radius.circular(15 * _scaleFactor),
+          topLeft: Radius.circular(20 * _scaleFactor),
+          bottomRight: Radius.circular(20 * _scaleFactor),
         ),
-        border: Border.all(color: Colors.black87, width: 1.5 * _scaleFactor),
+        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor),
         boxShadow: [
           BoxShadow(
             color: Colors.black45,
-            blurRadius: 4 * _scaleFactor,
-            offset: Offset(2 * _scaleFactor, 2 * _scaleFactor),
+            blurRadius: 6 * _scaleFactor,
+            offset: Offset(3 * _scaleFactor, 3 * _scaleFactor),
           )
         ],
       ),
@@ -1459,8 +1804,15 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 10 * _scaleFactor, // Smaller font size
+          fontSize: 11 * _scaleFactor,
           color: Colors.black,
+          shadows: [
+            Shadow(
+              offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
+              blurRadius: 2 * _scaleFactor,
+              color: Colors.white.withOpacity(0.8),
+            ),
+          ],
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.visible,
@@ -1468,21 +1820,4 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
       ),
     );
   }
-}
-
-class BlockItem {
-  final String text;
-  final Key key;
-
-  BlockItem(this.text, this.key);
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-          other is BlockItem &&
-              runtimeType == other.runtimeType &&
-              key == other.key;
-
-  @override
-  int get hashCode => key.hashCode;
 }

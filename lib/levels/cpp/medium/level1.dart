@@ -25,30 +25,24 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 180; // Medium: 3 minutes
+  int remainingSeconds = 180;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
-  // Track currently dragged block
   String? currentlyDraggedBlock;
-
-  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // Game configuration from database
   Map<String, dynamic>? gameConfig;
   bool isLoading = true;
   String? errorMessage;
 
-  // HINT SYSTEM
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
   bool _isUsingHint = false;
 
-  // Configurable elements from database
   String _codePreviewTitle = '💻 Code Preview:';
   String _instructionText = '🧩 Arrange the blocks to form the correct C++ code';
   List<String> _codeStructure = [];
@@ -146,14 +140,14 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
           } catch (e) {
             print('❌ Error parsing code structure: $e');
             setState(() {
-              _codeStructure = [];
+              _codeStructure = _getDefaultCodeStructure();
             });
           }
         }
         print('📝 Code structure loaded: $_codeStructure');
       } else {
         setState(() {
-          _codeStructure = [];
+          _codeStructure = _getDefaultCodeStructure();
         });
       }
 
@@ -178,42 +172,12 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
         print('💡 Using default hint');
       }
 
-      // Parse correct blocks
-      List<String> correctBlocks = [];
-      if (gameConfig!['correct_blocks'] != null) {
-        if (gameConfig!['correct_blocks'] is List) {
-          correctBlocks = List<String>.from(gameConfig!['correct_blocks']);
-        } else {
-          String correctBlocksStr = gameConfig!['correct_blocks']?.toString() ?? '[]';
-          try {
-            List<dynamic> correctBlocksJson = json.decode(correctBlocksStr);
-            correctBlocks = List<String>.from(correctBlocksJson);
-          } catch (e) {
-            print('❌ JSON Parse failed for correct_blocks: $e');
-            correctBlocks = _parseStringArray(correctBlocksStr);
-          }
-        }
-      }
+      // Parse blocks with better error handling
+      List<String> correctBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
+      List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
 
-      // Parse incorrect blocks
-      List<String> incorrectBlocks = [];
-      if (gameConfig!['incorrect_blocks'] != null) {
-        if (gameConfig!['incorrect_blocks'] is List) {
-          incorrectBlocks = List<String>.from(gameConfig!['incorrect_blocks']);
-        } else {
-          String incorrectBlocksStr = gameConfig!['incorrect_blocks']?.toString() ?? '[]';
-          try {
-            List<dynamic> incorrectBlocksJson = json.decode(incorrectBlocksStr);
-            incorrectBlocks = List<String>.from(incorrectBlocksJson);
-          } catch (e) {
-            print('❌ JSON Parse failed for incorrect_blocks: $e');
-            incorrectBlocks = _parseStringArray(incorrectBlocksStr);
-          }
-        }
-      }
-
-      print('✅ Correct Blocks Parsed: $correctBlocks');
-      print('✅ Incorrect Blocks Parsed: $incorrectBlocks');
+      print('✅ Correct Blocks from DB: $correctBlocks');
+      print('✅ Incorrect Blocks from DB: $incorrectBlocks');
 
       // Combine and shuffle blocks
       allBlocks = [
@@ -223,21 +187,79 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
 
       print('🎮 All Blocks Final: $allBlocks');
 
+      // DEBUG: Print the expected correct answer from database
+      if (gameConfig!['correct_answer'] != null) {
+        print('🎯 Expected Correct Answer from DB: ${gameConfig!['correct_answer']}');
+      }
+
     } catch (e) {
       print('❌ Error parsing game config: $e');
-      resetBlocks();
+      _initializeDefaultBlocks();
     }
   }
 
-  List<String> _parseStringArray(String input) {
+  List<String> _getDefaultCodeStructure() {
+    return [
+      "#include <iostream>",
+      "using namespace std;",
+      "",
+      "int main() {",
+      "    // Your code here",
+      "    return 0;",
+      "}"
+    ];
+  }
+
+  List<String> _parseBlocks(dynamic blocksData, String type) {
+    List<String> blocks = [];
+
+    if (blocksData == null) {
+      print('⚠️ $type blocks are NULL in database');
+      return _getDefaultBlocks(type);
+    }
+
     try {
-      print('🔄 PARSING INPUT: $input');
-      String cleaned = input.trim();
+      if (blocksData is List) {
+        blocks = List<String>.from(blocksData);
+        print('✅ $type blocks parsed as List: $blocks');
+      } else if (blocksData is String) {
+        String blocksStr = blocksData.trim();
+        print('🔍 Raw $type blocks string: $blocksStr');
 
-      if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
-        cleaned = cleaned.substring(1, cleaned.length - 1);
+        if (blocksStr.startsWith('[') && blocksStr.endsWith(']')) {
+          // Parse as JSON array
+          try {
+            List<dynamic> blocksJson = json.decode(blocksStr);
+            blocks = List<String>.from(blocksJson);
+            print('✅ $type blocks parsed as JSON: $blocks');
+          } catch (e) {
+            print('❌ JSON parsing failed for $type blocks: $e');
+            // Fallback: try comma separation
+            blocks = _parseCommaSeparated(blocksStr);
+          }
+        } else {
+          // Parse as comma-separated string
+          blocks = _parseCommaSeparated(blocksStr);
+        }
       }
+    } catch (e) {
+      print('❌ Error parsing $type blocks: $e');
+      blocks = _getDefaultBlocks(type);
+    }
 
+    // Remove any empty strings
+    blocks = blocks.where((block) => block.trim().isNotEmpty).toList();
+
+    print('🎯 Final $type blocks: $blocks');
+    return blocks;
+  }
+
+  List<String> _parseCommaSeparated(String input) {
+    try {
+      // Remove brackets if present
+      String cleaned = input.replaceAll('[', '').replaceAll(']', '').trim();
+
+      // Split by comma but handle quoted strings
       List<String> items = [];
       StringBuffer current = StringBuffer();
       bool inQuotes = false;
@@ -251,6 +273,10 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
         } else if (char == ',' && !inQuotes) {
           String item = current.toString().trim();
           if (item.isNotEmpty) {
+            // Remove surrounding quotes if present
+            if (item.startsWith('"') && item.endsWith('"')) {
+              item = item.substring(1, item.length - 1);
+            }
             items.add(item);
           }
           current.clear();
@@ -259,38 +285,59 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
         }
       }
 
+      // Add the last item
       String lastItem = current.toString().trim();
       if (lastItem.isNotEmpty) {
+        if (lastItem.startsWith('"') && lastItem.endsWith('"')) {
+          lastItem = lastItem.substring(1, lastItem.length - 1);
+        }
         items.add(lastItem);
       }
 
-      print('✅ PARSED ITEMS: $items');
+      print('✅ Comma-separated parsing result: $items');
       return items;
     } catch (e) {
-      print('❌ Error in _parseStringArray: $e');
-      try {
-        List<String> fallback = input
-            .replaceAll('[', '')
-            .replaceAll(']', '')
-            .split(',')
-            .map((item) => item.trim())
-            .where((item) => item.isNotEmpty)
-            .toList();
-        print('🔄 USING FALLBACK: $fallback');
-        return fallback;
-      } catch (e2) {
-        print('❌ Fallback also failed: $e2');
-        return [];
-      }
+      print('❌ Comma-separated parsing failed: $e');
+      // Ultimate fallback: simple split
+      List<String> fallback = input.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+      print('🔄 Using simple split fallback: $fallback');
+      return fallback;
+    }
+  }
+
+  List<String> _getDefaultBlocks(String type) {
+    if (type == 'correct') {
+      return [
+        'int a = 5;',
+        'int b = 10;',
+        'int sum = a + b;',
+        'cout << "Sum: " << sum;'
+      ];
+    } else {
+      return [
+        'float a = 5;',
+        'sum = a + b',
+        'print(sum)',
+        'return 1;'
+      ];
     }
   }
 
   String _getDefaultHint() {
-    if (gameConfig != null) {
-      String correctAnswer = gameConfig!['correct_answer'] ?? '';
-      return "💡 Hint: The correct code structure is: $correctAnswer\n\nMedium level requires more complex logic!";
-    }
-    return "💡 Hint: This is Medium Level 1 - variables and calculations!";
+    return "💡 Hint: Declare variables before using them. Use int for whole numbers and cout for output.";
+  }
+
+  void _initializeDefaultBlocks() {
+    allBlocks = [
+      'int a = 5;',
+      'int b = 10;',
+      'int sum = a + b;',
+      'cout << "Sum: " << sum;',
+      'float a = 5;',
+      'sum = a + b',
+      'print(sum)',
+      'return 1;'
+    ]..shuffle();
   }
 
   void _startGameMusic() {
@@ -378,9 +425,9 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
     if (gameConfig != null) {
       _initializeGameFromConfig();
     } else {
-      allBlocks = [];
-      setState(() {});
+      _initializeDefaultBlocks();
     }
+    setState(() {});
   }
 
   void startGame() {
@@ -508,12 +555,11 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
     }
 
     try {
-      print('💾 ATTEMPTING TO SAVE MEDIUM SCORE:');
+      print('💾 SAVING MEDIUM SCORE:');
       print('   User ID: ${currentUser!['id']}');
       print('   Language: C++_Medium');
       print('   Level: 1');
       print('   Score: $score/3');
-      print('   Completed: ${score == 3}');
 
       final response = await ApiService.saveScoreWithDifficulty(
         currentUser!['id'],
@@ -533,26 +579,12 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
           hasPreviousScore = true;
         });
 
-        print('✅ MEDIUM SCORE SAVED SUCCESSFULLY TO DATABASE');
+        print('✅ MEDIUM SCORE SAVED SUCCESSFULLY');
       } else {
-        print('❌ FAILED TO SAVE MEDIUM SCORE: ${response['message']}');
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save score: ${response['message']}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        print('❌ FAILED TO SAVE SCORE: ${response['message']}');
       }
     } catch (e) {
       print('❌ ERROR SAVING MEDIUM SCORE: $e');
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Network error saving score: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 
@@ -579,65 +611,46 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
     }
   }
 
-  Future<void> refreshScore() async {
-    if (currentUser?['id'] != null) {
-      try {
-        final response = await ApiService.getScoresWithDifficulty(currentUser!['id'], 'C++', 'Medium');
-        if (response['success'] == true && response['scores'] != null) {
-          final scoresData = response['scores'];
-          final level1Data = scoresData['1'];
-
-          setState(() {
-            if (level1Data != null) {
-              previousScore = level1Data['score'] ?? 0;
-              levelCompleted = level1Data['completed'] ?? false;
-              hasPreviousScore = true;
-            } else {
-              hasPreviousScore = false;
-              previousScore = 0;
-              levelCompleted = false;
-            }
-          });
-        }
-      } catch (e) {
-        print('Error refreshing medium score: $e');
-      }
-    }
-  }
-
   bool isIncorrectBlock(String block) {
     if (gameConfig != null) {
       try {
-        List<dynamic> incorrectBlocksJson = json.decode(gameConfig!['incorrect_blocks'] ?? '[]');
-        List<String> incorrectBlocks = List<String>.from(incorrectBlocksJson);
-        return incorrectBlocks.contains(block);
+        List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
+        bool isIncorrect = incorrectBlocks.contains(block);
+        if (isIncorrect) {
+          print('❌ Block "$block" is in incorrect blocks list');
+        }
+        return isIncorrect;
       } catch (e) {
-        // Fallback to original method
+        print('Error checking incorrect block: $e');
       }
     }
 
-    // Fallback incorrect blocks for Medium Level 1
+    // Default incorrect blocks
     List<String> incorrectBlocks = [
-      'printf',
-      'cout >>',
-      'System.out.print',
-      'print',
-      'Console.WriteLine',
-      'cin',
-      'return 1;',
-      'void main()',
+      'float a = 5;',
+      'sum = a + b',
+      'print(sum)',
+      'return 1;'
     ];
     return incorrectBlocks.contains(block);
   }
 
+  // FIXED: Improved answer checking logic
   void checkAnswer() async {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
+    // DEBUG: Print what we're checking
+    print('🔍 CHECKING MEDIUM ANSWER:');
+    print('   Dropped blocks: $droppedBlocks');
+    print('   All blocks: $allBlocks');
+
+    // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
+      print('❌ HAS INCORRECT BLOCK');
       musicService.playSoundEffect('error.mp3');
 
       if (score > 1) {
@@ -681,19 +694,56 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
       return;
     }
 
-    String answer = droppedBlocks.join(' ');
-    String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
-
+    // IMPROVED ANSWER CHECKING LOGIC
     bool isCorrect = false;
 
     if (gameConfig != null) {
-      String expectedAnswer = gameConfig!['correct_answer'] ?? '';
-      String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
-      isCorrect = normalizedAnswer == normalizedExpected;
+      // Get expected correct blocks from database
+      List<String> expectedCorrectBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
+
+      print('🎯 EXPECTED CORRECT BLOCKS: $expectedCorrectBlocks');
+      print('🎯 USER DROPPED BLOCKS: $droppedBlocks');
+
+      // METHOD 1: Check if user has all correct blocks and no extra correct blocks
+      bool hasAllCorrectBlocks = expectedCorrectBlocks.every((block) => droppedBlocks.contains(block));
+      bool noExtraCorrectBlocks = droppedBlocks.every((block) => expectedCorrectBlocks.contains(block));
+
+      // METHOD 2: Check string comparison (normalized)
+      String userAnswer = droppedBlocks.join(' ');
+      String normalizedUserAnswer = userAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+
+      if (gameConfig!['correct_answer'] != null) {
+        String expectedAnswer = gameConfig!['correct_answer'].toString();
+        String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+
+        print('📝 USER ANSWER: $userAnswer');
+        print('📝 NORMALIZED USER: $normalizedUserAnswer');
+        print('🎯 EXPECTED ANSWER: $expectedAnswer');
+        print('🎯 NORMALIZED EXPECTED: $normalizedExpected');
+
+        bool stringMatch = normalizedUserAnswer == normalizedExpected;
+
+        // Use both methods for verification
+        isCorrect = (hasAllCorrectBlocks && noExtraCorrectBlocks) || stringMatch;
+
+        print('✅ BLOCK CHECK: hasAllCorrectBlocks=$hasAllCorrectBlocks, noExtraCorrectBlocks=$noExtraCorrectBlocks');
+        print('✅ STRING CHECK: stringMatch=$stringMatch');
+        print('✅ FINAL RESULT: $isCorrect');
+      } else {
+        // Fallback: only use block comparison
+        isCorrect = hasAllCorrectBlocks && noExtraCorrectBlocks;
+        print('⚠️ No correct_answer in DB, using block comparison only: $isCorrect');
+      }
     } else {
-      // Fallback check for Medium Level 1
-      String expected = 'intmain(){inta=5;intb=10;intsum=a+b;cout<<"Sum:"<<sum;return0;}';
-      isCorrect = normalizedAnswer == expected;
+      // Fallback check for basic requirements
+      print('⚠️ No game config, using fallback check');
+      bool hasVariableA = droppedBlocks.any((block) => block.toLowerCase().contains('int a = 5'));
+      bool hasVariableB = droppedBlocks.any((block) => block.toLowerCase().contains('int b = 10'));
+      bool hasSum = droppedBlocks.any((block) => block.toLowerCase().contains('sum = a + b'));
+      bool hasOutput = droppedBlocks.any((block) => block.toLowerCase().contains('cout'));
+
+      isCorrect = hasVariableA && hasVariableB && hasSum && hasOutput;
+      print('✅ FALLBACK CHECK: $isCorrect');
     }
 
     if (isCorrect) {
@@ -771,6 +821,7 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
         ),
       );
     } else {
+      print('❌ ANSWER INCORRECT');
       musicService.playSoundEffect('wrong.mp3');
 
       if (score > 1) {
@@ -924,6 +975,7 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
     );
   }
 
+  // Organized code preview
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -963,27 +1015,7 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
             padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 30 * _scaleFactor,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: _buildLineNumbers(),
-                      ),
-                    ),
-                    SizedBox(width: 16 * _scaleFactor),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: _buildCodeLines(),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              children: _buildOrganizedCodePreview(),
             ),
           ),
         ],
@@ -991,113 +1023,102 @@ class _CppLevel1MediumState extends State<CppLevel1Medium> {
     );
   }
 
-  List<Widget> _buildLineNumbers() {
-    return List.generate(_codeStructure.length, (index) {
-      return _buildCodeLine(index + 1);
-    });
-  }
-
-  List<Widget> _buildCodeLines() {
-    List<Widget> lines = [];
+  List<Widget> _buildOrganizedCodePreview() {
+    List<Widget> codeLines = [];
 
     for (int i = 0; i < _codeStructure.length; i++) {
       String line = _codeStructure[i];
 
       if (line.contains('// Your code here')) {
-        lines.add(_buildUserCodeLine(getPreviewCode()));
+        // Add user's dragged code in the correct position
+        codeLines.add(_buildUserCodeSection());
       } else if (line.trim().isEmpty) {
-        lines.add(Container(height: 20 * _scaleFactor));
+        codeLines.add(SizedBox(height: 16 * _scaleFactor));
       } else {
-        lines.add(_buildSyntaxHighlightedLine(line));
+        codeLines.add(_buildSyntaxHighlightedLine(line, i + 1));
       }
     }
 
-    return lines;
+    return codeLines;
   }
 
-  Widget _buildUserCodeLine(String code) {
-    if (code.isEmpty) {
+  Widget _buildUserCodeSection() {
+    if (droppedBlocks.isEmpty) {
       return Container(
-        height: 20 * _scaleFactor,
-        child: Text(
-          '        ',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 12 * _scaleFactor,
-            fontFamily: 'monospace',
-          ),
-        ),
+        padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
       );
     }
 
     return Container(
-      height: 20 * _scaleFactor,
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '    ',
-              style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12 * _scaleFactor),
-            ),
-            TextSpan(
-              text: code,
-              style: TextStyle(
-                color: Colors.greenAccent[400],
-                fontFamily: 'monospace',
-                fontSize: 12 * _scaleFactor,
-                fontWeight: FontWeight.bold,
+      padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (String block in droppedBlocks)
+            Container(
+              margin: EdgeInsets.only(bottom: 4 * _scaleFactor),
+              child: Text(
+                '    $block',
+                style: TextStyle(
+                  color: Colors.greenAccent[400],
+                  fontSize: 12 * _scaleFactor,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildCodeLine(int lineNumber) {
-    return Container(
-      height: 20 * _scaleFactor,
-      child: Text(
-        lineNumber.toString().padLeft(2, ' '),
-        style: TextStyle(
-          color: Colors.grey[600],
-          fontSize: 12 * _scaleFactor,
-          fontFamily: 'monospace',
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSyntaxHighlightedLine(String code) {
+  Widget _buildSyntaxHighlightedLine(String code, int lineNumber) {
     Color textColor = Colors.white;
+    String displayCode = code;
 
+    // Syntax highlighting rules
     if (code.trim().startsWith('#include')) {
-      textColor = Color(0xFFCE9178);
+      textColor = Color(0xFFCE9178); // Preprocessor - orange
     } else if (code.contains('int main') || code.contains('using namespace') || code.contains('return')) {
-      textColor = Color(0xFF569CD6);
+      textColor = Color(0xFF569CD6); // Keywords - blue
     } else if (code.trim().startsWith('//')) {
-      textColor = Color(0xFF6A9955);
+      textColor = Color(0xFF6A9955); // Comments - green
     } else if (code.contains('"') || code.contains("'")) {
-      textColor = Color(0xFFCE9178);
+      textColor = Color(0xFFCE9178); // Strings - orange
     } else if (code.contains('{') || code.contains('}')) {
-      textColor = Colors.white;
+      textColor = Colors.white; // Braces - white
     }
 
     return Container(
-      height: 20 * _scaleFactor,
-      child: Text(
-        code,
-        style: TextStyle(
-          color: textColor,
-          fontSize: 12 * _scaleFactor,
-          fontFamily: 'monospace',
-        ),
+      padding: EdgeInsets.symmetric(vertical: 2 * _scaleFactor),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 30 * _scaleFactor,
+            child: Text(
+              lineNumber.toString().padLeft(2, ' '),
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12 * _scaleFactor,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+          SizedBox(width: 16 * _scaleFactor),
+          Expanded(
+            child: Text(
+              displayCode,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 12 * _scaleFactor,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+        ],
       ),
     );
-  }
-
-  String getPreviewCode() {
-    return droppedBlocks.join(' ');
   }
 
   @override

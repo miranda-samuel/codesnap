@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'dart:convert';
 import '../../../services/api_service.dart';
 import '../../../services/user_preferences.dart';
 import '../../../services/music_service.dart';
@@ -30,24 +30,244 @@ class _PhpLevel1State extends State<PhpLevel1> {
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
+  // Track currently dragged block
   String? currentlyDraggedBlock;
+
+  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // NEW: Hint card system using UserPreferences
+  // Game configuration from database
+  Map<String, dynamic>? gameConfig;
+  bool isLoading = true;
+  String? errorMessage;
+
+  // HINT SYSTEM
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
   bool _isUsingHint = false;
 
+  // Configurable elements from database
+  String _codePreviewTitle = '💻 Code Preview:';
+  String _instructionText = '🧩 Arrange the blocks to form the correct PHP code';
+  List<String> _codeStructure = [];
+  String _expectedOutput = 'Hello World!';
+
   @override
   void initState() {
     super.initState();
-    resetBlocks();
+    _loadGameConfig();
     _loadUserData();
     _calculateScaleFactor();
     _startGameMusic();
-    _loadHintCards(); // Load hint cards for current user
+    _loadHintCards();
+  }
+
+  Future<void> _loadGameConfig() async {
+    try {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+
+      final response = await ApiService.getGameConfig('PHP', 1);
+
+      print('🔍 PHP GAME CONFIG RESPONSE:');
+      print('   Success: ${response['success']}');
+      print('   Message: ${response['message']}');
+
+      if (response['success'] == true && response['game'] != null) {
+        setState(() {
+          gameConfig = response['game'];
+          _initializeGameFromConfig();
+        });
+      } else {
+        setState(() {
+          errorMessage = response['message'] ?? 'Failed to load game configuration from database';
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading game config: $e');
+      setState(() {
+        errorMessage = 'Connection error: $e';
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  void _initializeGameFromConfig() {
+    if (gameConfig == null) return;
+
+    try {
+      print('🔄 INITIALIZING PHP GAME FROM CONFIG');
+
+      // Load timer duration from database
+      if (gameConfig!['timer_duration'] != null) {
+        int timerDuration = int.tryParse(gameConfig!['timer_duration'].toString()) ?? 120;
+        setState(() {
+          remainingSeconds = timerDuration;
+        });
+        print('⏰ Timer duration loaded: $timerDuration seconds');
+      }
+
+      // Load instruction text from database
+      if (gameConfig!['instruction_text'] != null) {
+        setState(() {
+          _instructionText = gameConfig!['instruction_text'].toString();
+        });
+        print('📝 Instruction text loaded: $_instructionText');
+      }
+
+      // Load code preview title from database
+      if (gameConfig!['code_preview_title'] != null) {
+        setState(() {
+          _codePreviewTitle = gameConfig!['code_preview_title'].toString();
+        });
+        print('💻 Code preview title loaded: $_codePreviewTitle');
+      }
+
+      // Load code structure from database
+      if (gameConfig!['code_structure'] != null) {
+        if (gameConfig!['code_structure'] is List) {
+          setState(() {
+            _codeStructure = List<String>.from(gameConfig!['code_structure']);
+          });
+        } else {
+          String codeStructureStr = gameConfig!['code_structure']?.toString() ?? '[]';
+          try {
+            List<dynamic> codeStructureJson = json.decode(codeStructureStr);
+            setState(() {
+              _codeStructure = List<String>.from(codeStructureJson);
+            });
+          } catch (e) {
+            print('❌ Error parsing code structure: $e');
+            setState(() {
+              _codeStructure = _getDefaultCodeStructure();
+            });
+          }
+        }
+        print('📝 Code structure loaded: $_codeStructure');
+      } else {
+        setState(() {
+          _codeStructure = _getDefaultCodeStructure();
+        });
+      }
+
+      // Load expected output from database
+      if (gameConfig!['expected_output'] != null) {
+        setState(() {
+          _expectedOutput = gameConfig!['expected_output'].toString();
+        });
+        print('🎯 Expected output loaded: $_expectedOutput');
+      }
+
+      // Load hint from database
+      if (gameConfig!['hint_text'] != null) {
+        setState(() {
+          _currentHint = gameConfig!['hint_text'].toString();
+        });
+        print('💡 Hint loaded from database: $_currentHint');
+      } else {
+        setState(() {
+          _currentHint = _getDefaultHint();
+        });
+        print('💡 Using default hint');
+      }
+
+      // Parse blocks with better error handling
+      List<String> correctBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
+      List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
+
+      print('✅ Correct Blocks: $correctBlocks');
+      print('✅ Incorrect Blocks: $incorrectBlocks');
+
+      // Combine and shuffle blocks
+      allBlocks = [
+        ...correctBlocks,
+        ...incorrectBlocks,
+      ]..shuffle();
+
+      print('🎮 All Blocks Final: $allBlocks');
+
+    } catch (e) {
+      print('❌ Error parsing game config: $e');
+      _initializeDefaultBlocks();
+    }
+  }
+
+  List<String> _getDefaultCodeStructure() {
+    return [
+      "<?php",
+      "",
+      "// Your code here",
+      "",
+      "?>"
+    ];
+  }
+
+  List<String> _parseBlocks(dynamic blocksData, String type) {
+    List<String> blocks = [];
+
+    if (blocksData == null) {
+      return _getDefaultBlocks(type);
+    }
+
+    try {
+      if (blocksData is List) {
+        blocks = List<String>.from(blocksData);
+      } else if (blocksData is String) {
+        String blocksStr = blocksData.trim();
+
+        if (blocksStr.startsWith('[') && blocksStr.endsWith(']')) {
+          // Parse as JSON array
+          List<dynamic> blocksJson = json.decode(blocksStr);
+          blocks = List<String>.from(blocksJson);
+        } else {
+          // Parse as comma-separated string
+          blocks = blocksStr.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+        }
+      }
+    } catch (e) {
+      print('❌ Error parsing $type blocks: $e');
+      blocks = _getDefaultBlocks(type);
+    }
+
+    return blocks;
+  }
+
+  List<String> _getDefaultBlocks(String type) {
+    if (type == 'correct') {
+      return [
+        'echo "Hello World!";'
+      ];
+    } else {
+      return [
+        'printf("Hello World!")',
+        'cout << "Hello World!";',
+        'System.out.println("Hello World!");',
+        'print("Hello World!")',
+        'Console.WriteLine("Hello World!");'
+      ];
+    }
+  }
+
+  String _getDefaultHint() {
+    return "💡 Hint: PHP uses echo for output. Don't forget the semicolon at the end!";
+  }
+
+  void _initializeDefaultBlocks() {
+    allBlocks = [
+      'echo "Hello World!";',
+      'printf("Hello World!")',
+      'cout << "Hello World!";',
+      'System.out.println("Hello World!");',
+      'print("Hello World!")',
+      'Console.WriteLine("Hello World!");'
+    ]..shuffle();
   }
 
   void _startGameMusic() {
@@ -75,7 +295,6 @@ class _PhpLevel1State extends State<PhpLevel1> {
     });
   }
 
-  // NEW: Load hint cards using UserPreferences
   Future<void> _loadHintCards() async {
     final user = await UserPreferences.getUser();
     if (user['id'] != null) {
@@ -86,22 +305,6 @@ class _PhpLevel1State extends State<PhpLevel1> {
     }
   }
 
-  // NEW: Save hint cards using UserPreferences
-  Future<void> _saveHintCards(int count) async {
-    final user = await UserPreferences.getUser();
-    if (user['id'] != null) {
-      // We'll update the hint cards count in shared preferences
-      final prefs = await SharedPreferences.getInstance();
-      final userKey = 'hint_cards_${user['id']}';
-      await prefs.setInt(userKey, count);
-
-      setState(() {
-        _availableHintCards = count;
-      });
-    }
-  }
-
-  // NEW: Use hint card - shows hint and auto-drags correct answer
   void _useHintCard() async {
     if (_availableHintCards > 0 && !_isUsingHint) {
       final musicService = Provider.of<MusicService>(context, listen: false);
@@ -110,18 +313,22 @@ class _PhpLevel1State extends State<PhpLevel1> {
       setState(() {
         _isUsingHint = true;
         _showHint = true;
-        _currentHint = _getLevelHint();
         _availableHintCards--;
       });
 
-      // Save the updated hint card count
       final user = await UserPreferences.getUser();
       if (user['id'] != null) {
         await DailyChallengeService.useHintCard(user['id']);
       }
 
-      // Auto-drag the correct blocks after a short delay
-      _autoDragCorrectBlocks();
+      Future.delayed(Duration(seconds: 5), () {
+        if (mounted) {
+          setState(() {
+            _showHint = false;
+            _isUsingHint = false;
+          });
+        }
+      });
     } else if (_availableHintCards <= 0) {
       final musicService = Provider.of<MusicService>(context, listen: false);
       musicService.playSoundEffect('error.mp3');
@@ -135,112 +342,57 @@ class _PhpLevel1State extends State<PhpLevel1> {
     }
   }
 
-  // NEW: Auto-drag correct blocks to answer area
-  void _autoDragCorrectBlocks() {
-    // Correct blocks for PHP: echo "Hello World";
-    List<String> correctBlocks = [
-      'echo',
-      '"Hello World"',
-      ';'
-    ];
-
-    // Remove any existing correct blocks from dropped area first
-    setState(() {
-      droppedBlocks.clear();
-    });
-
-    // Add correct blocks one by one with delay
-    int delay = 0;
-    for (String block in correctBlocks) {
-      Future.delayed(Duration(milliseconds: delay), () {
-        if (mounted) {
-          setState(() {
-            if (!droppedBlocks.contains(block)) {
-              droppedBlocks.add(block);
-            }
-            if (allBlocks.contains(block)) {
-              allBlocks.remove(block);
-            }
-          });
-        }
-      });
-      delay += 500; // 0.5 second delay between each block
-    }
-
-    // Hide hint after all blocks are placed
-    Future.delayed(Duration(milliseconds: delay + 1000), () {
-      if (mounted) {
-        setState(() {
-          _showHint = false;
-          _isUsingHint = false;
-        });
-      }
-    });
-  }
-
-  String _getLevelHint() {
-    return "The correct code is: echo \"Hello World\";\n\n💡 Hint: In PHP, use 'echo' followed by the text in quotes, and don't forget the semicolon at the end!";
-  }
-
   void _loadUserData() async {
     final user = await UserPreferences.getUser();
     setState(() {
       currentUser = user;
     });
     loadScoreFromDatabase();
-    _loadHintCards(); // Load hint cards for this user
+    _loadHintCards();
   }
 
   void resetBlocks() {
-    // Correct blocks for PHP Hello World - 3 BLOCKS
-    List<String> correctBlocks = [
-      'echo',
-      '"Hello World"',
-      ';'
-    ];
-
-    // Incorrect blocks
-    List<String> incorrectBlocks = [
-      'print',
-      'printf',
-      'console.log',
-      'cout',
-      'System.out.print',
-      '"Hi World"',
-      '"Hello"',
-      ':',
-      ',',
-      'write',
-      'puts',
-      'echo(',
-      'echo()',
-    ];
-
-    // Shuffle incorrect blocks and take 3 random ones (3 correct + 3 incorrect = 6 total)
-    incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(3).toList();
-
-    // Combine correct and incorrect blocks, then shuffle
-    allBlocks = [
-      ...correctBlocks,
-      ...selectedIncorrectBlocks,
-    ]..shuffle();
+    if (gameConfig != null) {
+      _initializeGameFromConfig();
+    } else {
+      _initializeDefaultBlocks();
+    }
+    setState(() {});
   }
 
   void startGame() {
+    if (gameConfig == null) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('error.mp3');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Game configuration not loaded. Please retry.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final musicService = Provider.of<MusicService>(context, listen: false);
     musicService.playSoundEffect('level_start.mp3');
+
+    int timerDuration = gameConfig!['timer_duration'] != null
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 120
+        : 120;
 
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 120;
+      remainingSeconds = timerDuration;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       _showHint = false;
       _isUsingHint = false;
       resetBlocks();
     });
+
+    print('🎮 PHP GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
     startTimers();
   }
 
@@ -296,7 +448,9 @@ class _PhpLevel1State extends State<PhpLevel1> {
         musicService.playSoundEffect('penalty.mp3');
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
+          SnackBar(
+            content: Text("⏰ Time penalty! -1 point. Current score: $score"),
+          ),
         );
       });
     });
@@ -306,9 +460,13 @@ class _PhpLevel1State extends State<PhpLevel1> {
     final musicService = Provider.of<MusicService>(context, listen: false);
     musicService.playSoundEffect('reset.mp3');
 
+    int timerDuration = gameConfig!['timer_duration'] != null
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 120
+        : 120;
+
     setState(() {
       score = 3;
-      remainingSeconds = 120;
+      remainingSeconds = timerDuration;
       gameStarted = false;
       isAnsweredCorrectly = false;
       _showHint = false;
@@ -321,9 +479,19 @@ class _PhpLevel1State extends State<PhpLevel1> {
   }
 
   Future<void> saveScoreToDatabase(int score) async {
-    if (currentUser?['id'] == null) return;
+    if (currentUser?['id'] == null) {
+      print('❌ Cannot save score: No user ID');
+      return;
+    }
 
     try {
+      print('💾 SAVING PHP SCORE:');
+      print('   User ID: ${currentUser!['id']}');
+      print('   Language: PHP');
+      print('   Level: 1');
+      print('   Score: $score/3');
+      print('   Completed: ${score == 3}');
+
       final response = await ApiService.saveScore(
         currentUser!['id'],
         'PHP',
@@ -332,17 +500,21 @@ class _PhpLevel1State extends State<PhpLevel1> {
         score == 3,
       );
 
+      print('📡 SERVER RESPONSE: $response');
+
       if (response['success'] == true) {
         setState(() {
           level1Completed = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
+
+        print('✅ PHP SCORE SAVED SUCCESSFULLY TO DATABASE');
       } else {
-        print('Failed to save score: ${response['message']}');
+        print('❌ FAILED TO SAVE SCORE: ${response['message']}');
       }
     } catch (e) {
-      print('Error saving score: $e');
+      print('❌ ERROR SAVING PHP SCORE: $e');
     }
   }
 
@@ -361,30 +533,31 @@ class _PhpLevel1State extends State<PhpLevel1> {
             previousScore = level1Data['score'] ?? 0;
             level1Completed = level1Data['completed'] ?? false;
             hasPreviousScore = true;
-            score = previousScore;
           });
         }
       }
     } catch (e) {
-      print('Error loading score: $e');
+      print('Error loading PHP score: $e');
     }
   }
 
   bool isIncorrectBlock(String block) {
+    if (gameConfig != null) {
+      try {
+        List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
+        return incorrectBlocks.contains(block);
+      } catch (e) {
+        print('Error checking incorrect block: $e');
+      }
+    }
+
+    // Default incorrect blocks for PHP
     List<String> incorrectBlocks = [
-      'print',
-      'printf',
-      'console.log',
-      'cout',
-      'System.out.print',
-      '"Hi World"',
-      '"Hello"',
-      ':',
-      ',',
-      'write',
-      'puts',
-      'echo(',
-      'echo()',
+      'printf("Hello World!")',
+      'cout << "Hello World!";',
+      'System.out.println("Hello World!");',
+      'print("Hello World!")',
+      'Console.WriteLine("Hello World!");'
     ];
     return incorrectBlocks.contains(block);
   }
@@ -394,6 +567,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
+    // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
@@ -440,17 +614,24 @@ class _PhpLevel1State extends State<PhpLevel1> {
       return;
     }
 
-    // Check for correct PHP echo statement
+    // Check correct answer
     String answer = droppedBlocks.join(' ');
-    String normalizedAnswer = answer
-        .replaceAll(' ', '')
-        .replaceAll('\n', '')
-        .toLowerCase();
+    String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
 
-    // Expected: echo"helloworld";
-    String expected = 'echo"helloworld";';
+    bool isCorrect = false;
 
-    if (normalizedAnswer == expected) {
+    if (gameConfig != null) {
+      // Use configured correct answer
+      String expectedAnswer = gameConfig!['correct_answer'] ?? '';
+      String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+      isCorrect = normalizedAnswer == normalizedExpected;
+    } else {
+      // Fallback check for PHP Level 1
+      String expected = 'echo"helloworld!";';
+      isCorrect = normalizedAnswer == expected;
+    }
+
+    if (isCorrect) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -460,6 +641,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
 
       saveScoreToDatabase(score);
 
+      // PLAY SUCCESS SOUND BASED ON SCORE
       if (score == 3) {
         musicService.playSoundEffect('perfect.mp3');
       } else {
@@ -474,14 +656,14 @@ class _PhpLevel1State extends State<PhpLevel1> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Great! You created your first PHP program!"),
+              Text("Excellent work PHP Beginner!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
                   "🎉 Perfect! You've unlocked Level 2!",
-                  style: TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
@@ -494,7 +676,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  "Hello World",
+                  _expectedOutput,
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
@@ -513,7 +695,10 @@ class _PhpLevel1State extends State<PhpLevel1> {
                   musicService.playSoundEffect('level_complete.mp3');
                   Navigator.pushReplacementNamed(context, '/php_level2');
                 } else {
-                  Navigator.pushReplacementNamed(context, '/levels', arguments: 'PHP');
+                  Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                    'language': 'PHP',
+                    'difficulty': 'Easy'
+                  });
                 }
               },
               child: Text(score == 3 ? "Next Level" : "Go Back"),
@@ -529,7 +714,9 @@ class _PhpLevel1State extends State<PhpLevel1> {
           score--;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Incorrect arrangement. -1 point. Current score: $score")),
+          SnackBar(
+            content: Text("❌ Incorrect arrangement. -1 point. Current score: $score"),
+          ),
         );
       } else {
         setState(() {
@@ -568,7 +755,6 @@ class _PhpLevel1State extends State<PhpLevel1> {
     return "$m:$s";
   }
 
-  // NEW: Hint Display Widget
   Widget _buildHintDisplay() {
     if (!_showHint) return SizedBox();
 
@@ -612,12 +798,13 @@ class _PhpLevel1State extends State<PhpLevel1> {
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 14 * _scaleFactor,
+                height: 1.4,
               ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Correct blocks are being placed automatically...',
+              'Hint will disappear in 5 seconds...',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 12 * _scaleFactor,
@@ -630,7 +817,50 @@ class _PhpLevel1State extends State<PhpLevel1> {
     );
   }
 
-  // CODE PREVIEW WITH EXACT SAME STRUCTURE AS LEVEL 2 AND 3
+  Widget _buildHintButton() {
+    return Positioned(
+      bottom: 20 * _scaleFactor,
+      right: 20 * _scaleFactor,
+      child: GestureDetector(
+        onTap: _useHintCard,
+        child: Container(
+          padding: EdgeInsets.all(12 * _scaleFactor),
+          decoration: BoxDecoration(
+            color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
+            borderRadius: BorderRadius.circular(20 * _scaleFactor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 4 * _scaleFactor,
+                offset: Offset(0, 2 * _scaleFactor),
+              )
+            ],
+            border: Border.all(
+              color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
+              width: 2 * _scaleFactor,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lightbulb_outline, color: Colors.white, size: 20 * _scaleFactor),
+              SizedBox(width: 6 * _scaleFactor),
+              Text(
+                '$_availableHintCards',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18 * _scaleFactor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Code Preview Widget
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -642,7 +872,6 @@ class _PhpLevel1State extends State<PhpLevel1> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Code editor header
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
             decoration: BoxDecoration(
@@ -667,49 +896,11 @@ class _PhpLevel1State extends State<PhpLevel1> {
               ],
             ),
           ),
-          // Code content
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Line numbers and code
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Line numbers
-                    Container(
-                      width: 30 * _scaleFactor,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          _buildCodeLine(1),
-                          _buildCodeLine(2),
-                          _buildCodeLine(3),
-                          _buildCodeLine(4),
-                          _buildCodeLine(5),
-                        ],
-                      ),
-                    ),
-                    SizedBox(width: 16 * _scaleFactor),
-                    // Actual code with syntax highlighting
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSyntaxHighlightedLine('<?php', isKeyword: true),
-                          _buildUserCodeLine(1, droppedBlocks.length > 0 ? droppedBlocks[0] : ''),
-                          _buildUserCodeLine(2, droppedBlocks.length > 1 ? droppedBlocks[1] : ''),
-                          _buildUserCodeLine(3, droppedBlocks.length > 2 ? droppedBlocks[2] : ''),
-                          _buildSyntaxHighlightedLine('', isNormal: true),
-                          _buildSyntaxHighlightedLine('// Outputs: Hello World', isComment: true),
-                          _buildSyntaxHighlightedLine('?>', isKeyword: true),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              children: _buildOrganizedCodePreview(),
             ),
           ),
         ],
@@ -717,79 +908,109 @@ class _PhpLevel1State extends State<PhpLevel1> {
     );
   }
 
-  Widget _buildUserCodeLine(int lineNumber, String code) {
-    if (code.isEmpty) {
+  List<Widget> _buildOrganizedCodePreview() {
+    List<Widget> codeLines = [];
+
+    for (int i = 0; i < _codeStructure.length; i++) {
+      String line = _codeStructure[i];
+
+      if (line.contains('// Your code here')) {
+        // Add user's dragged code in the correct position
+        codeLines.add(_buildUserCodeSection());
+      } else if (line.trim().isEmpty) {
+        codeLines.add(SizedBox(height: 16 * _scaleFactor));
+      } else {
+        codeLines.add(_buildSyntaxHighlightedLine(line, i + 1));
+      }
+    }
+
+    return codeLines;
+  }
+
+  Widget _buildUserCodeSection() {
+    if (droppedBlocks.isEmpty) {
       return Container(
-        height: 20 * _scaleFactor,
+        padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
         child: Text(
-          '        ',
+          '// Drag blocks here...',
           style: TextStyle(
-            color: Colors.white,
+            color: Colors.grey[600],
             fontSize: 12 * _scaleFactor,
             fontFamily: 'monospace',
+            fontStyle: FontStyle.italic,
           ),
         ),
       );
     }
 
     return Container(
-      height: 20 * _scaleFactor,
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '        ',
-              style: TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12 * _scaleFactor),
-            ),
-            TextSpan(
-              text: code,
-              style: TextStyle(
-                color: Colors.greenAccent[400],
-                fontFamily: 'monospace',
-                fontSize: 12 * _scaleFactor,
-                fontWeight: FontWeight.bold,
+      padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (String block in droppedBlocks)
+            Container(
+              margin: EdgeInsets.only(bottom: 4 * _scaleFactor),
+              child: Text(
+                block,
+                style: TextStyle(
+                  color: Colors.purpleAccent[400],
+                  fontSize: 12 * _scaleFactor,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildCodeLine(int lineNumber) {
-    return Container(
-      height: 20 * _scaleFactor,
-      child: Text(
-        lineNumber.toString().padLeft(2, ' '),
-        style: TextStyle(
-          color: Colors.grey[600],
-          fontSize: 12 * _scaleFactor,
-          fontFamily: 'monospace',
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSyntaxHighlightedLine(String code, {bool isPreprocessor = false, bool isKeyword = false, bool isNormal = false, bool isComment = false}) {
+  Widget _buildSyntaxHighlightedLine(String code, int lineNumber) {
     Color textColor = Colors.white;
+    String displayCode = code;
 
-    if (isKeyword) {
-      textColor = Color(0xFF569CD6); // Blue for PHP tags
-    } else if (isComment) {
-      textColor = Color(0xFF6A9955); // Green for comments
-    } else if (isNormal) {
-      textColor = Colors.white;
+    // PHP syntax highlighting rules
+    if (code.trim().startsWith('<?php') || code.trim().startsWith('?>')) {
+      textColor = Color(0xFF569CD6); // PHP tags - blue
+    } else if (code.trim().startsWith('//')) {
+      textColor = Color(0xFF6A9955); // Comments - green
+    } else if (code.contains('echo')) {
+      textColor = Color(0xFFDCDCAA); // Functions - yellow
+    } else if (code.contains('"') || code.contains("'")) {
+      textColor = Color(0xFFCE9178); // Strings - orange
+    } else if (code.contains(';')) {
+      textColor = Colors.white; // Semicolons - white
     }
 
     return Container(
-      height: 20 * _scaleFactor,
-      child: Text(
-        code,
-        style: TextStyle(
-          color: textColor,
-          fontSize: 12 * _scaleFactor,
-          fontFamily: 'monospace',
-        ),
+      padding: EdgeInsets.symmetric(vertical: 2 * _scaleFactor),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 30 * _scaleFactor,
+            child: Text(
+              lineNumber.toString().padLeft(2, ' '),
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12 * _scaleFactor,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+          SizedBox(width: 16 * _scaleFactor),
+          Expanded(
+            child: Text(
+              displayCode,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 12 * _scaleFactor,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -809,9 +1030,111 @@ class _PhpLevel1State extends State<PhpLevel1> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("🐘 PHP - Level 1", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.purple,
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0D1B2A),
+                Color(0xFF1B263B),
+                Color(0xFF415A77),
+              ],
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.purple),
+                SizedBox(height: 20),
+                Text(
+                  "Loading PHP Game Configuration...",
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "From Database",
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (errorMessage != null && !gameStarted) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("🐘 PHP - Level 1", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.purple,
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0D1B2A),
+                Color(0xFF1B263B),
+                Color(0xFF415A77),
+              ],
+            ),
+          ),
+          child: Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.warning_amber, color: Colors.purple, size: 50),
+                  SizedBox(height: 20),
+                  Text(
+                    "Configuration Warning",
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _loadGameConfig,
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
+                    child: Text("Retry Loading"),
+                  ),
+                  SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                        'language': 'PHP',
+                        'difficulty': 'Easy'
+                      });
+                    },
+                    child: Text("Back to Levels", style: TextStyle(color: Colors.purple)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
-      final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
+      final newScaleFactor = newScreenWidth < _baseScreenWidth
+          ? newScreenWidth / _baseScreenWidth
+          : 1.0;
 
       if (newScaleFactor != _scaleFactor) {
         setState(() {
@@ -823,7 +1146,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
     return Scaffold(
       appBar: AppBar(
         title: Text("🐘 PHP - Level 1", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: Colors.purple,
         actions: gameStarted
             ? [
           Padding(
@@ -835,8 +1158,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
                 Text(formatTime(remainingSeconds), style: TextStyle(fontSize: 14 * _scaleFactor)),
                 SizedBox(width: 16 * _scaleFactor),
                 Icon(Icons.star, color: Colors.yellowAccent, size: 18 * _scaleFactor),
-                Text(" $score",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor)),
+                Text(" $score", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor)),
               ],
             ),
           ),
@@ -849,61 +1171,18 @@ class _PhpLevel1State extends State<PhpLevel1> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1B0D1B),
-              Color(0xFF2D1B2D),
-              Color(0xFF553355),
+              Color(0xFF0D1B2A),
+              Color(0xFF1B263B),
+              Color(0xFF415A77),
             ],
           ),
         ),
         child: Stack(
           children: [
             gameStarted ? buildGameUI() : buildStartScreen(),
-            // ADD HINT BUTTON AND DISPLAY TO STACK
             if (gameStarted && !isAnsweredCorrectly) ...[
               _buildHintDisplay(),
-              // ✅ HINT CARD BUTTON - BOTTOM RIGHT
-              Positioned(
-                bottom: 20 * _scaleFactor,
-                right: 20 * _scaleFactor,
-                child: GestureDetector(
-                  onTap: _useHintCard,
-                  child: Container(
-                    padding: EdgeInsets.all(12 * _scaleFactor),
-                    decoration: BoxDecoration(
-                      color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
-                      borderRadius: BorderRadius.circular(20 * _scaleFactor),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 4 * _scaleFactor,
-                          offset: Offset(0, 2 * _scaleFactor),
-                        )
-                      ],
-                      border: Border.all(
-                        color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
-                        width: 2 * _scaleFactor,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.lightbulb_outline,
-                            color: Colors.white,
-                            size: 20 * _scaleFactor),
-                        SizedBox(width: 6 * _scaleFactor),
-                        Text(
-                          '$_availableHintCards',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18 * _scaleFactor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+              _buildHintButton(),
             ],
           ],
         ),
@@ -919,16 +1198,16 @@ class _PhpLevel1State extends State<PhpLevel1> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              onPressed: () {
+              onPressed: gameConfig != null ? () {
                 final musicService = Provider.of<MusicService>(context, listen: false);
                 musicService.playSoundEffect('button_click.mp3');
                 startGame();
-              },
+              } : null,
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text(gameConfig != null ? "Start" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.deepPurple,
+                backgroundColor: gameConfig != null ? Colors.purple : Colors.grey,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
@@ -937,19 +1216,19 @@ class _PhpLevel1State extends State<PhpLevel1> {
             Container(
               padding: EdgeInsets.all(12 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.2),
+                color: Colors.purple.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.orange),
+                border: Border.all(color: Colors.purple),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.lightbulb_outline, color: Colors.orange, size: 20 * _scaleFactor),
+                  Icon(Icons.lightbulb_outline, color: Colors.purple, size: 20 * _scaleFactor),
                   SizedBox(width: 8 * _scaleFactor),
                   Text(
                     'Hint Cards: $_availableHintCards',
                     style: TextStyle(
-                      color: Colors.orange,
+                      color: Colors.purple,
                       fontSize: 16 * _scaleFactor,
                       fontWeight: FontWeight.bold,
                     ),
@@ -979,7 +1258,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
                       "You've unlocked Level 2!",
-                      style: TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -992,13 +1271,13 @@ class _PhpLevel1State extends State<PhpLevel1> {
                   children: [
                     Text(
                       "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.deepPurple, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
                       "Try again to get a perfect score and unlock Level 2!",
-                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                      style: TextStyle(color: Colors.purple, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1011,13 +1290,13 @@ class _PhpLevel1State extends State<PhpLevel1> {
                     children: [
                       Text(
                         "😅 Your previous score: $previousScore/3",
-                        style: TextStyle(color: Colors.deepPurple, fontSize: 16 * _scaleFactor),
+                        style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
                         "Don't give up! You can do better this time!",
-                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                        style: TextStyle(color: Colors.purple, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1029,22 +1308,22 @@ class _PhpLevel1State extends State<PhpLevel1> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.deepPurple[50]!.withOpacity(0.9),
+                color: Colors.purple[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.deepPurple[200]!),
+                border: Border.all(color: Colors.purple[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎯 Level 1 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.deepPurple[800]),
+                    gameConfig?['objective'] ?? "🎯 PHP Level 1 Objective",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.purple[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Create a PHP program that displays 'Hello World' on the screen",
+                    gameConfig?['objective'] ?? "Learn basic PHP output with echo statement",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.deepPurple[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
@@ -1076,8 +1355,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Short Story',
-                    style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text('📖 Short Story', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
                 onPressed: () {
@@ -1088,27 +1366,25 @@ class _PhpLevel1State extends State<PhpLevel1> {
                   });
                 },
                 icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
-                label: Text(isTagalog ? 'English' : 'Tagalog',
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+                label: Text(isTagalog ? 'English' : 'Tagalog', style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
               ),
             ],
           ),
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Si Zeke ay nagsisimula palang matuto ng PHP! Gusto niyang gumamit ng echo para mag-display ng "Hello World". Tulungan mo siyang buuin ang tamang code!'
-                : 'Zeke is just starting to learn PHP! He wants to use echo to display "Hello World". Help him build the correct code!',
+                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Level 1 ng PHP programming! Simulan ang iyong PHP journey.')
+                : (gameConfig?['story_english'] ?? 'This is PHP Level 1! Start your PHP programming journey.'),
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Arrange the 3 correct blocks to form the PHP echo statement',
+          Text(_instructionText,
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          // TARGET AREA - EXACTLY LIKE LEVEL 2 AND 3
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
@@ -1118,7 +1394,7 @@ class _PhpLevel1State extends State<PhpLevel1> {
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.deepPurple, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.purple, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -1148,10 +1424,10 @@ class _PhpLevel1State extends State<PhpLevel1> {
                         data: block,
                         feedback: Material(
                           color: Colors.transparent,
-                          child: puzzleBlock(block, Colors.greenAccent),
+                          child: puzzleBlock(block, Colors.purpleAccent),
                         ),
-                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.greenAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.purpleAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.purpleAccent),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
@@ -1187,12 +1463,11 @@ class _PhpLevel1State extends State<PhpLevel1> {
           ),
 
           SizedBox(height: 20 * _scaleFactor),
-          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          Text(_codePreviewTitle, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
           SizedBox(height: 10 * _scaleFactor),
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
 
-          // SOURCE AREA
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
@@ -1215,13 +1490,13 @@ class _PhpLevel1State extends State<PhpLevel1> {
                   data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(block, Colors.deepPurpleAccent),
+                    child: puzzleBlock(block, Colors.purple),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.deepPurpleAccent),
+                    child: puzzleBlock(block, Colors.purple),
                   ),
-                  child: puzzleBlock(block, Colors.deepPurpleAccent),
+                  child: puzzleBlock(block, Colors.purple),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
@@ -1262,13 +1537,16 @@ class _PhpLevel1State extends State<PhpLevel1> {
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple,
+              backgroundColor: Colors.purple,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
               ),
             ),
           ),
+
+          SizedBox(height: 10 * _scaleFactor),
+
           TextButton(
             onPressed: () {
               final musicService = Provider.of<MusicService>(context, listen: false);
@@ -1283,7 +1561,6 @@ class _PhpLevel1State extends State<PhpLevel1> {
   }
 
   Widget puzzleBlock(String text, Color color) {
-    // Calculate text width to adjust block size - SAME AS LEVEL 2 AND 3
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
@@ -1295,7 +1572,8 @@ class _PhpLevel1State extends State<PhpLevel1> {
         ),
       ),
       textDirection: TextDirection.ltr,
-    )..layout();
+    )
+      ..layout();
 
     final textWidth = textPainter.width;
     final minWidth = 80 * _scaleFactor;
