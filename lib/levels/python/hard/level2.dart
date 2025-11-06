@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'dart:convert';
 import '../../../services/api_service.dart';
 import '../../../services/user_preferences.dart';
 import '../../../services/music_service.dart';
@@ -15,15 +15,17 @@ class PythonLevel2Hard extends StatefulWidget {
 }
 
 class _PythonLevel2HardState extends State<PythonLevel2Hard> {
+  List<String> allBlocks = [];
+  List<String> droppedBlocks = [];
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level2Completed = false;
+  bool levelCompleted = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 300;
+  int remainingSeconds = 240; // Increased time for harder level
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -32,32 +34,319 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
+  Map<String, dynamic>? gameConfig;
+  bool isLoading = true;
+  String? errorMessage;
+
+  // HINT SYSTEM
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
   bool _isUsingHint = false;
 
-  // Track block instances with unique IDs
-  List<BlockItem> allBlockItems = [];
-  List<BlockItem> droppedBlockItems = [];
+  // Configurable elements from database
+  String _codePreviewTitle = '💻 Code Preview:';
+  String _instructionText = '🧩 Arrange the blocks to create a Python program with loops and conditionals';
+  List<String> _codeStructure = [];
+  String _expectedOutput = 'Prime numbers: 2 3 5 7 11 13 17 19';
 
   @override
   void initState() {
     super.initState();
-    resetBlocks();
+    _loadGameConfig();
     _loadUserData();
     _calculateScaleFactor();
     _startGameMusic();
     _loadHintCards();
   }
 
+  Future<void> _loadGameConfig() async {
+    try {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+
+      final response = await ApiService.getGameConfigWithDifficulty('Python', 'Hard', 2);
+
+      print('🔍 PYTHON HARD LEVEL 2 GAME CONFIG RESPONSE:');
+      print('   Success: ${response['success']}');
+      print('   Message: ${response['message']}');
+
+      if (response['success'] == true && response['game'] != null) {
+        setState(() {
+          gameConfig = response['game'];
+          _initializeGameFromConfig();
+        });
+      } else {
+        setState(() {
+          errorMessage = response['message'] ?? 'Failed to load hard level 2 game configuration';
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading hard level 2 game config: $e');
+      setState(() {
+        errorMessage = 'Connection error: $e';
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  void _initializeGameFromConfig() {
+    if (gameConfig == null) return;
+
+    try {
+      print('🔄 INITIALIZING PYTHON HARD LEVEL 2 GAME FROM CONFIG');
+
+      // Load timer duration from database
+      if (gameConfig!['timer_duration'] != null) {
+        int timerDuration = int.tryParse(gameConfig!['timer_duration'].toString()) ?? 240;
+        setState(() {
+          remainingSeconds = timerDuration;
+        });
+        print('⏰ Timer duration loaded: $timerDuration seconds');
+      }
+
+      // Load instruction text from database
+      if (gameConfig!['instruction_text'] != null) {
+        setState(() {
+          _instructionText = gameConfig!['instruction_text'].toString();
+        });
+        print('📝 Instruction text loaded: $_instructionText');
+      }
+
+      // Load code preview title from database
+      if (gameConfig!['code_preview_title'] != null) {
+        setState(() {
+          _codePreviewTitle = gameConfig!['code_preview_title'].toString();
+        });
+        print('💻 Code preview title loaded: $_codePreviewTitle');
+      }
+
+      // Load code structure from database
+      if (gameConfig!['code_structure'] != null) {
+        if (gameConfig!['code_structure'] is List) {
+          setState(() {
+            _codeStructure = List<String>.from(gameConfig!['code_structure']);
+          });
+        } else {
+          String codeStructureStr = gameConfig!['code_structure']?.toString() ?? '[]';
+          try {
+            List<dynamic> codeStructureJson = json.decode(codeStructureStr);
+            setState(() {
+              _codeStructure = List<String>.from(codeStructureJson);
+            });
+          } catch (e) {
+            print('❌ Error parsing code structure: $e');
+            setState(() {
+              _codeStructure = _getDefaultCodeStructure();
+            });
+          }
+        }
+        print('📝 Code structure loaded: $_codeStructure');
+      } else {
+        setState(() {
+          _codeStructure = _getDefaultCodeStructure();
+        });
+      }
+
+      // Load expected output from database
+      if (gameConfig!['expected_output'] != null) {
+        setState(() {
+          _expectedOutput = gameConfig!['expected_output'].toString();
+        });
+        print('🎯 Expected output loaded: $_expectedOutput');
+      }
+
+      // Load hint from database
+      if (gameConfig!['hint_text'] != null) {
+        setState(() {
+          _currentHint = gameConfig!['hint_text'].toString();
+        });
+        print('💡 Hint loaded from database: $_currentHint');
+      } else {
+        setState(() {
+          _currentHint = _getDefaultHint();
+        });
+        print('💡 Using default hint');
+      }
+
+      // ✅ FIXED: Improved blocks parsing
+      List<String> correctBlocks = _parseBlocksImproved(gameConfig!['correct_blocks'], 'correct');
+      List<String> incorrectBlocks = _parseBlocksImproved(gameConfig!['incorrect_blocks'], 'incorrect');
+
+      print('✅ Correct Blocks: $correctBlocks');
+      print('✅ Incorrect Blocks: $incorrectBlocks');
+
+      // Combine and shuffle blocks
+      allBlocks = [
+        ...correctBlocks,
+        ...incorrectBlocks,
+      ]..shuffle();
+
+      print('🎮 All Blocks Final: $allBlocks');
+
+    } catch (e) {
+      print('❌ Error parsing hard level 2 game config: $e');
+      _initializeDefaultBlocks();
+    }
+  }
+
+  // ✅ FIXED: Improved blocks parsing method
+  List<String> _parseBlocksImproved(dynamic blocksData, String type) {
+    List<String> blocks = [];
+
+    if (blocksData == null) {
+      print('⚠️ $type blocks are NULL in database, using defaults');
+      return _getDefaultBlocks(type);
+    }
+
+    try {
+      if (blocksData is List) {
+        // Direct list from database
+        blocks = List<String>.from(blocksData);
+        print('✅ $type blocks parsed as direct List: $blocks');
+      } else if (blocksData is String) {
+        String blocksStr = blocksData.trim();
+        print('🔍 Raw $type blocks string: "$blocksStr"');
+
+        // Try JSON parsing first
+        if (blocksStr.startsWith('[') && blocksStr.endsWith(']')) {
+          try {
+            List<dynamic> parsedJson = json.decode(blocksStr);
+            blocks = parsedJson.map((item) => item.toString()).toList();
+            print('✅ $type blocks parsed as JSON: $blocks');
+          } catch (e) {
+            print('❌ JSON parsing failed, trying manual parsing: $e');
+            blocks = _parseManual(blocksStr);
+          }
+        } else {
+          // Manual parsing for non-JSON strings
+          blocks = _parseManual(blocksStr);
+        }
+      }
+    } catch (e) {
+      print('❌ Error parsing $type blocks: $e');
+      blocks = _getDefaultBlocks(type);
+    }
+
+    // Remove any empty strings and trim
+    blocks = blocks.map((block) => block.trim()).where((block) => block.isNotEmpty).toList();
+
+    print('🎯 Final $type blocks: $blocks');
+    return blocks;
+  }
+
+  // ✅ FIXED: Manual parsing for various formats
+  List<String> _parseManual(String input) {
+    // Remove brackets if present
+    String cleaned = input.replaceAll('[', '').replaceAll(']', '').trim();
+
+    // Handle different separators
+    List<String> items = [];
+
+    if (cleaned.contains('","')) {
+      // JSON-like format: "item1","item2","item3"
+      items = cleaned.split('","').map((item) => item.replaceAll('"', '').trim()).toList();
+    } else if (cleaned.contains(',')) {
+      // Comma-separated format
+      items = cleaned.split(',').map((item) => item.trim()).toList();
+    } else {
+      // Single item or other format
+      items = [cleaned];
+    }
+
+    // Clean up quotes
+    items = items.map((item) {
+      String cleanedItem = item;
+      if (cleanedItem.startsWith('"') && cleanedItem.endsWith('"')) {
+        cleanedItem = cleanedItem.substring(1, cleanedItem.length - 1);
+      }
+      return cleanedItem.trim();
+    }).where((item) => item.isNotEmpty).toList();
+
+    print('✅ Manual parsing result: $items');
+    return items;
+  }
+
+  List<String> _getDefaultCodeStructure() {
+    return [
+      "# Python Prime Number Finder",
+      "",
+      "# Find prime numbers between 1 and 20",
+      "# Use nested loops and conditionals",
+      "",
+      "# Program ends here"
+    ];
+  }
+
+  List<String> _getDefaultBlocks(String type) {
+    if (type == 'correct') {
+      return [
+        'print("Prime numbers:", end=" ")',
+        'for num in range(2, 21):',
+        '    is_prime = True',
+        '    for i in range(2, num):',
+        '        if num % i == 0:',
+        '            is_prime = False',
+        '            break',
+        '    if is_prime:',
+        '        print(num, end=" ")'
+      ];
+    } else {
+      return [
+        'while num < 20:',
+        '    if num % 2 == 0:',
+        '        print("even")',
+        '    else:',
+        '        print("odd")',
+        'def check_prime(num):',
+        '    return True',
+        'import math',
+        'for i in range(1, 10):',
+        '    print(i)'
+      ];
+    }
+  }
+
+  String _getDefaultHint() {
+    return "💡 Hint: Use nested loops - outer loop for numbers 2-20, inner loop to check divisibility. A prime number is only divisible by 1 and itself.";
+  }
+
+  void _initializeDefaultBlocks() {
+    allBlocks = [
+      'print("Prime numbers:", end=" ")',
+      'for num in range(2, 21):',
+      '    is_prime = True',
+      '    for i in range(2, num):',
+      '        if num % i == 0:',
+      '            is_prime = False',
+      '            break',
+      '    if is_prime:',
+      '        print(num, end=" ")',
+      'while num < 20:',
+      '    if num % 2 == 0:',
+      '        print("even")',
+      '    else:',
+      '        print("odd")',
+      'def check_prime(num):',
+      '    return True',
+      'import math',
+      'for i in range(1, 10):',
+      '    print(i)'
+    ]..shuffle();
+  }
+
   void _startGameMusic() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final musicService = Provider.of<MusicService>(context, listen: false);
       await musicService.stopBackgroundMusic();
-      await musicService.playSoundEffect('game_start_hard.mp3');
+      await musicService.playSoundEffect('game_start.mp3');
       await Future.delayed(Duration(milliseconds: 500));
-      await musicService.playSoundEffect('game_music_hard2.mp3');
+      await musicService.playSoundEffect('game_music.mp3');
     });
   }
 
@@ -89,12 +378,11 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
   void _useHintCard() async {
     if (_availableHintCards > 0 && !_isUsingHint) {
       final musicService = Provider.of<MusicService>(context, listen: false);
-      musicService.playSoundEffect('hint_use_hard.mp3');
+      musicService.playSoundEffect('hint_use.mp3');
 
       setState(() {
         _isUsingHint = true;
         _showHint = true;
-        _currentHint = _getLevelHint();
         _availableHintCards--;
       });
 
@@ -103,75 +391,25 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
         await DailyChallengeService.useHintCard(user['id']);
       }
 
-      _autoDragCorrectBlocks();
-    } else if (_availableHintCards <= 0) {
-      final musicService = Provider.of<MusicService>(context, listen: false);
-      musicService.playSoundEffect('error_hard.mp3');
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No hint cards! Complete challenges to earn more.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  void _autoDragCorrectBlocks() {
-    List<String> correctBlocks = [
-      'class BankAccount:',
-      'def __init__(self, owner, balance=0):',
-      'self.owner = owner',
-      'self.balance = balance',
-      'def deposit(self, amount):',
-      'self.balance += amount',
-      'return f"Deposited \${amount}. New balance: {self.balance}"',
-      'def withdraw(self, amount):',
-      'if amount > self.balance:',
-      'return "Insufficient funds!"',
-      'self.balance -= amount',
-      'return f"Withdrew \${amount}. New balance: {self.balance}"',
-      'def __str__(self):',
-      'return f"BankAccount(owner: {self.owner}, balance: {self.balance})"'
-    ];
-
-    setState(() {
-      droppedBlockItems.clear();
-    });
-
-    int delay = 0;
-    for (String block in correctBlocks) {
-      Future.delayed(Duration(milliseconds: delay), () {
+      Future.delayed(Duration(seconds: 5), () {
         if (mounted) {
           setState(() {
-            // Find the block in allBlockItems and move it to droppedBlockItems
-            var blockItem = allBlockItems.firstWhere(
-                  (item) => item.text == block && !droppedBlockItems.contains(item),
-              orElse: () => BlockItem(block, UniqueKey()),
-            );
-
-            if (!droppedBlockItems.contains(blockItem)) {
-              droppedBlockItems.add(blockItem);
-            }
-            allBlockItems.remove(blockItem);
+            _showHint = false;
+            _isUsingHint = false;
           });
         }
       });
-      delay += 350;
+    } else if (_availableHintCards <= 0) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('error.mp3');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No hint cards available! Complete daily challenges to earn more.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
     }
-
-    Future.delayed(Duration(milliseconds: delay + 1000), () {
-      if (mounted) {
-        setState(() {
-          _showHint = false;
-          _isUsingHint = false;
-        });
-      }
-    });
-  }
-
-  String _getLevelHint() {
-    return "HARD: Create a Python class with methods and attributes!\n\nCorrect code uses:\n• Class definition with __init__ method\n• Instance attributes (owner, balance)\n• Methods with self parameter\n• Conditional logic in withdraw method\n• f-string formatting\n• Special __str__ method for string representation";
   }
 
   void _loadUserData() async {
@@ -184,75 +422,47 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
   }
 
   void resetBlocks() {
-    List<String> correctBlocks = [
-      'class BankAccount:',
-      'def __init__(self, owner, balance=0):',
-      'self.owner = owner',
-      'self.balance = balance',
-      'def deposit(self, amount):',
-      'self.balance += amount',
-      'return f"Deposited \${amount}. New balance: {self.balance}"',
-      'def withdraw(self, amount):',
-      'if amount > self.balance:',
-      'return "Insufficient funds!"',
-      'self.balance -= amount',
-      'return f"Withdrew \${amount}. New balance: {self.balance}"',
-      'def __str__(self):',
-      'return f"BankAccount(owner: {self.owner}, balance: {self.balance})"'
-    ];
-
-    List<String> incorrectBlocks = [
-      'class BankAccount',
-      'def __init__(owner, balance=0):',
-      'self.owner = owner',
-      'balance = balance',
-      'def deposit(amount):',
-      'balance += amount',
-      'return "Deposited " + amount',
-      'def withdraw(amount):',
-      'if amount > balance:',
-      'print("Insufficient funds!")',
-      'balance -= amount',
-      'return "Withdrew " + amount',
-      'def toString(self):',
-      'return "BankAccount: " + self.owner',
-      'function BankAccount(owner, balance)',
-      'this.owner = owner',
-      'this.balance = balance',
-      'public void deposit(amount)',
-      'private withdraw(amount)',
-      'console.log("Insufficient funds!")'
-    ];
-
-    incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(5).toList();
-
-    // Create block items with unique keys
-    allBlockItems.clear();
-    droppedBlockItems.clear();
-
-    // Add all blocks with unique identifiers
-    for (String block in [...correctBlocks, ...selectedIncorrectBlocks]) {
-      allBlockItems.add(BlockItem(block, UniqueKey()));
+    if (gameConfig != null) {
+      _initializeGameFromConfig();
+    } else {
+      _initializeDefaultBlocks();
     }
-
-    allBlockItems.shuffle();
+    setState(() {});
   }
 
   void startGame() {
+    if (gameConfig == null) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('error.mp3');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Game configuration not loaded. Please retry.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final musicService = Provider.of<MusicService>(context, listen: false);
-    musicService.playSoundEffect('level_start_hard.mp3');
+    musicService.playSoundEffect('level_start.mp3');
+
+    int timerDuration = gameConfig!['timer_duration'] != null
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 240
+        : 240;
 
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 300;
-      droppedBlockItems.clear();
+      remainingSeconds = timerDuration;
+      droppedBlocks.clear();
       isAnsweredCorrectly = false;
       _showHint = false;
       _isUsingHint = false;
       resetBlocks();
     });
+
+    print('🎮 PYTHON HARD LEVEL 2 GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
     startTimers();
   }
 
@@ -272,7 +482,7 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
           saveScoreToDatabase(score);
 
           final musicService = Provider.of<MusicService>(context, listen: false);
-          musicService.playSoundEffect('time_up_hard.mp3');
+          musicService.playSoundEffect('time_up.mp3');
 
           showDialog(
             context: context,
@@ -296,7 +506,7 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 180), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 25), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -305,10 +515,12 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
       setState(() {
         score--;
         final musicService = Provider.of<MusicService>(context, listen: false);
-        musicService.playSoundEffect('penalty_hard.mp3');
+        musicService.playSoundEffect('penalty.mp3');
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
+          SnackBar(
+            content: Text("⏰ Time penalty! -1 point. Current score: $score"),
+          ),
         );
       });
     });
@@ -318,14 +530,18 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
     final musicService = Provider.of<MusicService>(context, listen: false);
     musicService.playSoundEffect('reset.mp3');
 
+    int timerDuration = gameConfig!['timer_duration'] != null
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 240
+        : 240;
+
     setState(() {
       score = 3;
-      remainingSeconds = 300;
+      remainingSeconds = timerDuration;
       gameStarted = false;
       isAnsweredCorrectly = false;
       _showHint = false;
       _isUsingHint = false;
-      droppedBlockItems.clear();
+      droppedBlocks.clear();
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
       resetBlocks();
@@ -333,9 +549,20 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
   }
 
   Future<void> saveScoreToDatabase(int score) async {
-    if (currentUser?['id'] == null) return;
+    if (currentUser?['id'] == null) {
+      print('❌ Cannot save score: No user ID');
+      return;
+    }
 
     try {
+      print('💾 SAVING PYTHON HARD LEVEL 2 SCORE:');
+      print('   User ID: ${currentUser!['id']}');
+      print('   Language: Python');
+      print('   Level: 2');
+      print('   Difficulty: Hard');
+      print('   Score: $score/3');
+      print('   Completed: ${score == 3}');
+
       final response = await ApiService.saveScoreWithDifficulty(
         currentUser!['id'],
         'Python',
@@ -345,19 +572,21 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
         score == 3,
       );
 
+      print('📡 SERVER RESPONSE: $response');
+
       if (response['success'] == true) {
         setState(() {
-          level2Completed = score == 3;
+          levelCompleted = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
 
-        print('Score saved successfully: $score for Python Hard Level 2');
+        print('✅ PYTHON HARD LEVEL 2 SCORE SAVED SUCCESSFULLY TO DATABASE');
       } else {
-        print('Failed to save score: ${response['message']}');
+        print('❌ FAILED TO SAVE SCORE: ${response['message']}');
       }
     } catch (e) {
-      print('Error saving score: $e');
+      print('❌ ERROR SAVING PYTHON HARD LEVEL 2 SCORE: $e');
     }
   }
 
@@ -365,11 +594,7 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScoresWithDifficulty(
-          currentUser!['id'],
-          'Python',
-          'Hard'
-      );
+      final response = await ApiService.getScoresWithDifficulty(currentUser!['id'], 'Python', 'Hard');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
@@ -378,56 +603,63 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
         if (level2Data != null) {
           setState(() {
             previousScore = level2Data['score'] ?? 0;
-            level2Completed = level2Data['completed'] ?? false;
+            levelCompleted = level2Data['completed'] ?? false;
             hasPreviousScore = true;
-            score = previousScore;
           });
-          print('Loaded previous score: $previousScore for Python Hard Level 2');
         }
       }
     } catch (e) {
-      print('Error loading score: $e');
+      print('Error loading Python hard level 2 score: $e');
     }
   }
 
   bool isIncorrectBlock(String block) {
+    if (gameConfig != null) {
+      try {
+        List<String> incorrectBlocks = _parseBlocksImproved(gameConfig!['incorrect_blocks'], 'incorrect');
+        bool isIncorrect = incorrectBlocks.contains(block);
+        if (isIncorrect) {
+          print('❌ Block "$block" is in incorrect blocks list');
+        }
+        return isIncorrect;
+      } catch (e) {
+        print('Error checking incorrect block: $e');
+      }
+    }
+
+    // Default incorrect blocks for Python Hard Level 2
     List<String> incorrectBlocks = [
-      'class BankAccount',
-      'def __init__(owner, balance=0):',
-      'self.owner = owner',
-      'balance = balance',
-      'def deposit(amount):',
-      'balance += amount',
-      'return "Deposited " + amount',
-      'def withdraw(amount):',
-      'if amount > balance:',
-      'print("Insufficient funds!")',
-      'balance -= amount',
-      'return "Withdrew " + amount',
-      'def toString(self):',
-      'return "BankAccount: " + self.owner',
-      'function BankAccount(owner, balance)',
-      'this.owner = owner',
-      'this.balance = balance',
-      'public void deposit(amount)',
-      'private withdraw(amount)',
-      'console.log("Insufficient funds!")'
+      'while num < 20:',
+      '    if num % 2 == 0:',
+      '        print("even")',
+      '    else:',
+      '        print("odd")',
+      'def check_prime(num):',
+      '    return True',
+      'import math',
+      'for i in range(1, 10):',
+      '    print(i)'
     ];
     return incorrectBlocks.contains(block);
   }
 
+  // ✅ FIXED: IMPROVED ANSWER CHECKING LOGIC FOR PYTHON LEVEL 2
   void checkAnswer() async {
-    if (isAnsweredCorrectly || droppedBlockItems.isEmpty) return;
+    if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
-    // Convert to text for checking
-    List<String> droppedBlocksText = droppedBlockItems.map((item) => item.text).toList();
+    // DEBUG: Print what we're checking
+    print('🔍 CHECKING PYTHON HARD LEVEL 2 ANSWER:');
+    print('   Dropped blocks: $droppedBlocks');
+    print('   All blocks: $allBlocks');
 
-    bool hasIncorrectBlock = droppedBlocksText.any((block) => isIncorrectBlock(block));
+    // Check if any incorrect blocks are used
+    bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
-      musicService.playSoundEffect('error_hard.mp3');
+      print('❌ HAS INCORRECT BLOCK');
+      musicService.playSoundEffect('error.mp3');
 
       if (score > 1) {
         setState(() {
@@ -435,7 +667,7 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ You used incorrect Python OOP syntax! -1 point. Current score: $score"),
+            content: Text("❌ You used incorrect code! -1 point. Current score: $score"),
             backgroundColor: Colors.red,
           ),
         );
@@ -447,13 +679,13 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
 
-        musicService.playSoundEffect('game_over_hard.mp3');
+        musicService.playSoundEffect('game_over.mp3');
 
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("You used incorrect Python OOP syntax and lost all points!"),
+            content: Text("You used incorrect code and lost all points!"),
             actions: [
               TextButton(
                 onPressed: () {
@@ -470,28 +702,62 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
       return;
     }
 
-    String answer = droppedBlocksText.join(' ');
-    String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+    // ✅ FIXED: IMPROVED ANSWER CHECKING LOGIC
+    bool isCorrect = false;
 
-    bool hasClassDef = normalizedAnswer.contains('classbankaccount:');
-    bool hasInitMethod = normalizedAnswer.contains('def__init__(self,owner,balance=0):');
-    bool hasOwnerAttr = normalizedAnswer.contains('self.owner=owner');
-    bool hasBalanceAttr = normalizedAnswer.contains('self.balance=balance');
-    bool hasDepositMethod = normalizedAnswer.contains('defdeposit(self,amount):');
-    bool hasDepositLogic = normalizedAnswer.contains('self.balance+=amount');
-    bool hasDepositReturn = normalizedAnswer.contains('returnf"deposited\${amount}.newbalance:{self.balance}"');
-    bool hasWithdrawMethod = normalizedAnswer.contains('defwithdraw(self,amount):');
-    bool hasWithdrawCondition = normalizedAnswer.contains('ifamount>self.balance:');
-    bool hasInsufficientReturn = normalizedAnswer.contains('return"insufficientfunds!"');
-    bool hasWithdrawLogic = normalizedAnswer.contains('self.balance-=amount');
-    bool hasWithdrawReturn = normalizedAnswer.contains('returnf"withdrew\${amount}.newbalance:{self.balance}"');
-    bool hasStrMethod = normalizedAnswer.contains('def__str__(self):');
-    bool hasStrReturn = normalizedAnswer.contains('returnf"bankaccount(owner:{self.owner},balance:{self.balance})"');
+    if (gameConfig != null) {
+      // Get expected correct blocks from database
+      List<String> expectedCorrectBlocks = _parseBlocksImproved(gameConfig!['correct_blocks'], 'correct');
 
-    if (hasClassDef && hasInitMethod && hasOwnerAttr && hasBalanceAttr &&
-        hasDepositMethod && hasDepositLogic && hasDepositReturn &&
-        hasWithdrawMethod && hasWithdrawCondition && hasInsufficientReturn &&
-        hasWithdrawLogic && hasWithdrawReturn && hasStrMethod && hasStrReturn) {
+      print('🎯 EXPECTED CORRECT BLOCKS: $expectedCorrectBlocks');
+      print('🎯 USER DROPPED BLOCKS: $droppedBlocks');
+
+      // METHOD 1: Check if user has all correct blocks and no extra correct blocks
+      bool hasAllCorrectBlocks = expectedCorrectBlocks.every((block) => droppedBlocks.contains(block));
+      bool noExtraCorrectBlocks = droppedBlocks.every((block) => expectedCorrectBlocks.contains(block));
+
+      // METHOD 2: Check string comparison (normalized)
+      String userAnswer = droppedBlocks.join(' ');
+      String normalizedUserAnswer = userAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+
+      if (gameConfig!['correct_answer'] != null) {
+        String expectedAnswer = gameConfig!['correct_answer'].toString();
+        String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+
+        print('📝 USER ANSWER: $userAnswer');
+        print('📝 NORMALIZED USER: $normalizedUserAnswer');
+        print('🎯 EXPECTED ANSWER: $expectedAnswer');
+        print('🎯 NORMALIZED EXPECTED: $normalizedExpected');
+
+        bool stringMatch = normalizedUserAnswer == normalizedExpected;
+
+        // Use both methods for verification
+        isCorrect = (hasAllCorrectBlocks && noExtraCorrectBlocks) || stringMatch;
+
+        print('✅ BLOCK CHECK: hasAllCorrectBlocks=$hasAllCorrectBlocks, noExtraCorrectBlocks=$noExtraCorrectBlocks');
+        print('✅ STRING CHECK: stringMatch=$stringMatch');
+        print('✅ FINAL RESULT: $isCorrect');
+      } else {
+        // Fallback: only use block comparison
+        isCorrect = hasAllCorrectBlocks && noExtraCorrectBlocks;
+        print('⚠️ No correct_answer in DB, using block comparison only: $isCorrect');
+      }
+    } else {
+      // Fallback check for basic requirements
+      print('⚠️ No game config, using fallback check');
+      bool hasPrint = droppedBlocks.any((block) => block.toLowerCase().contains('print("prime numbers:"'));
+      bool hasOuterLoop = droppedBlocks.any((block) => block.toLowerCase().contains('for num in range(2, 21):'));
+      bool hasIsPrime = droppedBlocks.any((block) => block.toLowerCase().contains('is_prime = true'));
+      bool hasInnerLoop = droppedBlocks.any((block) => block.toLowerCase().contains('for i in range(2, num):'));
+      bool hasModuloCheck = droppedBlocks.any((block) => block.toLowerCase().contains('if num % i == 0:'));
+      bool hasBreak = droppedBlocks.any((block) => block.toLowerCase().contains('break'));
+      bool hasPrimeCheck = droppedBlocks.any((block) => block.toLowerCase().contains('if is_prime:'));
+
+      isCorrect = hasPrint && hasOuterLoop && hasIsPrime && hasInnerLoop && hasModuloCheck && hasBreak && hasPrimeCheck;
+      print('✅ FALLBACK CHECK: $isCorrect');
+    }
+
+    if (isCorrect) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -502,13 +768,10 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
       saveScoreToDatabase(score);
 
       if (score == 3) {
-        musicService.playSoundEffect('perfect_hard.mp3');
+        musicService.playSoundEffect('perfect.mp3');
       } else {
-        musicService.playSoundEffect('success_hard.mp3');
+        musicService.playSoundEffect('success.mp3');
       }
-
-      final gameScore = score;
-      final leaderboardPoints = score * 30;
 
       showDialog(
         context: context,
@@ -518,60 +781,33 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent! You built an advanced Python class with Object-Oriented Programming!"),
+              Text("Outstanding work Python Master!"),
               SizedBox(height: 10),
-              Text("Game Score: $gameScore/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-              Text("Leaderboard Points: $leaderboardPoints/90", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+              Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've mastered Python OOP!",
-                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                  "🏆 Legendary! You've conquered Hard Level 2!",
+                  style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) for full completion!",
+                  "⚡ Get a perfect score (3/3) to prove your mastery!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
-              Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green),
-                ),
-                child: Text(
-                  "🎯 Hard Difficulty: 30× Points Multiplier!",
-                  style: TextStyle(
-                    color: Colors.green,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              SizedBox(height: 10),
-              Text("Class Usage Example:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(">>> account = BankAccount('Juan', 1000)", style: TextStyle(color: Colors.white, fontFamily: 'monospace')),
-                    Text(">>> print(account.deposit(500))", style: TextStyle(color: Colors.white, fontFamily: 'monospace')),
-                    Text("Deposited 500. New balance: 1500", style: TextStyle(color: Colors.lightGreen, fontFamily: 'monospace')),
-                    Text(">>> print(account.withdraw(200))", style: TextStyle(color: Colors.white, fontFamily: 'monospace')),
-                    Text("Withdrew 200. New balance: 1300", style: TextStyle(color: Colors.lightGreen, fontFamily: 'monospace')),
-                    Text(">>> print(account)", style: TextStyle(color: Colors.white, fontFamily: 'monospace')),
-                    Text("BankAccount(owner: Juan, balance: 1300)", style: TextStyle(color: Colors.lightGreen, fontFamily: 'monospace')),
-                  ],
+                child: Text(
+                  _expectedOutput,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'monospace',
+                    fontSize: 16,
+                  ),
                 ),
-              ),
-              SizedBox(height: 10),
-              Text(
-                "💎 Advanced Features: Classes, methods, attributes, inheritance, encapsulation!",
-                style: TextStyle(color: Colors.cyan, fontSize: 12),
               ),
             ],
           ),
@@ -580,28 +816,28 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
               onPressed: () {
                 musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
-                if (score == 3) {
-                  musicService.playSoundEffect('level_complete.mp3');
-                  Navigator.pushReplacementNamed(context, '/python_level3_hard');
-                } else {
-                  Navigator.pushReplacementNamed(context, '/levels',
-                      arguments: {'language': 'Python', 'difficulty': 'hard'});
-                }
+                Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                  'language': 'Python',
+                  'difficulty': 'Hard'
+                });
               },
-              child: Text(score == 3 ? "Next Level" : "Go Back"),
+              child: Text("Back to Levels"),
             )
           ],
         ),
       );
     } else {
-      musicService.playSoundEffect('wrong_hard.mp3');
+      print('❌ ANSWER INCORRECT');
+      musicService.playSoundEffect('wrong.mp3');
 
       if (score > 1) {
         setState(() {
           score--;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Incomplete Python class. -1 point. Current score: $score")),
+          SnackBar(
+            content: Text("❌ Incorrect arrangement. -1 point. Current score: $score"),
+          ),
         );
       } else {
         setState(() {
@@ -611,13 +847,13 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
 
-        musicService.playSoundEffect('game_over_hard.mp3');
+        musicService.playSoundEffect('game_over.mp3');
 
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("Remember to build the complete Python class with all methods, attributes, and proper OOP syntax."),
+            content: Text("You lost all your points."),
             actions: [
               TextButton(
                 onPressed: () {
@@ -650,9 +886,9 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
       child: Container(
         padding: EdgeInsets.all(16 * _scaleFactor),
         decoration: BoxDecoration(
-          color: Colors.green.withOpacity(0.95),
+          color: Colors.orange.withOpacity(0.95),
           borderRadius: BorderRadius.circular(12 * _scaleFactor),
-          border: Border.all(color: Colors.greenAccent, width: 2 * _scaleFactor),
+          border: Border.all(color: Colors.orangeAccent, width: 2 * _scaleFactor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.3),
@@ -683,12 +919,13 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 14 * _scaleFactor,
+                height: 1.4,
               ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Correct blocks are being placed automatically...',
+              'Hint will disappear in 5 seconds...',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 12 * _scaleFactor,
@@ -701,6 +938,50 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
     );
   }
 
+  Widget _buildHintButton() {
+    return Positioned(
+      bottom: 20 * _scaleFactor,
+      right: 20 * _scaleFactor,
+      child: GestureDetector(
+        onTap: _useHintCard,
+        child: Container(
+          padding: EdgeInsets.all(12 * _scaleFactor),
+          decoration: BoxDecoration(
+            color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
+            borderRadius: BorderRadius.circular(20 * _scaleFactor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 4 * _scaleFactor,
+                offset: Offset(0, 2 * _scaleFactor),
+              )
+            ],
+            border: Border.all(
+              color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
+              width: 2 * _scaleFactor,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lightbulb_outline, color: Colors.white, size: 20 * _scaleFactor),
+              SizedBox(width: 6 * _scaleFactor),
+              Text(
+                '$_availableHintCards',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18 * _scaleFactor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Code Preview Widget
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -726,7 +1007,7 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'bank_account.py',
+                  'prime_finder.py',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -738,103 +1019,102 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
           ),
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
-            child: _buildCodeContent(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _buildOrganizedCodePreview(),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCodeContent() {
-    if (droppedBlockItems.isEmpty) {
-      return Column(
+  List<Widget> _buildOrganizedCodePreview() {
+    List<Widget> codeLines = [];
+
+    for (int i = 0; i < _codeStructure.length; i++) {
+      String line = _codeStructure[i];
+
+      if (line.contains('# Find prime numbers') || line.contains('# Use nested loops')) {
+        // Add user's dragged code in the correct position
+        codeLines.add(_buildUserCodeSection(line));
+      } else if (line.trim().isEmpty) {
+        codeLines.add(SizedBox(height: 16 * _scaleFactor));
+      } else {
+        codeLines.add(_buildSyntaxHighlightedLine(line, i + 1));
+      }
+    }
+
+    return codeLines;
+  }
+
+  Widget _buildUserCodeSection(String commentLine) {
+    if (droppedBlocks.isEmpty) {
+      return Container(
+        padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
+        child: Text(
+          '$commentLine',
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 12 * _scaleFactor,
+            fontFamily: 'monospace',
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '# Drag blocks to build your Python class',
+            commentLine,
             style: TextStyle(
               color: Colors.grey[600],
               fontSize: 12 * _scaleFactor,
               fontFamily: 'monospace',
+              fontStyle: FontStyle.italic,
             ),
           ),
+          for (String block in droppedBlocks)
+            Container(
+              margin: EdgeInsets.only(bottom: 4 * _scaleFactor),
+              child: Text(
+                block,
+                style: TextStyle(
+                  color: Colors.greenAccent[400],
+                  fontSize: 12 * _scaleFactor,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
         ],
-      );
-    }
-
-    List<Widget> codeLines = [];
-    int lineNumber = 1;
-
-    for (BlockItem blockItem in droppedBlockItems) {
-      String block = blockItem.text;
-      bool isClassDef = block.contains('class ');
-      bool isMethodDef = block.contains('def ');
-      bool isSpecialMethod = block.contains('__') && block.contains('__');
-      bool isSelfAssignment = block.contains('self.') && block.contains('=');
-      bool isReturn = block.contains('return ');
-      bool isConditional = block.contains('if ');
-      bool isIncorrect = isIncorrectBlock(block);
-
-      Color textColor = Colors.white;
-      if (isClassDef) {
-        textColor = Color(0xFF569CD6);
-      } else if (isSpecialMethod) {
-        textColor = Color(0xFFC586C0);
-      } else if (isMethodDef) {
-        textColor = Color(0xFFDCDCAA);
-      } else if (isSelfAssignment) {
-        textColor = Color(0xFF9CDCFE);
-      } else if (isReturn) {
-        textColor = Color(0xFFCE9178);
-      } else if (isConditional) {
-        textColor = Color(0xFFC586C0);
-      } else if (isIncorrect) {
-        textColor = Colors.red;
-      }
-
-      String displayCode = block;
-
-      // Add proper indentation for class methods
-      if (block != 'class BankAccount:' && !block.startsWith(' ')) {
-        displayCode = '    $block';
-      }
-
-      // Additional indentation for method bodies
-      if (block.contains('self.owner = owner') ||
-          block.contains('self.balance = balance') ||
-          block.contains('self.balance += amount') ||
-          block.contains('self.balance -= amount') ||
-          block.contains('return f"') ||
-          block.contains('if amount > self.balance:')) {
-        displayCode = '        $block';
-      }
-
-      codeLines.add(_buildCodeLineWithNumber(lineNumber++, displayCode,
-          textColor: textColor,
-          isIncorrect: isIncorrect
-      ));
-
-      // Add spacing between methods
-      if (block.contains('return f"Withdrew') || block == 'return "Insufficient funds!"') {
-        codeLines.add(SizedBox(height: 8 * _scaleFactor));
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: codeLines,
+      ),
     );
   }
 
-  Widget _buildCodeLineWithNumber(int lineNumber, String code, {Color? textColor, bool isIncorrect = false}) {
-    Color finalTextColor = textColor ?? Colors.white;
+  Widget _buildSyntaxHighlightedLine(String code, int lineNumber) {
+    Color textColor = Colors.white;
+    String displayCode = code;
 
-    if (isIncorrect) {
-      finalTextColor = Colors.red;
+    // Python syntax highlighting rules
+    if (code.trim().startsWith('#')) {
+      textColor = Color(0xFF6A9955); // Comments - green
+    } else if (code.contains('print(') || code.contains('for ') || code.contains('if ') || code.contains('break')) {
+      textColor = Color(0xFF569CD6); // Keywords - blue
+    } else if (code.contains('"') || code.contains("'")) {
+      textColor = Color(0xFFCE9178); // Strings - orange
+    } else if (code.contains('%') || code.contains('==') || code.contains('=')) {
+      textColor = Color(0xFFDCDCAA); // Operators - yellow
+    } else if (code.contains('True') || code.contains('False')) {
+      textColor = Color(0xFF569CD6); // Boolean - blue
     }
 
     return Container(
-      height: 20 * _scaleFactor,
+      padding: EdgeInsets.symmetric(vertical: 2 * _scaleFactor),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -852,12 +1132,11 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
           SizedBox(width: 16 * _scaleFactor),
           Expanded(
             child: Text(
-              code,
+              displayCode,
               style: TextStyle(
-                color: finalTextColor,
+                color: textColor,
                 fontSize: 12 * _scaleFactor,
                 fontFamily: 'monospace',
-                fontWeight: isIncorrect ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           ),
@@ -881,9 +1160,111 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("🐍 Python - Level 2 Hard", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.green,
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0D1B2A),
+                Color(0xFF1B263B),
+                Color(0xFF415A77),
+              ],
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.green),
+                SizedBox(height: 20),
+                Text(
+                  "Loading Python Hard Level 2 Configuration...",
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "From Database",
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (errorMessage != null && !gameStarted) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("🐍 Python - Level 2 Hard", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.green,
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0D1B2A),
+                Color(0xFF1B263B),
+                Color(0xFF415A77),
+              ],
+            ),
+          ),
+          child: Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.warning_amber, color: Colors.green, size: 50),
+                  SizedBox(height: 20),
+                  Text(
+                    "Configuration Warning",
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _loadGameConfig,
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    child: Text("Retry Loading"),
+                  ),
+                  SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                        'language': 'Python',
+                        'difficulty': 'Hard'
+                      });
+                    },
+                    child: Text("Back to Levels", style: TextStyle(color: Colors.green)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
-      final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
+      final newScaleFactor = newScreenWidth < _baseScreenWidth
+          ? newScreenWidth / _baseScreenWidth
+          : 1.0;
 
       if (newScaleFactor != _scaleFactor) {
         setState(() {
@@ -894,9 +1275,10 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("⚡ Python - Level 2 (Hard)", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        title: Text("🐍 Python - Level 2 Hard", style: TextStyle(fontSize: 18 * _scaleFactor)),
         backgroundColor: Colors.green,
-        actions: gameStarted ? [
+        actions: gameStarted
+            ? [
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor),
             child: Row(
@@ -910,7 +1292,8 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
               ],
             ),
           ),
-        ] : [],
+        ]
+            : [],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -918,9 +1301,9 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1B2D2A),
-              Color(0xFF263B2A),
-              Color(0xFF2A5A3A),
+              Color(0xFF0D1B2A),
+              Color(0xFF1B263B),
+              Color(0xFF415A77),
             ],
           ),
         ),
@@ -929,46 +1312,7 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
             gameStarted ? buildGameUI() : buildStartScreen(),
             if (gameStarted && !isAnsweredCorrectly) ...[
               _buildHintDisplay(),
-              Positioned(
-                bottom: 20 * _scaleFactor,
-                right: 20 * _scaleFactor,
-                child: GestureDetector(
-                  onTap: _useHintCard,
-                  child: Container(
-                    padding: EdgeInsets.all(12 * _scaleFactor),
-                    decoration: BoxDecoration(
-                      color: _availableHintCards > 0 ? Colors.green : Colors.grey,
-                      borderRadius: BorderRadius.circular(20 * _scaleFactor),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 4 * _scaleFactor,
-                          offset: Offset(0, 2 * _scaleFactor),
-                        )
-                      ],
-                      border: Border.all(
-                        color: _availableHintCards > 0 ? Colors.greenAccent : Colors.grey,
-                        width: 2 * _scaleFactor,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.lightbulb_outline, color: Colors.white, size: 20 * _scaleFactor),
-                        SizedBox(width: 6 * _scaleFactor),
-                        Text(
-                          '$_availableHintCards',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18 * _scaleFactor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+              _buildHintButton(),
             ],
           ],
         ),
@@ -977,11 +1321,6 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
   }
 
   Widget buildStartScreen() {
-    final displayGameScore = previousScore;
-    final displayLeaderboardPoints = previousScore * 30;
-    final maxGameScore = 3;
-    final maxLeaderboardPoints = 90;
-
     return Center(
       child: SingleChildScrollView(
         padding: EdgeInsets.all(16 * _scaleFactor),
@@ -989,20 +1328,21 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              onPressed: () {
+              onPressed: gameConfig != null ? () {
                 final musicService = Provider.of<MusicService>(context, listen: false);
                 musicService.playSoundEffect('button_click.mp3');
                 startGame();
-              },
+              } : null,
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Hard", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text(gameConfig != null ? "Start Hard Level 2" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.green,
+                backgroundColor: gameConfig != null ? Colors.green : Colors.grey,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
 
+            // Display available hint cards in start screen
             Container(
               padding: EdgeInsets.all(12 * _scaleFactor),
               decoration: BoxDecoration(
@@ -1035,25 +1375,20 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
               ),
             ),
 
-            if (level2Completed)
+            if (levelCompleted)
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Hard Level 2 completed with perfect score!",
+                      "🏆 Hard Level 2 completed with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "🎮 Game Score: $displayGameScore/$maxGameScore",
-                      style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                    Text(
-                      "🏆 Leaderboard Points: $displayLeaderboardPoints/$maxLeaderboardPoints",
-                      style: TextStyle(color: Colors.blue, fontSize: 14 * _scaleFactor, fontWeight: FontWeight.bold),
+                      "You are a Python Master!",
+                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1065,25 +1400,14 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
                 child: Column(
                   children: [
                     Text(
-                      "📊 Your previous hard score:",
-                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
+                      "📊 Your previous score: $previousScore/3",
+                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Game: $displayGameScore/$maxGameScore",
-                      style: TextStyle(color: Colors.white, fontSize: 14 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                    Text(
-                      "Leaderboard: $displayLeaderboardPoints/$maxLeaderboardPoints",
-                      style: TextStyle(color: Colors.blue, fontSize: 14 * _scaleFactor, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 5 * _scaleFactor),
-                    Text(
-                      "Try again to get a perfect score!",
-                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                      "Try again to conquer hard level 2!",
+                      style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1095,14 +1419,14 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
                   child: Column(
                     children: [
                       Text(
-                        "😅 Your previous score: $displayGameScore/$maxGameScore",
-                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                        "💀 Your previous score: $previousScore/3",
+                        style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
-                        "Don't give up! You can do better this time!",
-                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                        "This is advanced programming! Give it your best shot!",
+                        style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1121,63 +1445,25 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
               child: Column(
                 children: [
                   Text(
-                    "🎯 Hard Level 2 Objective",
+                    gameConfig?['objective'] ?? "🎯 Python Level 2 Hard Objective",
                     style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.green[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Build an advanced Python class with Object-Oriented Programming concepts using all 13 blocks",
+                    gameConfig?['objective'] ?? "Create a Python program with nested loops to find prime numbers between 1 and 20",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.green[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(8 * _scaleFactor),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(8 * _scaleFactor),
-                      border: Border.all(color: Colors.green),
-                    ),
-                    child: Text(
-                      "🎁 Hard Difficulty: 30× Points Multiplier!",
-                      style: TextStyle(
-                        fontSize: 14 * _scaleFactor,
-                        color: Colors.green[800],
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎮 Perfect Score (3/3) = 90 Leaderboard Points",
+                    "💀 Hard Difficulty: Nested loops, complex logic, and faster penalties!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
-                        color: Colors.purple,
+                        color: Colors.red,
                         fontWeight: FontWeight.bold,
                         fontStyle: FontStyle.italic
-                    ),
-                  ),
-                  SizedBox(height: 5 * _scaleFactor),
-                  Text(
-                    "(Easy: 30 points, Medium: 60 points, Hard: 90 points)",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 11 * _scaleFactor,
-                        color: Colors.purple,
-                        fontStyle: FontStyle.italic
-                    ),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Text(
-                    "💡 OOP Concepts: Classes, Methods, Attributes, Encapsulation",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12 * _scaleFactor,
-                      color: Colors.blue[800],
-                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
@@ -1199,8 +1485,7 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Short Story',
-                    style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text('📖 Short Story', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
                 onPressed: () {
@@ -1211,32 +1496,30 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
                   });
                 },
                 icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
-                label: Text(isTagalog ? 'English' : 'Tagalog',
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+                label: Text(isTagalog ? 'English' : 'Tagalog', style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
               ),
             ],
           ),
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Ngayon, si Maria ay gustong matuto ng Object-Oriented Programming! Gusto niyang gumawa ng BankAccount class para sa banking system. Tulungan siyang buuin ang class na may methods para sa deposit, withdraw, at balance checking!'
-                : 'Now, Maria wants to learn Object-Oriented Programming! She wants to create a BankAccount class for a banking system. Help her build the class with methods for deposit, withdraw, and balance checking!',
+                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Hard Level 2 ng Python programming! Lumikha ng program na gumagamit ng nested loops para hanapin ang prime numbers.')
+                : (gameConfig?['story_english'] ?? 'This is Python Hard Level 2! Create a program using nested loops to find prime numbers.'),
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Build the advanced Python class with OOP concepts using all 13 blocks',
+          Text(_instructionText,
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          // UPDATED: Larger target area to fit all blocks
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 280 * _scaleFactor, // Increased height
-              maxHeight: 400 * _scaleFactor, // Increased max height
+              minHeight: 140 * _scaleFactor,
+              maxHeight: 200 * _scaleFactor,
             ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
@@ -1244,85 +1527,81 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
               border: Border.all(color: Colors.green, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
-            child: DragTarget<BlockItem>(
+            child: DragTarget<String>(
               onWillAccept: (data) {
-                // Allow any block to be dropped
-                return true;
+                return !droppedBlocks.contains(data);
               },
-              onAccept: (BlockItem data) {
+              onAccept: (data) {
                 if (!isAnsweredCorrectly) {
                   final musicService = Provider.of<MusicService>(context, listen: false);
                   musicService.playSoundEffect('block_drop.mp3');
 
                   setState(() {
-                    // Only add if not already in dropped blocks
-                    if (!droppedBlockItems.contains(data)) {
-                      droppedBlockItems.add(data);
-                    }
-                    allBlockItems.remove(data);
+                    droppedBlocks.add(data);
+                    allBlocks.remove(data);
                   });
                 }
               },
               builder: (context, candidateData, rejectedData) {
                 return SingleChildScrollView(
-                  child: Wrap(
-                    spacing: 6 * _scaleFactor, // Reduced spacing
-                    runSpacing: 6 * _scaleFactor, // Reduced run spacing
-                    alignment: WrapAlignment.center,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: droppedBlockItems.map((blockItem) {
-                      return Draggable<BlockItem>(
-                        data: blockItem,
-                        feedback: Material(
-                          color: Colors.transparent,
-                          child: puzzleBlock(blockItem.text, Colors.greenAccent),
-                        ),
-                        childWhenDragging: puzzleBlock(blockItem.text, Colors.greenAccent.withOpacity(0.5)),
-                        child: puzzleBlock(blockItem.text, Colors.greenAccent),
-                        onDragStarted: () {
-                          final musicService = Provider.of<MusicService>(context, listen: false);
-                          musicService.playSoundEffect('block_pickup.mp3');
-                          setState(() {
-                            currentlyDraggedBlock = blockItem.text;
-                          });
-                        },
-                        onDragEnd: (details) {
-                          setState(() {
-                            currentlyDraggedBlock = null;
-                          });
+                    child: Wrap(
+                      spacing: 8 * _scaleFactor,
+                      runSpacing: 8 * _scaleFactor,
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: droppedBlocks.map((block) {
+                        return Draggable<String>(
+                          data: block,
+                          feedback: Material(
+                            color: Colors.transparent,
+                            child: puzzleBlock(block, Colors.greenAccent),
+                          ),
+                          childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
+                          child: puzzleBlock(block, Colors.greenAccent),
+                          onDragStarted: () {
+                            final musicService = Provider.of<MusicService>(context, listen: false);
+                            musicService.playSoundEffect('block_pickup.mp3');
 
-                          if (!isAnsweredCorrectly && !details.wasAccepted) {
-                            Future.delayed(Duration(milliseconds: 50), () {
-                              if (mounted) {
-                                setState(() {
-                                  if (!allBlockItems.contains(blockItem)) {
-                                    allBlockItems.add(blockItem);
-                                  }
-                                  droppedBlockItems.remove(blockItem);
-                                });
-                              }
+                            setState(() {
+                              currentlyDraggedBlock = block;
                             });
-                          }
-                        },
-                      );
-                    }).toList(),
-                  ),
+                          },
+                          onDragEnd: (details) {
+                            setState(() {
+                              currentlyDraggedBlock = null;
+                            });
+
+                            if (!isAnsweredCorrectly && !details.wasAccepted) {
+                              Future.delayed(Duration(milliseconds: 50), () {
+                                if (mounted) {
+                                  setState(() {
+                                    if (!allBlocks.contains(block)) {
+                                      allBlocks.add(block);
+                                    }
+                                    droppedBlocks.remove(block);
+                                  });
+                                }
+                              });
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
                 );
               },
             ),
           ),
 
           SizedBox(height: 20 * _scaleFactor),
-          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          Text(_codePreviewTitle, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
           SizedBox(height: 10 * _scaleFactor),
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
 
-          // UPDATED: Larger available blocks area
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 180 * _scaleFactor, // Increased height
+              minHeight: 100 * _scaleFactor,
             ),
             padding: EdgeInsets.all(12 * _scaleFactor),
             decoration: BoxDecoration(
@@ -1330,29 +1609,30 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
               borderRadius: BorderRadius.circular(12 * _scaleFactor),
             ),
             child: Wrap(
-              spacing: 6 * _scaleFactor, // Reduced spacing
-              runSpacing: 8 * _scaleFactor, // Reduced run spacing
+              spacing: 8 * _scaleFactor,
+              runSpacing: 10 * _scaleFactor,
               alignment: WrapAlignment.center,
               crossAxisAlignment: WrapCrossAlignment.center,
-              children: allBlockItems.map((blockItem) {
+              children: allBlocks.map((block) {
                 return isAnsweredCorrectly
-                    ? puzzleBlock(blockItem.text, Colors.grey)
-                    : Draggable<BlockItem>(
-                  data: blockItem,
+                    ? puzzleBlock(block, Colors.grey)
+                    : Draggable<String>(
+                  data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(blockItem.text, Colors.deepPurple),
+                    child: puzzleBlock(block, Colors.green),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(blockItem.text, Colors.deepPurple),
+                    child: puzzleBlock(block, Colors.green),
                   ),
-                  child: puzzleBlock(blockItem.text, Colors.deepPurple),
+                  child: puzzleBlock(block, Colors.green),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
+
                     setState(() {
-                      currentlyDraggedBlock = blockItem.text;
+                      currentlyDraggedBlock = block;
                     });
                   },
                   onDragEnd: (details) {
@@ -1364,8 +1644,8 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
                       Future.delayed(Duration(milliseconds: 50), () {
                         if (mounted) {
                           setState(() {
-                            if (!allBlockItems.contains(blockItem)) {
-                              allBlockItems.add(blockItem);
+                            if (!allBlocks.contains(block)) {
+                              allBlocks.add(block);
                             }
                           });
                         }
@@ -1381,7 +1661,7 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
           ElevatedButton.icon(
             onPressed: isAnsweredCorrectly ? null : () {
               final musicService = Provider.of<MusicService>(context, listen: false);
-              musicService.playSoundEffect('compile_hard.mp3');
+              musicService.playSoundEffect('compile.mp3');
               checkAnswer();
             },
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
@@ -1396,6 +1676,7 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
           ),
 
           SizedBox(height: 10 * _scaleFactor),
+
           TextButton(
             onPressed: () {
               final musicService = Provider.of<MusicService>(context, listen: false);
@@ -1409,30 +1690,47 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
     );
   }
 
-  // UPDATED: Smaller puzzle blocks to fit more in the target area
   Widget puzzleBlock(String text, Color color) {
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontFamily: 'monospace',
+          fontSize: 12 * _scaleFactor,
+          color: Colors.black,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )
+      ..layout();
+
+    final textWidth = textPainter.width;
+    final minWidth = 80 * _scaleFactor;
+    final maxWidth = 240 * _scaleFactor;
+
     return Container(
       constraints: BoxConstraints(
-        minWidth: 70 * _scaleFactor, // Smaller minimum width
-        maxWidth: 160 * _scaleFactor, // Smaller maximum width
+        minWidth: minWidth,
+        maxWidth: maxWidth,
       ),
-      margin: EdgeInsets.symmetric(horizontal: 2 * _scaleFactor),
+      margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 10 * _scaleFactor, // Reduced padding
-        vertical: 8 * _scaleFactor, // Reduced padding
+        horizontal: 12 * _scaleFactor,
+        vertical: 10 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(15 * _scaleFactor),
-          bottomRight: Radius.circular(15 * _scaleFactor),
+          topLeft: Radius.circular(20 * _scaleFactor),
+          bottomRight: Radius.circular(20 * _scaleFactor),
         ),
-        border: Border.all(color: Colors.black87, width: 1.5 * _scaleFactor),
+        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor),
         boxShadow: [
           BoxShadow(
             color: Colors.black45,
-            blurRadius: 4 * _scaleFactor,
-            offset: Offset(2 * _scaleFactor, 2 * _scaleFactor),
+            blurRadius: 6 * _scaleFactor,
+            offset: Offset(3 * _scaleFactor, 3 * _scaleFactor),
           )
         ],
       ),
@@ -1441,8 +1739,15 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 10 * _scaleFactor, // Smaller font size
+          fontSize: 12 * _scaleFactor,
           color: Colors.black,
+          shadows: [
+            Shadow(
+              offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
+              blurRadius: 2 * _scaleFactor,
+              color: Colors.white.withOpacity(0.8),
+            ),
+          ],
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.visible,
@@ -1450,21 +1755,4 @@ class _PythonLevel2HardState extends State<PythonLevel2Hard> {
       ),
     );
   }
-}
-
-class BlockItem {
-  final String text;
-  final Key key;
-
-  BlockItem(this.text, this.key);
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-          other is BlockItem &&
-              runtimeType == other.runtimeType &&
-              key == other.key;
-
-  @override
-  int get hashCode => key.hashCode;
 }

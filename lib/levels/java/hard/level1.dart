@@ -67,7 +67,6 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
         errorMessage = null;
       });
 
-      // FIXED: Use correct method name
       final response = await ApiService.getGameConfigWithDifficulty('Java', 'Hard', 1);
 
       print('🔍 JAVA HARD GAME CONFIG RESPONSE:');
@@ -175,9 +174,9 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
         print('💡 Using default hint');
       }
 
-      // Parse blocks with better error handling
-      List<String> correctBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
-      List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
+      // ✅ FIXED: Improved blocks parsing
+      List<String> correctBlocks = _parseBlocksImproved(gameConfig!['correct_blocks'], 'correct');
+      List<String> incorrectBlocks = _parseBlocksImproved(gameConfig!['incorrect_blocks'], 'incorrect');
 
       print('✅ Correct Blocks: $correctBlocks');
       print('✅ Incorrect Blocks: $incorrectBlocks');
@@ -196,41 +195,37 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
     }
   }
 
-  List<String> _getDefaultCodeStructure() {
-    return [
-      "import java.util.Scanner;",
-      "",
-      "public class NumberChecker {",
-      "    public static void main(String[] args) {",
-      "        Scanner scanner = new Scanner(System.in);",
-      "        // Declare and initialize number",
-      "        // Check if number is even or odd",
-      "        // Print result",
-      "    }",
-      "}"
-    ];
-  }
-
-  List<String> _parseBlocks(dynamic blocksData, String type) {
+  // ✅ FIXED: Improved blocks parsing method
+  List<String> _parseBlocksImproved(dynamic blocksData, String type) {
     List<String> blocks = [];
 
     if (blocksData == null) {
+      print('⚠️ $type blocks are NULL in database, using defaults');
       return _getDefaultBlocks(type);
     }
 
     try {
       if (blocksData is List) {
+        // Direct list from database
         blocks = List<String>.from(blocksData);
+        print('✅ $type blocks parsed as direct List: $blocks');
       } else if (blocksData is String) {
         String blocksStr = blocksData.trim();
+        print('🔍 Raw $type blocks string: "$blocksStr"');
 
+        // Try JSON parsing first
         if (blocksStr.startsWith('[') && blocksStr.endsWith(']')) {
-          // Parse as JSON array
-          List<dynamic> blocksJson = json.decode(blocksStr);
-          blocks = List<String>.from(blocksJson);
+          try {
+            List<dynamic> parsedJson = json.decode(blocksStr);
+            blocks = parsedJson.map((item) => item.toString()).toList();
+            print('✅ $type blocks parsed as JSON: $blocks');
+          } catch (e) {
+            print('❌ JSON parsing failed, trying manual parsing: $e');
+            blocks = _parseManual(blocksStr);
+          }
         } else {
-          // Parse as comma-separated string
-          blocks = blocksStr.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+          // Manual parsing for non-JSON strings
+          blocks = _parseManual(blocksStr);
         }
       }
     } catch (e) {
@@ -238,7 +233,56 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
       blocks = _getDefaultBlocks(type);
     }
 
+    // Remove any empty strings and trim
+    blocks = blocks.map((block) => block.trim()).where((block) => block.isNotEmpty).toList();
+
+    print('🎯 Final $type blocks: $blocks');
     return blocks;
+  }
+
+  // ✅ FIXED: Manual parsing for various formats
+  List<String> _parseManual(String input) {
+    // Remove brackets if present
+    String cleaned = input.replaceAll('[', '').replaceAll(']', '').trim();
+
+    // Handle different separators
+    List<String> items = [];
+
+    if (cleaned.contains('","')) {
+      // JSON-like format: "item1","item2","item3"
+      items = cleaned.split('","').map((item) => item.replaceAll('"', '').trim()).toList();
+    } else if (cleaned.contains(',')) {
+      // Comma-separated format
+      items = cleaned.split(',').map((item) => item.trim()).toList();
+    } else {
+      // Single item or other format
+      items = [cleaned];
+    }
+
+    // Clean up quotes
+    items = items.map((item) {
+      String cleanedItem = item;
+      if (cleanedItem.startsWith('"') && cleanedItem.endsWith('"')) {
+        cleanedItem = cleanedItem.substring(1, cleanedItem.length - 1);
+      }
+      return cleanedItem.trim();
+    }).where((item) => item.isNotEmpty).toList();
+
+    print('✅ Manual parsing result: $items');
+    return items;
+  }
+
+  List<String> _getDefaultCodeStructure() {
+    return [
+      "import java.util.Scanner;",
+      "",
+      "public class NumberChecker {",
+      "    public static void main(String[] args) {",
+      "        Scanner scanner = new Scanner(System.in);",
+      "        // Your code here",
+      "    }",
+      "}"
+    ];
   }
 
   List<String> _getDefaultBlocks(String type) {
@@ -246,18 +290,18 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
       return [
         'int number = 7;',
         'if (number % 2 == 0) {',
-        '    System.out.println("The number " + number + " is even");',
+        '    System.out.println(\"The number \" + number + \" is even\");',
         '} else {',
-        '    System.out.println("The number " + number + " is odd");',
+        '    System.out.println(\"The number \" + number + \" is odd\");',
         '}'
       ];
     } else {
       return [
         'float number = 7;',
         'if (number / 2 == 0) {',
-        '    console.log("The number is even");',
+        '    console.log(\"The number is even\");',
         '} else if {',
-        '    printf("The number is odd");',
+        '    printf(\"The number is odd\");',
         '}',
         'while (number > 0) {',
         '    System.out.println(number);',
@@ -274,15 +318,15 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
     allBlocks = [
       'int number = 7;',
       'if (number % 2 == 0) {',
-      '    System.out.println("The number " + number + " is even");',
+      '    System.out.println(\"The number \" + number + \" is even\");',
       '} else {',
-      '    System.out.println("The number " + number + " is odd");',
+      '    System.out.println(\"The number \" + number + \" is odd\");',
       '}',
       'float number = 7;',
       'if (number / 2 == 0) {',
-      '    console.log("The number is even");',
+      '    console.log(\"The number is even\");',
       '} else if {',
-      '    printf("The number is odd");',
+      '    printf(\"The number is odd\");',
       '}',
       'while (number > 0) {',
       '    System.out.println(number);',
@@ -356,7 +400,7 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('No hint cards available! Complete daily challenges to earn more.'),
-          backgroundColor: Colors.orange,
+          backgroundColor: Colors.purple,
         ),
       );
     }
@@ -513,7 +557,6 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
       print('   Score: $score/3');
       print('   Completed: ${score == 3}');
 
-      // FIXED: Use correct method name
       final response = await ApiService.saveScoreWithDifficulty(
         currentUser!['id'],
         'Java',
@@ -545,7 +588,6 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
     if (currentUser?['id'] == null) return;
 
     try {
-      // FIXED: Use correct method name
       final response = await ApiService.getScoresWithDifficulty(currentUser!['id'], 'Java', 'Hard');
 
       if (response['success'] == true && response['scores'] != null) {
@@ -568,8 +610,12 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
   bool isIncorrectBlock(String block) {
     if (gameConfig != null) {
       try {
-        List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
-        return incorrectBlocks.contains(block);
+        List<String> incorrectBlocks = _parseBlocksImproved(gameConfig!['incorrect_blocks'], 'incorrect');
+        bool isIncorrect = incorrectBlocks.contains(block);
+        if (isIncorrect) {
+          print('❌ Block "$block" is in incorrect blocks list');
+        }
+        return isIncorrect;
       } catch (e) {
         print('Error checking incorrect block: $e');
       }
@@ -590,15 +636,22 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
     return incorrectBlocks.contains(block);
   }
 
+  // ✅ FIXED: Improved answer checking logic
   void checkAnswer() async {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
+    // DEBUG: Print what we're checking
+    print('🔍 CHECKING JAVA HARD ANSWER:');
+    print('   Dropped blocks: $droppedBlocks');
+    print('   All blocks: $allBlocks');
+
     // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
+      print('❌ HAS INCORRECT BLOCK');
       musicService.playSoundEffect('error.mp3');
 
       if (score > 1) {
@@ -642,21 +695,57 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
       return;
     }
 
-    // Check correct answer
-    String answer = droppedBlocks.join(' ');
-    String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
-
+    // ✅ FIXED: IMPROVED ANSWER CHECKING LOGIC
     bool isCorrect = false;
 
     if (gameConfig != null) {
-      // Use configured correct answer
-      String expectedAnswer = gameConfig!['correct_answer'] ?? '';
-      String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
-      isCorrect = normalizedAnswer == normalizedExpected;
+      // Get expected correct blocks from database
+      List<String> expectedCorrectBlocks = _parseBlocksImproved(gameConfig!['correct_blocks'], 'correct');
+
+      print('🎯 EXPECTED CORRECT BLOCKS: $expectedCorrectBlocks');
+      print('🎯 USER DROPPED BLOCKS: $droppedBlocks');
+
+      // METHOD 1: Check if user has all correct blocks and no extra correct blocks
+      bool hasAllCorrectBlocks = expectedCorrectBlocks.every((block) => droppedBlocks.contains(block));
+      bool noExtraCorrectBlocks = droppedBlocks.every((block) => expectedCorrectBlocks.contains(block));
+
+      // METHOD 2: Check string comparison (normalized)
+      String userAnswer = droppedBlocks.join(' ');
+      String normalizedUserAnswer = userAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+
+      if (gameConfig!['correct_answer'] != null) {
+        String expectedAnswer = gameConfig!['correct_answer'].toString();
+        String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+
+        print('📝 USER ANSWER: $userAnswer');
+        print('📝 NORMALIZED USER: $normalizedUserAnswer');
+        print('🎯 EXPECTED ANSWER: $expectedAnswer');
+        print('🎯 NORMALIZED EXPECTED: $normalizedExpected');
+
+        bool stringMatch = normalizedUserAnswer == normalizedExpected;
+
+        // Use both methods for verification
+        isCorrect = (hasAllCorrectBlocks && noExtraCorrectBlocks) || stringMatch;
+
+        print('✅ BLOCK CHECK: hasAllCorrectBlocks=$hasAllCorrectBlocks, noExtraCorrectBlocks=$noExtraCorrectBlocks');
+        print('✅ STRING CHECK: stringMatch=$stringMatch');
+        print('✅ FINAL RESULT: $isCorrect');
+      } else {
+        // Fallback: only use block comparison
+        isCorrect = hasAllCorrectBlocks && noExtraCorrectBlocks;
+        print('⚠️ No correct_answer in DB, using block comparison only: $isCorrect');
+      }
     } else {
-      // Fallback check for Java Level 1 Hard
-      String expected = 'intnumber=7;if(number%2==0){system.out.println("thenumber"+number+"iseven");}else{system.out.println("thenumber"+number+"isodd");}';
-      isCorrect = normalizedAnswer == expected;
+      // Fallback check for basic requirements
+      print('⚠️ No game config, using fallback check');
+      bool hasVariable = droppedBlocks.any((block) => block.toLowerCase().contains('int number = 7'));
+      bool hasIfCondition = droppedBlocks.any((block) => block.toLowerCase().contains('if (number % 2 == 0)'));
+      bool hasElse = droppedBlocks.any((block) => block.toLowerCase().contains('} else {'));
+      bool hasPrintEven = droppedBlocks.any((block) => block.toLowerCase().contains('system.out.println("the number " + number + " is even")'));
+      bool hasPrintOdd = droppedBlocks.any((block) => block.toLowerCase().contains('system.out.println("the number " + number + " is odd")'));
+
+      isCorrect = hasVariable && hasIfCondition && hasElse && hasPrintEven && hasPrintOdd;
+      print('✅ FALLBACK CHECK: $isCorrect');
     }
 
     if (isCorrect) {
@@ -669,7 +758,6 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
 
       saveScoreToDatabase(score);
 
-      // PLAY SUCCESS SOUND BASED ON SCORE
       if (score == 3) {
         musicService.playSoundEffect('perfect.mp3');
       } else {
@@ -730,6 +818,7 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
         ),
       );
     } else {
+      print('❌ ANSWER INCORRECT');
       musicService.playSoundEffect('wrong.mp3');
 
       if (score > 1) {
@@ -788,9 +877,9 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
       child: Container(
         padding: EdgeInsets.all(16 * _scaleFactor),
         decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.95),
+          color: Colors.purple.withOpacity(0.95),
           borderRadius: BorderRadius.circular(12 * _scaleFactor),
-          border: Border.all(color: Colors.orangeAccent, width: 2 * _scaleFactor),
+          border: Border.all(color: Colors.purpleAccent, width: 2 * _scaleFactor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.3),
@@ -849,7 +938,7 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
         child: Container(
           padding: EdgeInsets.all(12 * _scaleFactor),
           decoration: BoxDecoration(
-            color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
+            color: _availableHintCards > 0 ? Colors.purple : Colors.grey,
             borderRadius: BorderRadius.circular(20 * _scaleFactor),
             boxShadow: [
               BoxShadow(
@@ -859,7 +948,7 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
               )
             ],
             border: Border.all(
-              color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
+              color: _availableHintCards > 0 ? Colors.purpleAccent : Colors.grey,
               width: 2 * _scaleFactor,
             ),
           ),
@@ -937,11 +1026,9 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
     for (int i = 0; i < _codeStructure.length; i++) {
       String line = _codeStructure[i];
 
-      if (line.contains('// Declare and initialize number') ||
-          line.contains('// Check if number is even or odd') ||
-          line.contains('// Print result')) {
+      if (line.contains('// Your code here')) {
         // Add user's dragged code in the correct position
-        codeLines.add(_buildUserCodeSection(line));
+        codeLines.add(_buildUserCodeSection());
       } else if (line.trim().isEmpty) {
         codeLines.add(SizedBox(height: 16 * _scaleFactor));
       } else {
@@ -952,12 +1039,12 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
     return codeLines;
   }
 
-  Widget _buildUserCodeSection(String commentLine) {
+  Widget _buildUserCodeSection() {
     if (droppedBlocks.isEmpty) {
       return Container(
         padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
         child: Text(
-          '        $commentLine',
+          '        // Your code here',
           style: TextStyle(
             color: Colors.grey[600],
             fontSize: 12 * _scaleFactor,
@@ -973,15 +1060,6 @@ class _JavaLevel1HardState extends State<JavaLevel1Hard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '        $commentLine',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 12 * _scaleFactor,
-              fontFamily: 'monospace',
-              fontStyle: FontStyle.italic,
-            ),
-          ),
           for (String block in droppedBlocks)
             Container(
               margin: EdgeInsets.only(bottom: 4 * _scaleFactor),

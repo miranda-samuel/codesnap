@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:convert';
-import '../../../services/api_service.dart';
-import '../../../services/user_preferences.dart';
-import '../../../services/music_service.dart';
-import '../../../services/daily_challenge_service.dart';
+import '../../../../services/api_service.dart';
+import '../../../../services/user_preferences.dart';
+import '../../../../services/music_service.dart';
+import '../../../../services/daily_challenge_service.dart';
 
 class PhpLevel1Hard extends StatefulWidget {
   const PhpLevel1Hard({super.key});
@@ -24,35 +24,29 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
   bool hasPreviousScore = false;
   int previousScore = 0;
 
-  int score = 8; // Increased for hard level
-  int remainingSeconds = 240; // 4 minutes for hard level
+  int score = 3;
+  int remainingSeconds = 240; // Longer time for hard level
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
-  // Track currently dragged block
   String? currentlyDraggedBlock;
-
-  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // Game configuration from database
   Map<String, dynamic>? gameConfig;
   bool isLoading = true;
   String? errorMessage;
 
-  // HINT SYSTEM
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
   bool _isUsingHint = false;
 
-  // Configurable elements from database
-  String _codePreviewTitle = '💻 Advanced PHP Code:';
-  String _instructionText = '🧩 Build a PHP function with conditional logic and loops';
+  String _codePreviewTitle = '💻 Advanced PHP Code Preview:';
+  String _instructionText = '🧩 Arrange the blocks to form a complete PHP function with conditional logic';
   List<String> _codeStructure = [];
-  String _expectedOutput = 'Numbers: 2 4 6 8 10\nEven Count: 5';
+  String _expectedOutput = '';
 
   @override
   void initState() {
@@ -71,7 +65,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
         errorMessage = null;
       });
 
-      final response = await ApiService.getGameConfig('PHP', 3); // Level 3 for hard difficulty
+      final response = await ApiService.getGameConfigWithDifficulty('PHP', 'Hard', 1);
 
       print('🔍 PHP HARD GAME CONFIG RESPONSE:');
       print('   Success: ${response['success']}');
@@ -84,11 +78,11 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
         });
       } else {
         setState(() {
-          errorMessage = response['message'] ?? 'Failed to load game configuration from database';
+          errorMessage = response['message'] ?? 'Failed to load PHP Hard game configuration from database';
         });
       }
     } catch (e) {
-      print('❌ Error loading game config: $e');
+      print('❌ Error loading PHP Hard game config: $e');
       setState(() {
         errorMessage = 'Connection error: $e';
       });
@@ -111,7 +105,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
         setState(() {
           remainingSeconds = timerDuration;
         });
-        print('⏰ Timer duration loaded: $timerDuration seconds');
+        print('⏰ Hard Timer duration loaded: $timerDuration seconds');
       }
 
       // Load instruction text from database
@@ -119,7 +113,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
         setState(() {
           _instructionText = gameConfig!['instruction_text'].toString();
         });
-        print('📝 Instruction text loaded: $_instructionText');
+        print('📝 Hard Instruction text loaded: $_instructionText');
       }
 
       // Load code preview title from database
@@ -127,7 +121,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
         setState(() {
           _codePreviewTitle = gameConfig!['code_preview_title'].toString();
         });
-        print('💻 Code preview title loaded: $_codePreviewTitle');
+        print('💻 Hard Code preview title loaded: $_codePreviewTitle');
       }
 
       // Load code structure from database
@@ -144,13 +138,13 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
               _codeStructure = List<String>.from(codeStructureJson);
             });
           } catch (e) {
-            print('❌ Error parsing code structure: $e');
+            print('❌ Error parsing PHP Hard code structure: $e');
             setState(() {
               _codeStructure = _getDefaultCodeStructure();
             });
           }
         }
-        print('📝 Code structure loaded: $_codeStructure');
+        print('📝 PHP Hard Code structure loaded: $_codeStructure');
       } else {
         setState(() {
           _codeStructure = _getDefaultCodeStructure();
@@ -162,7 +156,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
         setState(() {
           _expectedOutput = gameConfig!['expected_output'].toString();
         });
-        print('🎯 Expected output loaded: $_expectedOutput');
+        print('🎯 Hard Expected output loaded: $_expectedOutput');
       }
 
       // Load hint from database
@@ -170,20 +164,20 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
         setState(() {
           _currentHint = gameConfig!['hint_text'].toString();
         });
-        print('💡 Hint loaded from database: $_currentHint');
+        print('💡 PHP Hard Hint loaded from database: $_currentHint');
       } else {
         setState(() {
           _currentHint = _getDefaultHint();
         });
-        print('💡 Using default hint');
+        print('💡 Using default PHP Hard hint');
       }
 
-      // Parse blocks with better error handling
+      // Parse blocks with improved error handling
       List<String> correctBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
       List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
 
-      print('✅ Correct Blocks: $correctBlocks');
-      print('✅ Incorrect Blocks: $incorrectBlocks');
+      print('✅ PHP Hard Correct Blocks from DB: $correctBlocks');
+      print('✅ PHP Hard Incorrect Blocks from DB: $incorrectBlocks');
 
       // Combine and shuffle blocks
       allBlocks = [
@@ -191,10 +185,15 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
         ...incorrectBlocks,
       ]..shuffle();
 
-      print('🎮 All Blocks Final: $allBlocks');
+      print('🎮 PHP Hard All Blocks Final: $allBlocks');
+
+      // DEBUG: Print the expected correct answer from database
+      if (gameConfig!['correct_answer'] != null) {
+        print('🎯 PHP Hard Expected Correct Answer from DB: ${gameConfig!['correct_answer']}');
+      }
 
     } catch (e) {
-      print('❌ Error parsing game config: $e');
+      print('❌ Error parsing PHP Hard game config: $e');
       _initializeDefaultBlocks();
     }
   }
@@ -203,21 +202,12 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
     return [
       "<?php",
       "",
-      "function findEvenNumbers(\$numbers) {",
-      "    // Initialize variables here",
-      "    ",
-      "    // Loop through numbers here",
-      "    ",
-      "    // Check condition here",
-      "    ",
-      "    // Return result here",
+      "function checkNumber(\$number) {",
+      "    // Your code here",
       "}",
       "",
-      "// Test the function",
-      "\$numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];",
-      "\$result = findEvenNumbers(\$numbers);",
-      "echo \"Numbers: \" . \$result['even_string'] . \"\\n\";",
-      "echo \"Even Count: \" . \$result['even_count'];",
+      "\$result = checkNumber(15);",
+      "echo \$result;",
       "",
       "?>"
     ];
@@ -227,97 +217,152 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
     List<String> blocks = [];
 
     if (blocksData == null) {
+      print('⚠️ PHP Hard $type blocks are NULL in database');
       return _getDefaultBlocks(type);
     }
 
     try {
       if (blocksData is List) {
-        blocks = List<String>.from(blocksData);
+        // Direct list handling
+        blocks = List<String>.from(blocksData.map((item) => item.toString().trim()));
+        print('✅ PHP Hard $type blocks parsed as List: $blocks');
       } else if (blocksData is String) {
         String blocksStr = blocksData.trim();
+        print('🔍 Raw PHP Hard $type blocks string: "$blocksStr"');
 
+        // Try JSON parsing first
         if (blocksStr.startsWith('[') && blocksStr.endsWith(']')) {
-          // Parse as JSON array
-          List<dynamic> blocksJson = json.decode(blocksStr);
-          blocks = List<String>.from(blocksJson);
+          try {
+            List<dynamic> blocksJson = json.decode(blocksStr);
+            blocks = List<String>.from(blocksJson.map((item) => item.toString().trim()));
+            print('✅ PHP Hard $type blocks parsed as JSON: $blocks');
+          } catch (e) {
+            print('❌ JSON parsing failed for PHP Hard $type blocks: $e');
+            // Fallback to manual parsing
+            blocks = _parseManual(blocksStr);
+          }
         } else {
-          // Parse as comma-separated string
-          blocks = blocksStr.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+          // Manual parsing for comma-separated or other formats
+          blocks = _parseManual(blocksStr);
         }
       }
     } catch (e) {
-      print('❌ Error parsing $type blocks: $e');
+      print('❌ Error parsing PHP Hard $type blocks: $e');
+      print('🔄 Using default PHP Hard blocks for $type');
       blocks = _getDefaultBlocks(type);
     }
 
+    // Remove any empty strings and ensure proper formatting
+    blocks = blocks
+        .where((block) => block.trim().isNotEmpty)
+        .map((block) => block.trim())
+        .toList();
+
+    print('🎯 Final PHP Hard $type blocks (${blocks.length}): $blocks');
     return blocks;
+  }
+
+  List<String> _parseManual(String input) {
+    try {
+      // Clean the input - remove brackets and extra quotes
+      String cleaned = input.replaceAll('[', '').replaceAll(']', '').trim();
+
+      // Handle both quoted and unquoted strings
+      if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+        cleaned = cleaned.substring(1, cleaned.length - 1);
+      }
+
+      // Split by comma but be careful with commas inside quotes
+      List<String> items = [];
+      StringBuffer current = StringBuffer();
+      bool inQuotes = false;
+      bool escapeNext = false;
+
+      for (int i = 0; i < cleaned.length; i++) {
+        String char = cleaned[i];
+
+        if (escapeNext) {
+          current.write(char);
+          escapeNext = false;
+        } else if (char == '\\') {
+          escapeNext = true;
+        } else if (char == '"') {
+          inQuotes = !inQuotes;
+          current.write(char);
+        } else if (char == ',' && !inQuotes) {
+          String item = current.toString().trim();
+          if (item.isNotEmpty) {
+            // Remove surrounding quotes if present
+            if (item.startsWith('"') && item.endsWith('"')) {
+              item = item.substring(1, item.length - 1);
+            }
+            items.add(item);
+          }
+          current.clear();
+        } else {
+          current.write(char);
+        }
+      }
+
+      // Add the last item
+      String lastItem = current.toString().trim();
+      if (lastItem.isNotEmpty) {
+        if (lastItem.startsWith('"') && lastItem.endsWith('"')) {
+          lastItem = lastItem.substring(1, lastItem.length - 1);
+        }
+        items.add(lastItem);
+      }
+
+      print('✅ Manual parsing result: $items');
+      return items;
+    } catch (e) {
+      print('❌ Manual parsing failed: $e');
+      // Ultimate fallback: simple split and clean
+      List<String> fallback = input.split(',')
+          .map((item) => item.trim().replaceAll('"', ''))
+          .where((item) => item.isNotEmpty)
+          .toList();
+      print('🔄 Using simple split fallback: $fallback');
+      return fallback;
+    }
   }
 
   List<String> _getDefaultBlocks(String type) {
     if (type == 'correct') {
       return [
-        '\$even_count = 0;',
-        '\$even_string = "";',
-        'foreach (\$numbers as \$num) {',
-        'if (\$num % 2 == 0) {',
-        '\$even_count++;',
-        '\$even_string .= \$num . " ";',
-        '}',
-        '}',
-        'return [\'even_count\' => \$even_count, \'even_string\' => trim(\$even_string)];'
+        'if (\$number % 2 == 0) {',
+        'return "\$number is Even";',
+        '} else {',
+        'return "\$number is Odd";',
+        '}'
       ];
     } else {
       return [
-        'for (\$i = 0; \$i < count(\$numbers); \$i++) {', // Wrong loop type
-        'if (\$num % 2 != 0) {', // Wrong condition
-        '\$even_count = \$even_count + 1;', // Non-standard increment
-        '\$even_string = \$even_string + \$num + " ";', // Wrong concatenation
-        'return \$even_count;', // Incomplete return
-        'echo \$num;', // Echo inside function
-        'while (\$i < 10) {', // Wrong loop structure
-        'switch (\$num) {', // Wrong control structure
-        '\$even_array[] = \$num;', // Using array instead of string
-        'break;', // Unnecessary break
-        'continue;', // Unnecessary continue
-        'function findEvenNumbers() {', // Missing parameter
-        '\$numbers = [1,2,3,4,5];', // Wrong array
-        'print_r(\$numbers);', // Wrong output function
+        'if (number % 2 == 0)',
+        'echo "Even"',
+        'else echo "Odd"',
+        'return number;',
+        'print(\$number)'
       ];
     }
   }
 
   String _getDefaultHint() {
-    return "💡 Hint: Use foreach loop to iterate through array. Check even numbers with modulus operator %. Build result string with concatenation. Return an associative array.";
+    return "💡 PHP Hard Hint: Use modulus operator % to check even/odd numbers. Remember PHP variables start with \$, and functions use return statements.";
   }
 
   void _initializeDefaultBlocks() {
     allBlocks = [
-      // Correct blocks
-      '\$even_count = 0;',
-      '\$even_string = "";',
-      'foreach (\$numbers as \$num) {',
-      'if (\$num % 2 == 0) {',
-      '\$even_count++;',
-      '\$even_string .= \$num . " ";',
+      'if (\$number % 2 == 0) {',
+      'return "\$number is Even";',
+      '} else {',
+      'return "\$number is Odd";',
       '}',
-      '}',
-      'return [\'even_count\' => \$even_count, \'even_string\' => trim(\$even_string)];',
-
-      // Incorrect blocks
-      'for (\$i = 0; \$i < count(\$numbers); \$i++) {',
-      'if (\$num % 2 != 0) {',
-      '\$even_count = \$even_count + 1;',
-      '\$even_string = \$even_string + \$num + " ";',
-      'return \$even_count;',
-      'echo \$num;',
-      'while (\$i < 10) {',
-      'switch (\$num) {',
-      '\$even_array[] = \$num;',
-      'break;',
-      'continue;',
-      'function findEvenNumbers() {',
-      '\$numbers = [1,2,3,4,5];',
-      'print_r(\$numbers);',
+      'if (number % 2 == 0)',
+      'echo "Even"',
+      'else echo "Odd"',
+      'return number;',
+      'print(\$number)'
     ]..shuffle();
   }
 
@@ -387,7 +432,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('No hint cards available! Complete daily challenges to earn more.'),
-          backgroundColor: Colors.orange,
+          backgroundColor: Colors.deepPurple,
         ),
       );
     }
@@ -418,7 +463,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Game configuration not loaded. Please retry.'),
+          content: Text('PHP Hard game configuration not loaded. Please retry.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -426,7 +471,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
     }
 
     final musicService = Provider.of<MusicService>(context, listen: false);
-    musicService.playSoundEffect('challenge_start.mp3');
+    musicService.playSoundEffect('level_start.mp3');
 
     int timerDuration = gameConfig!['timer_duration'] != null
         ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 240
@@ -434,7 +479,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
 
     setState(() {
       gameStarted = true;
-      score = 8;
+      score = 3;
       remainingSeconds = timerDuration;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
@@ -487,8 +532,8 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
       });
     });
 
-    // Score reduction every 30 seconds (faster than medium level)
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+    // More frequent score reduction for hard level
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 45), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -517,7 +562,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
         : 240;
 
     setState(() {
-      score = 8;
+      score = 3;
       remainingSeconds = timerDuration;
       gameStarted = false;
       isAnsweredCorrectly = false;
@@ -532,38 +577,38 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
 
   Future<void> saveScoreToDatabase(int score) async {
     if (currentUser?['id'] == null) {
-      print('❌ Cannot save score: No user ID');
+      print('❌ Cannot save PHP Hard score: No user ID');
       return;
     }
 
     try {
       print('💾 SAVING PHP HARD SCORE:');
       print('   User ID: ${currentUser!['id']}');
-      print('   Language: PHP');
-      print('   Level: 3'); // Level 3 for hard
-      print('   Score: $score/8');
-      print('   Completed: ${score == 8}');
+      print('   Language: PHP_Hard');
+      print('   Level: 1');
+      print('   Score: $score/3');
 
-      final response = await ApiService.saveScore(
+      final response = await ApiService.saveScoreWithDifficulty(
         currentUser!['id'],
         'PHP',
-        3, // Level 3 for hard
+        'Hard',
+        1,
         score,
-        score == 8,
+        score == 3,
       );
 
-      print('📡 SERVER RESPONSE: $response');
+      print('📡 PHP HARD SERVER RESPONSE: $response');
 
       if (response['success'] == true) {
         setState(() {
-          levelCompleted = score == 8;
+          levelCompleted = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
 
-        print('✅ PHP HARD SCORE SAVED SUCCESSFULLY TO DATABASE');
+        print('✅ PHP HARD SCORE SAVED SUCCESSFULLY');
       } else {
-        print('❌ FAILED TO SAVE SCORE: ${response['message']}');
+        print('❌ FAILED TO SAVE PHP HARD SCORE: ${response['message']}');
       }
     } catch (e) {
       print('❌ ERROR SAVING PHP HARD SCORE: $e');
@@ -574,22 +619,22 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScores(currentUser!['id'], 'PHP');
+      final response = await ApiService.getScoresWithDifficulty(currentUser!['id'], 'PHP', 'Hard');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level3Data = scoresData['3']; // Level 3 for hard
+        final level1Data = scoresData['1'];
 
-        if (level3Data != null) {
+        if (level1Data != null) {
           setState(() {
-            previousScore = level3Data['score'] ?? 0;
-            levelCompleted = level3Data['completed'] ?? false;
+            previousScore = level1Data['score'] ?? 0;
+            levelCompleted = level1Data['completed'] ?? false;
             hasPreviousScore = true;
           });
         }
       }
     } catch (e) {
-      print('Error loading PHP hard score: $e');
+      print('Error loading PHP Hard score: $e');
     }
   }
 
@@ -597,41 +642,42 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
     if (gameConfig != null) {
       try {
         List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
-        return incorrectBlocks.contains(block);
+        bool isIncorrect = incorrectBlocks.contains(block);
+        if (isIncorrect) {
+          print('❌ PHP Hard Block "$block" is in incorrect blocks list');
+        }
+        return isIncorrect;
       } catch (e) {
-        print('Error checking incorrect block: $e');
+        print('Error checking PHP Hard incorrect block: $e');
       }
     }
 
-    // Default incorrect blocks for PHP Hard
+    // Default PHP Hard incorrect blocks
     List<String> incorrectBlocks = [
-      'for (\$i = 0; \$i < count(\$numbers); \$i++) {',
-      'if (\$num % 2 != 0) {',
-      '\$even_count = \$even_count + 1;',
-      '\$even_string = \$even_string + \$num + " ";',
-      'return \$even_count;',
-      'echo \$num;',
-      'while (\$i < 10) {',
-      'switch (\$num) {',
-      '\$even_array[] = \$num;',
-      'break;',
-      'continue;',
-      'function findEvenNumbers() {',
-      '\$numbers = [1,2,3,4,5];',
-      'print_r(\$numbers);',
+      'if (number % 2 == 0)',
+      'echo "Even"',
+      'else echo "Odd"',
+      'return number;',
+      'print(\$number)'
     ];
     return incorrectBlocks.contains(block);
   }
 
+  // IMPROVED: Advanced answer checking logic for PHP Hard
   void checkAnswer() async {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
+    print('🔍 CHECKING PHP HARD ANSWER:');
+    print('   Dropped blocks: $droppedBlocks');
+    print('   All blocks: $allBlocks');
+
     // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
+      print('❌ PHP HARD HAS INCORRECT BLOCK');
       musicService.playSoundEffect('error.mp3');
 
       if (score > 1) {
@@ -640,7 +686,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ You used incorrect code! -1 point. Current score: $score"),
+            content: Text("❌ You used incorrect PHP code! -1 point. Current score: $score"),
             backgroundColor: Colors.red,
           ),
         );
@@ -658,7 +704,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("You used incorrect code and lost all points!"),
+            content: Text("You used incorrect PHP code and lost all points!"),
             actions: [
               TextButton(
                 onPressed: () {
@@ -675,29 +721,82 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
       return;
     }
 
-    // Check correct answer - complex logic for hard level
-    String answer = droppedBlocks.join('\n');
-    String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
-
+    // ADVANCED ANSWER CHECKING LOGIC FOR PHP HARD
     bool isCorrect = false;
 
     if (gameConfig != null) {
-      // Use configured correct answer
-      String expectedAnswer = gameConfig!['correct_answer'] ?? '';
-      String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
-      isCorrect = normalizedAnswer == normalizedExpected;
-    } else {
-      // Fallback check for PHP Hard Level
-      // Should contain all required elements for the function
-      bool hasInitialization = droppedBlocks.any((block) => block.contains('\$even_count = 0')) &&
-          droppedBlocks.any((block) => block.contains('\$even_string = ""'));
-      bool hasLoop = droppedBlocks.any((block) => block.contains('foreach (\$numbers as \$num)'));
-      bool hasCondition = droppedBlocks.any((block) => block.contains('if (\$num % 2 == 0)'));
-      bool hasIncrement = droppedBlocks.any((block) => block.contains('\$even_count++'));
-      bool hasConcatenation = droppedBlocks.any((block) => block.contains('\$even_string .= \$num . " "'));
-      bool hasReturn = droppedBlocks.any((block) => block.contains('return [\'even_count\' => \$even_count'));
+      // Get expected correct blocks from database
+      List<String> expectedCorrectBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
 
-      isCorrect = hasInitialization && hasLoop && hasCondition && hasIncrement && hasConcatenation && hasReturn;
+      print('🎯 PHP HARD EXPECTED CORRECT BLOCKS: $expectedCorrectBlocks');
+      print('🎯 PHP HARD USER DROPPED BLOCKS: $droppedBlocks');
+
+      // METHOD 1: Check if user has all correct blocks and no extra correct blocks
+      bool hasAllCorrectBlocks = expectedCorrectBlocks.every((block) => droppedBlocks.contains(block));
+      bool noExtraCorrectBlocks = droppedBlocks.every((block) => expectedCorrectBlocks.contains(block));
+
+      // METHOD 2: Check logical structure for hard level
+      bool hasIfCondition = droppedBlocks.any((block) => block.contains('if') && block.contains('%'));
+      bool hasEvenReturn = droppedBlocks.any((block) => block.contains('Even'));
+      bool hasOddReturn = droppedBlocks.any((block) => block.contains('Odd'));
+      bool hasElseStatement = droppedBlocks.any((block) => block.contains('else'));
+      bool hasReturnStatements = droppedBlocks.where((block) => block.contains('return')).length >= 2;
+
+      // METHOD 3: Check string comparison (normalized)
+      String userAnswer = droppedBlocks.join(' ');
+      String normalizedUserAnswer = userAnswer
+          .replaceAll(' ', '')
+          .replaceAll('\n', '')
+          .replaceAll('\t', '')
+          .toLowerCase();
+
+      if (gameConfig!['correct_answer'] != null) {
+        String expectedAnswer = gameConfig!['correct_answer'].toString();
+        String normalizedExpected = expectedAnswer
+            .replaceAll(' ', '')
+            .replaceAll('\n', '')
+            .replaceAll('\t', '')
+            .toLowerCase();
+
+        print('📝 PHP HARD USER ANSWER: $userAnswer');
+        print('📝 PHP HARD NORMALIZED USER: $normalizedUserAnswer');
+        print('🎯 PHP HARD EXPECTED ANSWER: $expectedAnswer');
+        print('🎯 PHP HARD NORMALIZED EXPECTED: $normalizedExpected');
+
+        bool stringMatch = normalizedUserAnswer == normalizedExpected;
+
+        // Use multiple methods for verification - hard level requires more precision
+        isCorrect = (hasAllCorrectBlocks && noExtraCorrectBlocks) ||
+            (stringMatch && hasIfCondition && hasReturnStatements);
+
+        print('✅ PHP HARD BLOCK CHECK: hasAllCorrectBlocks=$hasAllCorrectBlocks, noExtraCorrectBlocks=$noExtraCorrectBlocks');
+        print('✅ PHP HARD LOGIC CHECK: if=$hasIfCondition, even=$hasEvenReturn, odd=$hasOddReturn, else=$hasElseStatement, returns=$hasReturnStatements');
+        print('✅ PHP HARD STRING CHECK: stringMatch=$stringMatch');
+        print('✅ PHP HARD FINAL RESULT: $isCorrect');
+
+        // DEBUG: If still incorrect, show what's missing
+        if (!isCorrect) {
+          List<String> missingBlocks = expectedCorrectBlocks.where((block) => !droppedBlocks.contains(block)).toList();
+          List<String> extraBlocks = droppedBlocks.where((block) => !expectedCorrectBlocks.contains(block)).toList();
+          print('🔍 DEBUG - Missing blocks: $missingBlocks');
+          print('🔍 DEBUG - Extra blocks: $extraBlocks');
+        }
+      } else {
+        // Fallback: use logical structure check for hard level
+        isCorrect = hasIfCondition && hasEvenReturn && hasOddReturn && hasElseStatement && hasReturnStatements;
+        print('⚠️ No PHP Hard correct_answer in DB, using logic comparison only: $isCorrect');
+      }
+    } else {
+      // Fallback check for advanced PHP requirements
+      print('⚠️ No PHP Hard game config, using advanced fallback check');
+      bool hasIfCondition = droppedBlocks.any((block) => block.contains('if (\$number % 2 == 0)'));
+      bool hasEvenReturn = droppedBlocks.any((block) => block.contains('Even'));
+      bool hasOddReturn = droppedBlocks.any((block) => block.contains('Odd'));
+      bool hasElseStatement = droppedBlocks.any((block) => block.contains('else'));
+      bool hasReturnStatements = droppedBlocks.where((block) => block.contains('return')).length >= 2;
+
+      isCorrect = hasIfCondition && hasEvenReturn && hasOddReturn && hasElseStatement && hasReturnStatements;
+      print('✅ PHP HARD FALLBACK CHECK: $isCorrect (if:$hasIfCondition, even:$hasEvenReturn, odd:$hasOddReturn, else:$hasElseStatement, returns:$hasReturnStatements)');
     }
 
     if (isCorrect) {
@@ -710,8 +809,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
 
       saveScoreToDatabase(score);
 
-      // PLAY SUCCESS SOUND BASED ON SCORE
-      if (score == 8) {
+      if (score == 3) {
         musicService.playSoundEffect('perfect.mp3');
       } else {
         musicService.playSoundEffect('success.mp3');
@@ -720,23 +818,23 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text("🎉 Master Level Completed!"),
+          title: Text("✅ Excellent!"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Outstanding PHP Mastery!", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("Outstanding PHP Mastery!"),
               SizedBox(height: 10),
-              Text("Your Score: $score/8", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+              Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
-              if (score == 8)
+              if (score == 3)
                 Text(
-                  "🏆 PHP Expert Unlocked!",
-                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                  "🎉 Perfect! You've mastered PHP Hard Level 1!",
+                  style: TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (8/8) to become a PHP Expert!",
+                  "⚠️ Get a perfect score (3/3) to unlock the next hard level!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
@@ -745,28 +843,33 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  _expectedOutput,
+                  _expectedOutput.isNotEmpty ? _expectedOutput : '15 is Odd',
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
-                    fontSize: 14,
+                    fontSize: 16,
                   ),
                 ),
               ),
               SizedBox(height: 10),
               Text(
-                "You've successfully built a function with:\n• Loop iteration\n• Conditional logic\n• String concatenation\n• Array return",
-                style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                "🏆 Advanced PHP concepts mastered!",
+                style: TextStyle(
+                  color: Colors.deepPurple,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () {
-                musicService.playSoundEffect('level_complete.mp3');
+                musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
-                if (score == 8) {
-                  Navigator.pushReplacementNamed(context, '/php_expert_levels');
+                if (score == 3) {
+                  musicService.playSoundEffect('level_complete.mp3');
+                  Navigator.pushReplacementNamed(context, '/php_level2_hard');
                 } else {
                   Navigator.pushReplacementNamed(context, '/levels', arguments: {
                     'language': 'PHP',
@@ -774,12 +877,13 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
                   });
                 }
               },
-              child: Text(score == 8 ? "Expert Levels" : "Go Back"),
+              child: Text(score == 3 ? "Next Hard Level" : "Go Back"),
             )
           ],
         ),
       );
     } else {
+      print('❌ PHP HARD ANSWER INCORRECT');
       musicService.playSoundEffect('wrong.mp3');
 
       if (score > 1) {
@@ -788,7 +892,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ Incorrect function logic. -1 point. Current score: $score"),
+            content: Text("❌ Incorrect PHP function. -1 point. Current score: $score"),
           ),
         );
       } else {
@@ -805,7 +909,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Challenge Failed"),
-            content: Text("You lost all your points. Practice more and try again!"),
+            content: Text("The PHP function logic is incorrect. Study the concepts and try again!"),
             actions: [
               TextButton(
                 onPressed: () {
@@ -840,7 +944,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
         decoration: BoxDecoration(
           color: Colors.deepPurple.withOpacity(0.95),
           borderRadius: BorderRadius.circular(12 * _scaleFactor),
-          border: Border.all(color: Colors.deepPurpleAccent, width: 2 * _scaleFactor),
+          border: Border.all(color: Colors.purpleAccent, width: 2 * _scaleFactor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.3),
@@ -853,10 +957,10 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
           children: [
             Row(
               children: [
-                Icon(Icons.lightbulb, color: Colors.yellow, size: 20 * _scaleFactor),
+                Icon(Icons.lightbulb, color: Colors.white, size: 20 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  '💡 Expert Hint Activated!',
+                  '💡 PHP Expert Hint Activated!',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16 * _scaleFactor,
@@ -879,7 +983,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
             Text(
               'Expert hint will disappear in 5 seconds...',
               style: TextStyle(
-                color: Colors.yellow,
+                color: Colors.white,
                 fontSize: 12 * _scaleFactor,
                 fontStyle: FontStyle.italic,
               ),
@@ -909,7 +1013,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
               )
             ],
             border: Border.all(
-              color: _availableHintCards > 0 ? Colors.deepPurpleAccent : Colors.grey,
+              color: _availableHintCards > 0 ? Colors.purpleAccent : Colors.grey,
               width: 2 * _scaleFactor,
             ),
           ),
@@ -933,7 +1037,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
     );
   }
 
-  // Code Preview Widget
+  // Advanced PHP code preview for hard level
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -956,14 +1060,15 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
             ),
             child: Row(
               children: [
-                Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
+                Icon(Icons.functions, color: Colors.purpleAccent, size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
                   'advanced_function.php',
                   style: TextStyle(
-                    color: Colors.grey[400],
+                    color: Colors.purpleAccent,
                     fontSize: 12 * _scaleFactor,
                     fontFamily: 'monospace',
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
@@ -973,7 +1078,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
             padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: _buildOrganizedCodePreview(),
+              children: _buildAdvancedCodePreview(),
             ),
           ),
         ],
@@ -981,54 +1086,31 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
     );
   }
 
-  List<Widget> _buildOrganizedCodePreview() {
+  List<Widget> _buildAdvancedCodePreview() {
     List<Widget> codeLines = [];
 
     for (int i = 0; i < _codeStructure.length; i++) {
       String line = _codeStructure[i];
 
-      if (line.contains('// Initialize') ||
-          line.contains('// Loop through') ||
-          line.contains('// Check condition') ||
-          line.contains('// Return result')) {
+      if (line.contains('// Your code here')) {
         // Add user's dragged code in the correct position
-        codeLines.add(_buildUserCodeSection(line));
+        codeLines.add(_buildUserCodeSection());
       } else if (line.trim().isEmpty) {
         codeLines.add(SizedBox(height: 16 * _scaleFactor));
       } else {
-        codeLines.add(_buildSyntaxHighlightedLine(line, i + 1));
+        codeLines.add(_buildAdvancedPHPSyntaxHighlightedLine(line, i + 1));
       }
     }
 
     return codeLines;
   }
 
-  Widget _buildUserCodeSection(String placeholder) {
-    List<String> relevantBlocks = [];
-
-    if (placeholder.contains('Initialize')) {
-      relevantBlocks = droppedBlocks.where((block) =>
-      block.contains('= 0') || block.contains('= ""')).toList();
-    } else if (placeholder.contains('Loop through')) {
-      relevantBlocks = droppedBlocks.where((block) =>
-          block.contains('foreach')).toList();
-    } else if (placeholder.contains('Check condition')) {
-      relevantBlocks = droppedBlocks.where((block) =>
-      block.contains('if (') && block.contains('% 2 == 0')).toList();
-    } else if (placeholder.contains('Return result')) {
-      relevantBlocks = droppedBlocks.where((block) =>
-          block.contains('return [')).toList();
-    } else {
-      // For other sections, show operations
-      relevantBlocks = droppedBlocks.where((block) =>
-      block.contains('++') || block.contains('.=') || block.contains('}')).toList();
-    }
-
-    if (relevantBlocks.isEmpty) {
+  Widget _buildUserCodeSection() {
+    if (droppedBlocks.isEmpty) {
       return Container(
         padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
         child: Text(
-          placeholder,
+          '    // Drag function logic blocks here',
           style: TextStyle(
             color: Colors.grey[600],
             fontSize: 12 * _scaleFactor,
@@ -1044,13 +1126,13 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (String block in relevantBlocks)
+          for (String block in droppedBlocks)
             Container(
               margin: EdgeInsets.only(bottom: 4 * _scaleFactor),
               child: Text(
-                block,
+                '    $block',
                 style: TextStyle(
-                  color: _getBlockColor(block),
+                  color: Colors.greenAccent[400],
                   fontSize: 12 * _scaleFactor,
                   fontFamily: 'monospace',
                   fontWeight: FontWeight.bold,
@@ -1062,35 +1144,27 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
     );
   }
 
-  Color _getBlockColor(String block) {
-    if (block.contains('foreach')) return Colors.cyanAccent;
-    if (block.contains('if (')) return Colors.greenAccent;
-    if (block.contains('return')) return Colors.orangeAccent;
-    if (block.contains('++') || block.contains('.=')) return Colors.yellowAccent;
-    return Colors.purpleAccent;
-  }
-
-  Widget _buildSyntaxHighlightedLine(String code, int lineNumber) {
+  Widget _buildAdvancedPHPSyntaxHighlightedLine(String code, int lineNumber) {
     Color textColor = Colors.white;
     String displayCode = code;
 
-    // PHP syntax highlighting rules for advanced code
+    // Advanced PHP Syntax highlighting rules
     if (code.trim().startsWith('<?php') || code.trim().startsWith('?>')) {
       textColor = Color(0xFF569CD6); // PHP tags - blue
-    } else if (code.trim().startsWith('//')) {
-      textColor = Color(0xFF6A9955); // Comments - green
-    } else if (code.contains('function')) {
-      textColor = Color(0xFFDCDCAA); // Function definition - yellow
-    } else if (code.contains('\$') && code.contains('=')) {
-      textColor = Color(0xFF9CDCFE); // Variable assignment - light blue
-    } else if (code.contains('echo')) {
-      textColor = Color(0xFFD7BA7D); // Output - gold
-    } else if (code.contains('[') && code.contains(']')) {
-      textColor = Color(0xFFCE9178); // Arrays - orange
-    } else if (code.contains('foreach') || code.contains('if (')) {
+    } else if (code.trim().startsWith('function')) {
+      textColor = Color(0xFFDCDCAA); // Function declaration - yellow
+    } else if (code.trim().startsWith('if') || code.trim().contains('else')) {
       textColor = Color(0xFFC586C0); // Control structures - pink
     } else if (code.contains('return')) {
-      textColor = Color(0xFFD16969); // Return - red
+      textColor = Color(0xFF569CD6); // Return statement - blue
+    } else if (code.trim().startsWith('//')) {
+      textColor = Color(0xFF6A9955); // Comments - green
+    } else if (code.contains('\$')) {
+      textColor = Color(0xFF9CDCFE); // Variables - light blue
+    } else if (code.contains('echo')) {
+      textColor = Color(0xFFDCDCAA); // Output functions - yellow
+    } else if (code.contains('"') || code.contains("'")) {
+      textColor = Color(0xFFCE9178); // Strings - orange
     }
 
     return Container(
@@ -1143,7 +1217,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
     if (isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: Text("🐘 PHP - Level 3 (Hard)", style: TextStyle(fontSize: 18)),
+          title: Text("⚡ PHP Hard - Level 1", style: TextStyle(fontSize: 18)),
           backgroundColor: Colors.deepPurple,
         ),
         body: Container(
@@ -1165,12 +1239,12 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
                 CircularProgressIndicator(color: Colors.deepPurple),
                 SizedBox(height: 20),
                 Text(
-                  "Loading PHP Hard Challenge...",
+                  "Loading PHP Hard Game Configuration...",
                   style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
                 SizedBox(height: 10),
                 Text(
-                  "Expert Level Configuration",
+                  "Advanced Level - Expert Challenge",
                   style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
@@ -1183,7 +1257,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
     if (errorMessage != null && !gameStarted) {
       return Scaffold(
         appBar: AppBar(
-          title: Text("🐘 PHP - Level 3 (Hard)", style: TextStyle(fontSize: 18)),
+          title: Text("⚡ PHP Hard - Level 1", style: TextStyle(fontSize: 18)),
           backgroundColor: Colors.deepPurple,
         ),
         body: Container(
@@ -1207,7 +1281,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
                   Icon(Icons.warning_amber, color: Colors.deepPurple, size: 50),
                   SizedBox(height: 20),
                   Text(
-                    "Expert Challenge Warning",
+                    "PHP Hard Configuration Warning",
                     style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10),
@@ -1255,7 +1329,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("🐘 PHP - Level 3 (Hard)", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        title: Text("⚡ PHP Hard - Level 1", style: TextStyle(fontSize: 18 * _scaleFactor)),
         backgroundColor: Colors.deepPurple,
         actions: gameStarted
             ? [
@@ -1307,79 +1381,37 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: EdgeInsets.all(16 * _scaleFactor),
-              decoration: BoxDecoration(
-                color: Colors.deepPurple.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(20 * _scaleFactor),
-                border: Border.all(color: Colors.deepPurpleAccent, width: 3 * _scaleFactor),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.5),
-                    blurRadius: 10 * _scaleFactor,
-                    offset: Offset(0, 5 * _scaleFactor),
-                  )
-                ],
-              ),
-              child: Column(
-                children: [
-                  Icon(Icons.psychology, color: Colors.yellow, size: 40 * _scaleFactor),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Text(
-                    "EXPERT CHALLENGE",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20 * _scaleFactor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Text(
-                    "PHP Function Mastery",
-                    style: TextStyle(
-                      color: Colors.yellow,
-                      fontSize: 16 * _scaleFactor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 30 * _scaleFactor),
-
             ElevatedButton.icon(
               onPressed: gameConfig != null ? () {
                 final musicService = Provider.of<MusicService>(context, listen: false);
-                musicService.playSoundEffect('challenge_accept.mp3');
+                musicService.playSoundEffect('challenge_start.mp3');
                 startGame();
               } : null,
-              icon: Icon(Icons.play_arrow, size: 24 * _scaleFactor),
-              label: Text(gameConfig != null ? "START EXPERT CHALLENGE" : "Config Missing",
-                  style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold)),
+              icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
+              label: Text(gameConfig != null ? "Start Challenge" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 32 * _scaleFactor, vertical: 16 * _scaleFactor),
+                padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
                 backgroundColor: gameConfig != null ? Colors.deepPurple : Colors.grey,
-                foregroundColor: Colors.white,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
 
-            // Display available hint cards in start screen
             Container(
               padding: EdgeInsets.all(12 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.deepPurple.withOpacity(0.3),
+                color: Colors.deepPurple.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
                 border: Border.all(color: Colors.deepPurple),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.lightbulb_outline, color: Colors.yellow, size: 20 * _scaleFactor),
+                  Icon(Icons.lightbulb_outline, color: Colors.purpleAccent, size: 20 * _scaleFactor),
                   SizedBox(width: 8 * _scaleFactor),
                   Text(
                     'Expert Hint Cards: $_availableHintCards',
                     style: TextStyle(
-                      color: Colors.yellow,
+                      color: Colors.purpleAccent,
                       fontSize: 16 * _scaleFactor,
                       fontWeight: FontWeight.bold,
                     ),
@@ -1389,7 +1421,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Use hint cards for advanced function guidance!',
+              'Use hint cards for advanced PHP guidance!',
               style: TextStyle(
                 color: Colors.white70,
                 fontSize: 12 * _scaleFactor,
@@ -1398,45 +1430,37 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
 
             if (levelCompleted)
               Padding(
-                padding: EdgeInsets.only(top: 20 * _scaleFactor),
-                child: Container(
-                  padding: EdgeInsets.all(16 * _scaleFactor),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                    border: Border.all(color: Colors.green),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        "🏆 PHP EXPERT UNLOCKED!",
-                        style: TextStyle(color: Colors.green, fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 5 * _scaleFactor),
-                      Text(
-                        "Perfect Score: 8/8",
-                        style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else if (hasPreviousScore && previousScore > 0)
-              Padding(
-                padding: EdgeInsets.only(top: 20 * _scaleFactor),
+                padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "📊 Your previous expert score: $previousScore/8",
-                      style: TextStyle(color: Colors.deepPurple, fontSize: 16 * _scaleFactor),
+                      "🏆 PHP Hard Level 1 Mastered!",
+                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Master functions, loops, and conditions to achieve perfection!",
-                      style: TextStyle(color: Colors.deepPurple, fontSize: 14 * _scaleFactor),
+                      "You've unlocked Level 2 Hard!",
+                      style: TextStyle(color: Colors.purpleAccent, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              )
+            else if (hasPreviousScore && previousScore > 0)
+              Padding(
+                padding: EdgeInsets.only(top: 10 * _scaleFactor),
+                child: Column(
+                  children: [
+                    Text(
+                      "📊 Your previous PHP Hard score: $previousScore/3",
+                      style: TextStyle(color: Colors.purpleAccent, fontSize: 16 * _scaleFactor),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 5 * _scaleFactor),
+                    Text(
+                      "Complete the challenge perfectly to unlock Level 2!",
+                      style: TextStyle(color: Colors.purpleAccent, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1444,18 +1468,18 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
               )
             else if (hasPreviousScore && previousScore == 0)
                 Padding(
-                  padding: EdgeInsets.only(top: 20 * _scaleFactor),
+                  padding: EdgeInsets.only(top: 10 * _scaleFactor),
                   child: Column(
                     children: [
                       Text(
-                        "💪 Expert Challenge Awaits!",
-                        style: TextStyle(color: Colors.deepPurple, fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold),
+                        "💪 PHP Hard Challenge Awaits!",
+                        style: TextStyle(color: Colors.orange, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
-                        "This is the ultimate test of your PHP skills!",
-                        style: TextStyle(color: Colors.deepPurple, fontSize: 14 * _scaleFactor),
+                        "This is expert level - focus and conquer!",
+                        style: TextStyle(color: Colors.purpleAccent, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1464,50 +1488,44 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
 
             SizedBox(height: 30 * _scaleFactor),
             Container(
-              padding: EdgeInsets.all(20 * _scaleFactor),
+              padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
                 color: Colors.deepPurple[50]!.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(16 * _scaleFactor),
-                border: Border.all(color: Colors.deepPurple[300]!),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 8 * _scaleFactor,
-                    offset: Offset(0, 4 * _scaleFactor),
-                  )
-                ],
+                borderRadius: BorderRadius.circular(12 * _scaleFactor),
+                border: Border.all(color: Colors.deepPurple[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎯 EXPERT OBJECTIVE",
-                    style: TextStyle(fontSize: 20 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.deepPurple[900]),
+                    gameConfig?['objective'] ?? "🎯 PHP Hard Level 1: Function Mastery",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.deepPurple[800]),
                     textAlign: TextAlign.center,
                   ),
-                  SizedBox(height: 15 * _scaleFactor),
+                  SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    gameConfig?['objective'] ?? "Build a complete PHP function that:\n• Takes an array of numbers\n• Uses foreach loop\n• Implements conditional logic\n• Counts even numbers\n• Builds result string\n• Returns associative array",
+                    gameConfig?['objective'] ?? "Create a PHP function that checks if a number is even or odd using conditional logic and return statements",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.deepPurple[800], height: 1.5),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.deepPurple[700]),
                   ),
-                  SizedBox(height: 15 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(12 * _scaleFactor),
-                    decoration: BoxDecoration(
-                      color: Colors.amber[50],
-                      borderRadius: BorderRadius.circular(8 * _scaleFactor),
-                      border: Border.all(color: Colors.amber),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Text(
+                    "🏆 3× POINTS MULTIPLIER",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 14 * _scaleFactor,
+                        color: Colors.deepPurple,
+                        fontWeight: FontWeight.bold
                     ),
-                    child: Text(
-                      "🏆 Get perfect score (8/8) to unlock PHP Expert Status!",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 12 * _scaleFactor,
-                          color: Colors.deepPurple,
-                          fontWeight: FontWeight.bold,
-                          fontStyle: FontStyle.italic
-                      ),
+                  ),
+                  SizedBox(height: 5 * _scaleFactor),
+                  Text(
+                    "⏰ Extended Time: 4 Minutes",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 12 * _scaleFactor,
+                        color: Colors.orange,
+                        fontWeight: FontWeight.bold
                     ),
                   ),
                 ],
@@ -1529,8 +1547,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Expert Challenge Story',
-                    style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text('📖 Expert PHP Challenge', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
                 onPressed: () {
@@ -1548,44 +1565,29 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Hard Level ng PHP! Bumuo ng function na may loops at conditional logic. Ipakita ang iyong galing sa programming!')
-                : (gameConfig?['story_english'] ?? 'This is PHP Hard Level! Build a complete function with loops and conditional logic. Show your programming mastery!'),
+                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Hard Level 1 ng PHP programming! Hamon sa function creation at conditional logic.')
+                : (gameConfig?['story_english'] ?? 'This is PHP Hard Level 1! Master function creation with conditional logic and return statements.'),
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Container(
-            padding: EdgeInsets.all(16 * _scaleFactor),
-            decoration: BoxDecoration(
-              color: Colors.deepPurple.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(12 * _scaleFactor),
-              border: Border.all(color: Colors.deepPurpleAccent),
-            ),
-            child: Text(_instructionText,
-                style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center),
-          ),
+          Text(_instructionText,
+              style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 200 * _scaleFactor,
-              maxHeight: 300 * _scaleFactor,
+              minHeight: 160 * _scaleFactor,
+              maxHeight: 220 * _scaleFactor,
             ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.deepPurple, width: 3.0 * _scaleFactor),
+              border: Border.all(color: Colors.deepPurple, width: 3 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.deepPurple.withOpacity(0.5),
-                  blurRadius: 8 * _scaleFactor,
-                  offset: Offset(0, 4 * _scaleFactor),
-                )
-              ],
             ),
             child: DragTarget<String>(
               onWillAccept: (data) {
@@ -1614,10 +1616,10 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
                         data: block,
                         feedback: Material(
                           color: Colors.transparent,
-                          child: puzzleBlock(block, _getBlockColor(block)),
+                          child: puzzleBlock(block, Colors.deepPurpleAccent),
                         ),
-                        childWhenDragging: puzzleBlock(block, _getBlockColor(block).withOpacity(0.5)),
-                        child: puzzleBlock(block, _getBlockColor(block)),
+                        childWhenDragging: puzzleBlock(block, Colors.deepPurpleAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.deepPurpleAccent),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
@@ -1661,7 +1663,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 150 * _scaleFactor,
+              minHeight: 120 * _scaleFactor,
             ),
             padding: EdgeInsets.all(12 * _scaleFactor),
             decoration: BoxDecoration(
@@ -1681,13 +1683,13 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
                   data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(block, _getBlockColor(block)),
+                    child: puzzleBlock(block, Colors.deepPurple),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, _getBlockColor(block)),
+                    child: puzzleBlock(block, Colors.deepPurple),
                   ),
-                  child: puzzleBlock(block, _getBlockColor(block)),
+                  child: puzzleBlock(block, Colors.deepPurple),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
@@ -1725,17 +1727,13 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
               musicService.playSoundEffect('compile.mp3');
               checkAnswer();
             },
-            icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-            label: Text("RUN FUNCTION", style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold)),
+            icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
+            label: Text("Execute PHP Function", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.deepPurple,
-              foregroundColor: Colors.white,
               padding: EdgeInsets.symmetric(
-                horizontal: 32 * _scaleFactor,
-                vertical: 18 * _scaleFactor,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12 * _scaleFactor),
+                horizontal: 24 * _scaleFactor,
+                vertical: 16 * _scaleFactor,
               ),
             ),
           ),
@@ -1772,7 +1770,7 @@ class _PhpLevel1HardState extends State<PhpLevel1Hard> {
 
     final textWidth = textPainter.width;
     final minWidth = 80 * _scaleFactor;
-    final maxWidth = 280 * _scaleFactor;
+    final maxWidth = 260 * _scaleFactor;
 
     return Container(
       constraints: BoxConstraints(

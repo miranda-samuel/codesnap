@@ -30,10 +30,12 @@ import 'levels/python/easy/level10.dart';
 // PYTHON MEDIUM
 import 'levels/python/medium/level1.dart';
 import 'levels/python/medium/level2.dart';
+import 'levels/python/medium/level3.dart';
 
 // PYTHON HARD
 import 'levels/python/hard/level1.dart';
 import 'levels/python/hard/level2.dart';
+import 'levels/python/hard/level3.dart';
 
 import 'levels/java/easy/level1.dart';
 import 'levels/java/easy/level2.dart';
@@ -49,10 +51,12 @@ import 'levels/java/easy/level10.dart';
 // JAVA MEDIUM
 import 'levels/java/medium/level1.dart';
 import 'levels/java/medium/level2.dart';
+import 'levels/java/medium/level3.dart';
 
 // JAVA HARD
 import 'levels/java/hard/level1.dart';
 import 'levels/java/hard/level2.dart';
+import 'levels/java/hard/level3.dart';
 
 import 'levels/cpp/easy/level1.dart';
 import 'levels/cpp/easy/level2.dart';
@@ -88,9 +92,13 @@ import 'levels/php/easy/level10.dart';
 
 // PHP MEDIUM
 import 'levels/php/medium/level1.dart';
+import 'levels/php/medium/level2.dart';
+import 'levels/php/medium/level3.dart';
 
 // PHP HARD
 import 'levels/php/hard/level1.dart';
+import 'levels/php/hard/level2.dart';
+import 'levels/php/hard/level3.dart';
 
 import 'levels/sql/easy/level1.dart';
 import 'levels/sql/easy/level2.dart';
@@ -105,9 +113,13 @@ import 'levels/sql/easy/level10.dart';
 
 // SQL MEDIUM
 import 'levels/sql/medium/level1.dart';
+import 'levels/sql/medium/level2.dart';
+import 'levels/sql/medium/level3.dart';
 
 // SQL HARD
 import 'levels/sql/hard/level1.dart';
+import 'levels/sql/hard/level2.dart';
+import 'levels/sql/hard/level3.dart';
 
 // Import new module screens
 import 'screens/php_modules_screen.dart';
@@ -234,10 +246,12 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           // PYTHON MEDIUM LEVELS
           '/python_level1_medium': (context) => const PythonLevel1Medium(),
           '/python_level2_medium': (context) => const PythonLevel2Medium(),
+          '/python_level3_medium': (context) => const PythonLevel3Medium(),
 
           // PYTHON HARD LEVELS
           '/python_level1_hard': (context) => const PythonLevel1Hard(),
           '/python_level2_hard': (context) => const PythonLevel2Hard(),
+          '/python_level3_hard': (context) => const PythonLevel3Hard(),
 
           // Java levels
           '/java_level1': (context) => const JavaLevel1(),
@@ -254,10 +268,12 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
           // JAVA MEDIUM LEVELS
           '/java_level1_medium': (context) => const JavaLevel1Medium(),
           '/java_level2_medium': (context) => const JavaLevel2Medium(),
+          '/java_level3_medium': (context) => const JavaLevel3Medium(),
 
           // JAVA HARD LEVELS
           '/java_level1_hard': (context) => const JavaLevel1Hard(),
           '/java_level2_hard': (context) => const JavaLevel2Hard(),
+          '/java_level3_hard': (context) => const JavaLevel3Hard(),
 
           // C++ levels
           '/cpp_level1': (context) => const CppLevel1(),
@@ -295,9 +311,14 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
 
           // PHP MEDIUM LEVELS
           '/php_level1_medium': (context) => const PhpLevel1Medium(),
+          '/php_level2_medium': (context) => const PhpLevel2Medium(),
+          '/php_level3_medium': (context) => const PhpLevel3Medium(),
 
           // PHP HARD LEVELS
           '/php_level1_hard': (context) => const PhpLevel1Hard(),
+          '/php_level2_hard': (context) => const PhpLevel2Hard(),
+          '/php_level3_hard': (context) => const PhpLevel3Hard(),
+
 
           // SQL levels
           '/sql_level1': (context) => const SqlLevel1(),
@@ -313,9 +334,13 @@ class _CodeSnapAppState extends State<CodeSnapApp> with WidgetsBindingObserver {
 
           // SQL MEDIUM LEVELS
           '/sql_level1_medium': (context) => const SqlLevel1Medium(),
+          '/sql_level2_medium': (context) => const SqlLevel2Medium(),
+          '/sql_level3_medium': (context) => const SqlLevel3Medium(),
 
           // SQL HARD LEVELS
           '/sql_level1_hard': (context) => const SqlLevel1Hard(),
+          '/sql_level2_hard': (context) => const SqlLevel2Hard(),
+          '/sql_level3_hard': (context) => const SqlLevel3Hard(),
         },
       ),
     );

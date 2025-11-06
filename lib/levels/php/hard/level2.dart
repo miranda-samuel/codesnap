@@ -2,57 +2,51 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:convert';
-import '../../../services/api_service.dart';
-import '../../../services/user_preferences.dart';
-import '../../../services/music_service.dart';
-import '../../../services/daily_challenge_service.dart';
+import '../../../../services/api_service.dart';
+import '../../../../services/user_preferences.dart';
+import '../../../../services/music_service.dart';
+import '../../../../services/daily_challenge_service.dart';
 
-class PythonLevel2 extends StatefulWidget {
-  const PythonLevel2({super.key});
+class PhpLevel2Hard extends StatefulWidget {
+  const PhpLevel2Hard({super.key});
 
   @override
-  State<PythonLevel2> createState() => _PythonLevel2State();
+  State<PhpLevel2Hard> createState() => _PhpLevel2HardState();
 }
 
-class _PythonLevel2State extends State<PythonLevel2> {
+class _PhpLevel2HardState extends State<PhpLevel2Hard> {
   List<String> allBlocks = [];
   List<String> droppedBlocks = [];
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level2Completed = false;
+  bool levelCompleted = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 180;
+  int remainingSeconds = 300; // 5 minutes for advanced level
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
-  // Track currently dragged block
   String? currentlyDraggedBlock;
-
-  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // Game configuration from database
   Map<String, dynamic>? gameConfig;
   bool isLoading = true;
   String? errorMessage;
 
-  // HINT SYSTEM
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
   bool _isUsingHint = false;
 
-  // Configurable elements from database
-  String _codePreviewTitle = '💻 Code Preview:';
-  String _instructionText = '🧩 Arrange the blocks to create a Python program that calculates the area of a rectangle';
+  String _codePreviewTitle = '💻 Advanced PHP Array & Function Challenge:';
+  String _instructionText = '🧩 Create a PHP function that processes arrays with multiple conditions';
   List<String> _codeStructure = [];
-  String _expectedOutput = 'Area: 50';
+  String _expectedOutput = '';
 
   @override
   void initState() {
@@ -71,9 +65,9 @@ class _PythonLevel2State extends State<PythonLevel2> {
         errorMessage = null;
       });
 
-      final response = await ApiService.getGameConfig('Python', 2);
+      final response = await ApiService.getGameConfigWithDifficulty('PHP', 'Hard', 2);
 
-      print('🔍 PYTHON LEVEL 2 GAME CONFIG RESPONSE:');
+      print('🔍 PHP HARD LEVEL 2 GAME CONFIG RESPONSE:');
       print('   Success: ${response['success']}');
       print('   Message: ${response['message']}');
 
@@ -84,11 +78,11 @@ class _PythonLevel2State extends State<PythonLevel2> {
         });
       } else {
         setState(() {
-          errorMessage = response['message'] ?? 'Failed to load game configuration from database';
+          errorMessage = response['message'] ?? 'Failed to load PHP Hard Level 2 configuration from database';
         });
       }
     } catch (e) {
-      print('❌ Error loading game config: $e');
+      print('❌ Error loading PHP Hard Level 2 game config: $e');
       setState(() {
         errorMessage = 'Connection error: $e';
       });
@@ -103,15 +97,15 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (gameConfig == null) return;
 
     try {
-      print('🔄 INITIALIZING PYTHON LEVEL 2 GAME FROM CONFIG');
+      print('🔄 INITIALIZING PHP HARD LEVEL 2 GAME FROM CONFIG');
 
       // Load timer duration from database
       if (gameConfig!['timer_duration'] != null) {
-        int timerDuration = int.tryParse(gameConfig!['timer_duration'].toString()) ?? 180;
+        int timerDuration = int.tryParse(gameConfig!['timer_duration'].toString()) ?? 300;
         setState(() {
           remainingSeconds = timerDuration;
         });
-        print('⏰ Timer duration loaded: $timerDuration seconds');
+        print('⏰ Hard Level 2 Timer duration loaded: $timerDuration seconds');
       }
 
       // Load instruction text from database
@@ -119,7 +113,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
         setState(() {
           _instructionText = gameConfig!['instruction_text'].toString();
         });
-        print('📝 Instruction text loaded: $_instructionText');
+        print('📝 Hard Level 2 Instruction text loaded: $_instructionText');
       }
 
       // Load code preview title from database
@@ -127,7 +121,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
         setState(() {
           _codePreviewTitle = gameConfig!['code_preview_title'].toString();
         });
-        print('💻 Code preview title loaded: $_codePreviewTitle');
+        print('💻 Hard Level 2 Code preview title loaded: $_codePreviewTitle');
       }
 
       // Load code structure from database
@@ -144,13 +138,13 @@ class _PythonLevel2State extends State<PythonLevel2> {
               _codeStructure = List<String>.from(codeStructureJson);
             });
           } catch (e) {
-            print('❌ Error parsing code structure: $e');
+            print('❌ Error parsing PHP Hard Level 2 code structure: $e');
             setState(() {
               _codeStructure = _getDefaultCodeStructure();
             });
           }
         }
-        print('📝 Code structure loaded: $_codeStructure');
+        print('📝 PHP Hard Level 2 Code structure loaded: $_codeStructure');
       } else {
         setState(() {
           _codeStructure = _getDefaultCodeStructure();
@@ -162,7 +156,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
         setState(() {
           _expectedOutput = gameConfig!['expected_output'].toString();
         });
-        print('🎯 Expected output loaded: $_expectedOutput');
+        print('🎯 Hard Level 2 Expected output loaded: $_expectedOutput');
       }
 
       // Load hint from database
@@ -170,20 +164,20 @@ class _PythonLevel2State extends State<PythonLevel2> {
         setState(() {
           _currentHint = gameConfig!['hint_text'].toString();
         });
-        print('💡 Hint loaded from database: $_currentHint');
+        print('💡 PHP Hard Level 2 Hint loaded from database: $_currentHint');
       } else {
         setState(() {
           _currentHint = _getDefaultHint();
         });
-        print('💡 Using default hint');
+        print('💡 Using default PHP Hard Level 2 hint');
       }
 
-      // Parse blocks with better error handling
+      // Parse blocks with improved error handling
       List<String> correctBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
       List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
 
-      print('✅ Correct Blocks: $correctBlocks');
-      print('✅ Incorrect Blocks: $incorrectBlocks');
+      print('✅ PHP Hard Level 2 Correct Blocks from DB: $correctBlocks');
+      print('✅ PHP Hard Level 2 Incorrect Blocks from DB: $incorrectBlocks');
 
       // Combine and shuffle blocks
       allBlocks = [
@@ -191,29 +185,32 @@ class _PythonLevel2State extends State<PythonLevel2> {
         ...incorrectBlocks,
       ]..shuffle();
 
-      print('🎮 All Blocks Final: $allBlocks');
+      print('🎮 PHP Hard Level 2 All Blocks Final: $allBlocks');
+
+      // DEBUG: Print the expected correct answer from database
+      if (gameConfig!['correct_answer'] != null) {
+        print('🎯 PHP Hard Level 2 Expected Correct Answer from DB: ${gameConfig!['correct_answer']}');
+      }
 
     } catch (e) {
-      print('❌ Error parsing game config: $e');
+      print('❌ Error parsing PHP Hard Level 2 game config: $e');
       _initializeDefaultBlocks();
     }
   }
 
   List<String> _getDefaultCodeStructure() {
     return [
-      "# Python Rectangle Area Calculator",
+      "<?php",
       "",
-      "# Define variables",
-      "length = 10",
-      "width = 5",
+      "function processStudentGrades(\$grades) {",
+      "    // Your code here",
+      "}",
       "",
-      "# Calculate area",
-      "area = length * width",
+      "\$studentGrades = [85, 92, 78, 96, 88, 76, 95];",
+      "\$result = processStudentGrades(\$studentGrades);",
+      "print_r(\$result);",
       "",
-      "# Display result",
-      "print(f\"Area: {area}\")",
-      "",
-      "# Program ends here"
+      "?>"
     ];
   }
 
@@ -221,68 +218,170 @@ class _PythonLevel2State extends State<PythonLevel2> {
     List<String> blocks = [];
 
     if (blocksData == null) {
+      print('⚠️ PHP Hard Level 2 $type blocks are NULL in database');
       return _getDefaultBlocks(type);
     }
 
     try {
       if (blocksData is List) {
-        blocks = List<String>.from(blocksData);
+        // Direct list handling
+        blocks = List<String>.from(blocksData.map((item) => item.toString().trim()));
+        print('✅ PHP Hard Level 2 $type blocks parsed as List: $blocks');
       } else if (blocksData is String) {
         String blocksStr = blocksData.trim();
+        print('🔍 Raw PHP Hard Level 2 $type blocks string: "$blocksStr"');
 
+        // Try JSON parsing first
         if (blocksStr.startsWith('[') && blocksStr.endsWith(']')) {
-          // Parse as JSON array
-          List<dynamic> blocksJson = json.decode(blocksStr);
-          blocks = List<String>.from(blocksJson);
+          try {
+            List<dynamic> blocksJson = json.decode(blocksStr);
+            blocks = List<String>.from(blocksJson.map((item) => item.toString().trim()));
+            print('✅ PHP Hard Level 2 $type blocks parsed as JSON: $blocks');
+          } catch (e) {
+            print('❌ JSON parsing failed for PHP Hard Level 2 $type blocks: $e');
+            // Fallback to manual parsing
+            blocks = _parseManual(blocksStr);
+          }
         } else {
-          // Parse as comma-separated string
-          blocks = blocksStr.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+          // Manual parsing for comma-separated or other formats
+          blocks = _parseManual(blocksStr);
         }
       }
     } catch (e) {
-      print('❌ Error parsing $type blocks: $e');
+      print('❌ Error parsing PHP Hard Level 2 $type blocks: $e');
+      print('🔄 Using default PHP Hard Level 2 blocks for $type');
       blocks = _getDefaultBlocks(type);
     }
 
+    // Remove any empty strings and ensure proper formatting
+    blocks = blocks
+        .where((block) => block.trim().isNotEmpty)
+        .map((block) => block.trim())
+        .toList();
+
+    print('🎯 Final PHP Hard Level 2 $type blocks (${blocks.length}): $blocks');
     return blocks;
+  }
+
+  List<String> _parseManual(String input) {
+    try {
+      // Clean the input - remove brackets and extra quotes
+      String cleaned = input.replaceAll('[', '').replaceAll(']', '').trim();
+
+      // Handle both quoted and unquoted strings
+      if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+        cleaned = cleaned.substring(1, cleaned.length - 1);
+      }
+
+      // Split by comma but be careful with commas inside quotes
+      List<String> items = [];
+      StringBuffer current = StringBuffer();
+      bool inQuotes = false;
+      bool escapeNext = false;
+
+      for (int i = 0; i < cleaned.length; i++) {
+        String char = cleaned[i];
+
+        if (escapeNext) {
+          current.write(char);
+          escapeNext = false;
+        } else if (char == '\\') {
+          escapeNext = true;
+        } else if (char == '"') {
+          inQuotes = !inQuotes;
+          current.write(char);
+        } else if (char == ',' && !inQuotes) {
+          String item = current.toString().trim();
+          if (item.isNotEmpty) {
+            // Remove surrounding quotes if present
+            if (item.startsWith('"') && item.endsWith('"')) {
+              item = item.substring(1, item.length - 1);
+            }
+            items.add(item);
+          }
+          current.clear();
+        } else {
+          current.write(char);
+        }
+      }
+
+      // Add the last item
+      String lastItem = current.toString().trim();
+      if (lastItem.isNotEmpty) {
+        if (lastItem.startsWith('"') && lastItem.endsWith('"')) {
+          lastItem = lastItem.substring(1, lastItem.length - 1);
+        }
+        items.add(lastItem);
+      }
+
+      print('✅ Manual parsing result: $items');
+      return items;
+    } catch (e) {
+      print('❌ Manual parsing failed: $e');
+      // Ultimate fallback: simple split and clean
+      List<String> fallback = input.split(',')
+          .map((item) => item.trim().replaceAll('"', ''))
+          .where((item) => item.isNotEmpty)
+          .toList();
+      print('🔄 Using simple split fallback: $fallback');
+      return fallback;
+    }
   }
 
   List<String> _getDefaultBlocks(String type) {
     if (type == 'correct') {
       return [
-        'length = 10',
-        'width = 5',
-        'area = length * width',
-        'print(f"Area: {area}")'
+        '\$result = [];',
+        'foreach (\$grades as \$grade) {',
+        'if (\$grade >= 90) {',
+        '\$result[] = "A: \$grade";',
+        '} elseif (\$grade >= 80) {',
+        '\$result[] = "B: \$grade";',
+        '} elseif (\$grade >= 70) {',
+        '\$result[] = "C: \$grade";',
+        '} else {',
+        '\$result[] = "F: \$grade";',
+        '}',
+        '}',
+        'return \$result;'
       ];
     } else {
       return [
-        'int length = 10;',
-        'var width = 5;',
-        'area = length x width',
-        'printf("Area: %d", area);',
-        'cout << "Area: " << area;',
-        'System.out.println("Area: " + area);'
+        'for (\$i = 0; \$i < count(\$grades); \$i++) {',
+        'switch (\$grades[\$i]) {',
+        'case >90: echo "A";',
+        'if grade > 80 then "B"',
+        '\$result.add("Grade: \$grade")',
+        'return \$grades;'
       ];
     }
   }
 
   String _getDefaultHint() {
-    return "💡 Hint: Python uses variables without type declarations. Use f-strings for formatted output!";
+    return "💡 PHP Hard Level 2 Hint: Use foreach loop to iterate through array. Apply conditional grading: A (90-100), B (80-89), C (70-79), F (below 70). Build result array with grade categories.";
   }
 
   void _initializeDefaultBlocks() {
     allBlocks = [
-      'length = 10',
-      'width = 5',
-      'area = length * width',
-      'print(f"Area: {area}")',
-      'int length = 10;',
-      'var width = 5;',
-      'area = length x width',
-      'printf("Area: %d", area);',
-      'cout << "Area: " << area;',
-      'System.out.println("Area: " + area);'
+      '\$result = [];',
+      'foreach (\$grades as \$grade) {',
+      'if (\$grade >= 90) {',
+      '\$result[] = "A: \$grade";',
+      '} elseif (\$grade >= 80) {',
+      '\$result[] = "B: \$grade";',
+      '} elseif (\$grade >= 70) {',
+      '\$result[] = "C: \$grade";',
+      '} else {',
+      '\$result[] = "F: \$grade";',
+      '}',
+      '}',
+      'return \$result;',
+      'for (\$i = 0; \$i < count(\$grades); \$i++) {',
+      'switch (\$grades[\$i]) {',
+      'case >90: echo "A";',
+      'if grade > 80 then "B"',
+      '\$result.add("Grade: \$grade")',
+      'return \$grades;'
     ]..shuffle();
   }
 
@@ -292,7 +391,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
       await musicService.stopBackgroundMusic();
       await musicService.playSoundEffect('game_start.mp3');
       await Future.delayed(Duration(milliseconds: 500));
-      await musicService.playSoundEffect('game_music.mp3');
+      await musicService.playSoundEffect('challenge_music.mp3');
     });
   }
 
@@ -352,7 +451,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('No hint cards available! Complete daily challenges to earn more.'),
-          backgroundColor: Colors.orange,
+          backgroundColor: Colors.deepPurple,
         ),
       );
     }
@@ -383,7 +482,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Game configuration not loaded. Please retry.'),
+          content: Text('PHP Hard Level 2 configuration not loaded. Please retry.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -394,8 +493,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
     musicService.playSoundEffect('level_start.mp3');
 
     int timerDuration = gameConfig!['timer_duration'] != null
-        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 180
-        : 180;
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 300
+        : 300;
 
     setState(() {
       gameStarted = true;
@@ -408,7 +507,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
       resetBlocks();
     });
 
-    print('🎮 PYTHON LEVEL 2 GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
+    print('🎮 PHP HARD LEVEL 2 GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
     startTimers();
   }
 
@@ -452,7 +551,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 60), (timer) {
+    // More frequent score reduction for hard level
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 50), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -477,8 +577,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
     musicService.playSoundEffect('reset.mp3');
 
     int timerDuration = gameConfig!['timer_duration'] != null
-        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 180
-        : 180;
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 300
+        : 300;
 
     setState(() {
       score = 3;
@@ -496,41 +596,41 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
   Future<void> saveScoreToDatabase(int score) async {
     if (currentUser?['id'] == null) {
-      print('❌ Cannot save score: No user ID');
+      print('❌ Cannot save PHP Hard Level 2 score: No user ID');
       return;
     }
 
     try {
-      print('💾 SAVING PYTHON LEVEL 2 SCORE:');
+      print('💾 SAVING PHP HARD LEVEL 2 SCORE:');
       print('   User ID: ${currentUser!['id']}');
-      print('   Language: Python');
+      print('   Language: PHP_Hard');
       print('   Level: 2');
       print('   Score: $score/3');
-      print('   Completed: ${score == 3}');
 
-      final response = await ApiService.saveScore(
+      final response = await ApiService.saveScoreWithDifficulty(
         currentUser!['id'],
-        'Python',
+        'PHP',
+        'Hard',
         2,
         score,
         score == 3,
       );
 
-      print('📡 SERVER RESPONSE: $response');
+      print('📡 PHP HARD LEVEL 2 SERVER RESPONSE: $response');
 
       if (response['success'] == true) {
         setState(() {
-          level2Completed = score == 3;
+          levelCompleted = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
 
-        print('✅ PYTHON LEVEL 2 SCORE SAVED SUCCESSFULLY TO DATABASE');
+        print('✅ PHP HARD LEVEL 2 SCORE SAVED SUCCESSFULLY');
       } else {
-        print('❌ FAILED TO SAVE SCORE: ${response['message']}');
+        print('❌ FAILED TO SAVE PHP HARD LEVEL 2 SCORE: ${response['message']}');
       }
     } catch (e) {
-      print('❌ ERROR SAVING PYTHON LEVEL 2 SCORE: $e');
+      print('❌ ERROR SAVING PHP HARD LEVEL 2 SCORE: $e');
     }
   }
 
@@ -538,7 +638,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScores(currentUser!['id'], 'Python');
+      final response = await ApiService.getScoresWithDifficulty(currentUser!['id'], 'PHP', 'Hard');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
@@ -547,13 +647,13 @@ class _PythonLevel2State extends State<PythonLevel2> {
         if (level2Data != null) {
           setState(() {
             previousScore = level2Data['score'] ?? 0;
-            level2Completed = level2Data['completed'] ?? false;
+            levelCompleted = level2Data['completed'] ?? false;
             hasPreviousScore = true;
           });
         }
       }
     } catch (e) {
-      print('Error loading Python Level 2 score: $e');
+      print('Error loading PHP Hard Level 2 score: $e');
     }
   }
 
@@ -561,33 +661,43 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (gameConfig != null) {
       try {
         List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
-        return incorrectBlocks.contains(block);
+        bool isIncorrect = incorrectBlocks.contains(block);
+        if (isIncorrect) {
+          print('❌ PHP Hard Level 2 Block "$block" is in incorrect blocks list');
+        }
+        return isIncorrect;
       } catch (e) {
-        print('Error checking incorrect block: $e');
+        print('Error checking PHP Hard Level 2 incorrect block: $e');
       }
     }
 
-    // Default incorrect blocks for Python Level 2
+    // Default PHP Hard Level 2 incorrect blocks
     List<String> incorrectBlocks = [
-      'int length = 10;',
-      'var width = 5;',
-      'area = length x width',
-      'printf("Area: %d", area);',
-      'cout << "Area: " << area;',
-      'System.out.println("Area: " + area);'
+      'for (\$i = 0; \$i < count(\$grades); \$i++) {',
+      'switch (\$grades[\$i]) {',
+      'case >90: echo "A";',
+      'if grade > 80 then "B"',
+      '\$result.add("Grade: \$grade")',
+      'return \$grades;'
     ];
     return incorrectBlocks.contains(block);
   }
 
+  // ADVANCED ANSWER CHECKING LOGIC FOR PHP HARD LEVEL 2
   void checkAnswer() async {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
+    print('🔍 CHECKING PHP HARD LEVEL 2 ANSWER:');
+    print('   Dropped blocks: $droppedBlocks');
+    print('   All blocks: $allBlocks');
+
     // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
+      print('❌ PHP HARD LEVEL 2 HAS INCORRECT BLOCK');
       musicService.playSoundEffect('error.mp3');
 
       if (score > 1) {
@@ -596,7 +706,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ You used incorrect code! -1 point. Current score: $score"),
+            content: Text("❌ You used incorrect PHP code! -1 point. Current score: $score"),
             backgroundColor: Colors.red,
           ),
         );
@@ -614,7 +724,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("You used incorrect code and lost all points!"),
+            content: Text("You used incorrect PHP code and lost all points!"),
             actions: [
               TextButton(
                 onPressed: () {
@@ -631,43 +741,88 @@ class _PythonLevel2State extends State<PythonLevel2> {
       return;
     }
 
-    // Check correct answer - for Python Level 2, we need to check the logical order
-    String answer = droppedBlocks.join(' ');
-    String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
-
+    // ADVANCED ANSWER CHECKING LOGIC FOR PHP HARD LEVEL 2
     bool isCorrect = false;
 
     if (gameConfig != null) {
-      // Use configured correct answer
-      String expectedAnswer = gameConfig!['correct_answer'] ?? '';
-      String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
-      isCorrect = normalizedAnswer == normalizedExpected;
+      // Get expected correct blocks from database
+      List<String> expectedCorrectBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
+
+      print('🎯 PHP HARD LEVEL 2 EXPECTED CORRECT BLOCKS: $expectedCorrectBlocks');
+      print('🎯 PHP HARD LEVEL 2 USER DROPPED BLOCKS: $droppedBlocks');
+
+      // METHOD 1: Check if user has all correct blocks and no extra correct blocks
+      bool hasAllCorrectBlocks = expectedCorrectBlocks.every((block) => droppedBlocks.contains(block));
+      bool noExtraCorrectBlocks = droppedBlocks.every((block) => expectedCorrectBlocks.contains(block));
+
+      // METHOD 2: Check logical structure for hard level 2
+      bool hasResultArray = droppedBlocks.any((block) => block.contains('\$result = []'));
+      bool hasForeachLoop = droppedBlocks.any((block) => block.contains('foreach'));
+      bool hasGradeCondition90 = droppedBlocks.any((block) => block.contains('>= 90'));
+      bool hasGradeCondition80 = droppedBlocks.any((block) => block.contains('>= 80'));
+      bool hasGradeCondition70 = droppedBlocks.any((block) => block.contains('>= 70'));
+      bool hasElseCondition = droppedBlocks.any((block) => block.contains('else'));
+      bool hasReturnStatement = droppedBlocks.any((block) => block.contains('return \$result'));
+
+      // METHOD 3: Check string comparison (normalized)
+      String userAnswer = droppedBlocks.join(' ');
+      String normalizedUserAnswer = userAnswer
+          .replaceAll(' ', '')
+          .replaceAll('\n', '')
+          .replaceAll('\t', '')
+          .toLowerCase();
+
+      if (gameConfig!['correct_answer'] != null) {
+        String expectedAnswer = gameConfig!['correct_answer'].toString();
+        String normalizedExpected = expectedAnswer
+            .replaceAll(' ', '')
+            .replaceAll('\n', '')
+            .replaceAll('\t', '')
+            .toLowerCase();
+
+        print('📝 PHP HARD LEVEL 2 USER ANSWER: $userAnswer');
+        print('📝 PHP HARD LEVEL 2 NORMALIZED USER: $normalizedUserAnswer');
+        print('🎯 PHP HARD LEVEL 2 EXPECTED ANSWER: $expectedAnswer');
+        print('🎯 PHP HARD LEVEL 2 NORMALIZED EXPECTED: $normalizedExpected');
+
+        bool stringMatch = normalizedUserAnswer == normalizedExpected;
+
+        // Use multiple methods for verification - hard level 2 requires more precision
+        isCorrect = (hasAllCorrectBlocks && noExtraCorrectBlocks) ||
+            (stringMatch && hasForeachLoop && hasResultArray && hasReturnStatement);
+
+        print('✅ PHP HARD LEVEL 2 BLOCK CHECK: hasAllCorrectBlocks=$hasAllCorrectBlocks, noExtraCorrectBlocks=$noExtraCorrectBlocks');
+        print('✅ PHP HARD LEVEL 2 LOGIC CHECK: foreach=$hasForeachLoop, resultArray=$hasResultArray, return=$hasReturnStatement');
+        print('✅ PHP HARD LEVEL 2 STRING CHECK: stringMatch=$stringMatch');
+        print('✅ PHP HARD LEVEL 2 FINAL RESULT: $isCorrect');
+
+        // DEBUG: If still incorrect, show what's missing
+        if (!isCorrect) {
+          List<String> missingBlocks = expectedCorrectBlocks.where((block) => !droppedBlocks.contains(block)).toList();
+          List<String> extraBlocks = droppedBlocks.where((block) => !expectedCorrectBlocks.contains(block)).toList();
+          print('🔍 DEBUG - Missing blocks: $missingBlocks');
+          print('🔍 DEBUG - Extra blocks: $extraBlocks');
+        }
+      } else {
+        // Fallback: use logical structure check for hard level 2
+        isCorrect = hasResultArray && hasForeachLoop && hasGradeCondition90 &&
+            hasGradeCondition80 && hasGradeCondition70 && hasElseCondition && hasReturnStatement;
+        print('⚠️ No PHP Hard Level 2 correct_answer in DB, using logic comparison only: $isCorrect');
+      }
     } else {
-      // Fallback check for Python Level 2 - check if all required blocks are present in logical order
-      List<String> requiredBlocks = [
-        'length=10',
-        'width=5',
-        'area=length*width',
-        'print(f"area:{area}")'
-      ];
+      // Fallback check for advanced PHP Level 2 requirements
+      print('⚠️ No PHP Hard Level 2 game config, using advanced fallback check');
+      bool hasResultArray = droppedBlocks.any((block) => block.contains('\$result = []'));
+      bool hasForeachLoop = droppedBlocks.any((block) => block.contains('foreach (\$grades as \$grade)'));
+      bool hasGradeCondition90 = droppedBlocks.any((block) => block.contains('>= 90'));
+      bool hasGradeCondition80 = droppedBlocks.any((block) => block.contains('>= 80'));
+      bool hasGradeCondition70 = droppedBlocks.any((block) => block.contains('>= 70'));
+      bool hasElseCondition = droppedBlocks.any((block) => block.contains('else'));
+      bool hasReturnStatement = droppedBlocks.any((block) => block.contains('return \$result'));
 
-      String userAnswer = droppedBlocks.join('').toLowerCase().replaceAll(' ', '');
-      bool hasAllBlocks = requiredBlocks.every((block) => userAnswer.contains(block));
-
-      // Check basic logical order (variables before calculation, calculation before output)
-      int lengthIndex = droppedBlocks.indexWhere((block) => block.toLowerCase().contains('length=10'));
-      int widthIndex = droppedBlocks.indexWhere((block) => block.toLowerCase().contains('width=5'));
-      int areaIndex = droppedBlocks.indexWhere((block) => block.toLowerCase().contains('area=length*width'));
-      int printIndex = droppedBlocks.indexWhere((block) => block.toLowerCase().contains('print(f"area:{area}")'));
-
-      isCorrect = hasAllBlocks &&
-          lengthIndex >= 0 &&
-          widthIndex >= 0 &&
-          areaIndex >= 0 &&
-          printIndex >= 0 &&
-          areaIndex > lengthIndex &&
-          areaIndex > widthIndex &&
-          printIndex > areaIndex;
+      isCorrect = hasResultArray && hasForeachLoop && hasGradeCondition90 &&
+          hasGradeCondition80 && hasGradeCondition70 && hasElseCondition && hasReturnStatement;
+      print('✅ PHP HARD LEVEL 2 FALLBACK CHECK: $isCorrect');
     }
 
     if (isCorrect) {
@@ -680,7 +835,6 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
       saveScoreToDatabase(score);
 
-      // PLAY SUCCESS SOUND BASED ON SCORE
       if (score == 3) {
         musicService.playSoundEffect('perfect.mp3');
       } else {
@@ -690,37 +844,46 @@ class _PythonLevel2State extends State<PythonLevel2> {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text("✅ Correct!"),
+          title: Text("✅ Outstanding!"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent work Python Programmer!"),
+              Text("PHP Array Mastery Achieved!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've mastered Level 2!",
-                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                  "🎉 Perfect! You've mastered PHP Hard Level 2!",
+                  style: TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) to complete this level!",
+                  "⚠️ Get a perfect score (3/3) to unlock the next hard level!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
-              Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("Function Output:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  _expectedOutput,
+                  _expectedOutput.isNotEmpty ? _expectedOutput : 'Array with grade categories',
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
-                    fontSize: 16,
+                    fontSize: 14,
                   ),
+                ),
+              ),
+              SizedBox(height: 10),
+              Text(
+                "🏆 Advanced PHP array processing mastered!",
+                style: TextStyle(
+                  color: Colors.deepPurple,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
                 ),
               ),
             ],
@@ -732,23 +895,21 @@ class _PythonLevel2State extends State<PythonLevel2> {
                 Navigator.pop(context);
                 if (score == 3) {
                   musicService.playSoundEffect('level_complete.mp3');
-                  Navigator.pushReplacementNamed(context, '/levels', arguments: {
-                    'language': 'Python',
-                    'difficulty': 'Easy'
-                  });
+                  Navigator.pushReplacementNamed(context, '/php_level3_hard');
                 } else {
                   Navigator.pushReplacementNamed(context, '/levels', arguments: {
-                    'language': 'Python',
-                    'difficulty': 'Easy'
+                    'language': 'PHP',
+                    'difficulty': 'Hard'
                   });
                 }
               },
-              child: Text(score == 3 ? "Back to Levels" : "Try Again"),
+              child: Text(score == 3 ? "Next Hard Level" : "Go Back"),
             )
           ],
         ),
       );
     } else {
+      print('❌ PHP HARD LEVEL 2 ANSWER INCORRECT');
       musicService.playSoundEffect('wrong.mp3');
 
       if (score > 1) {
@@ -757,7 +918,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ Incorrect arrangement. -1 point. Current score: $score"),
+            content: Text("❌ Incorrect PHP array function. -1 point. Current score: $score"),
           ),
         );
       } else {
@@ -773,8 +934,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
-            title: Text("💀 Game Over"),
-            content: Text("You lost all your points."),
+            title: Text("💀 Challenge Failed"),
+            content: Text("The PHP array processing logic is incorrect. Study array functions and try again!"),
             actions: [
               TextButton(
                 onPressed: () {
@@ -782,7 +943,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
                   Navigator.pop(context);
                   resetGame();
                 },
-                child: Text("Retry"),
+                child: Text("Retry Challenge"),
               )
             ],
           ),
@@ -807,9 +968,9 @@ class _PythonLevel2State extends State<PythonLevel2> {
       child: Container(
         padding: EdgeInsets.all(16 * _scaleFactor),
         decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.95),
+          color: Colors.deepPurple.withOpacity(0.95),
           borderRadius: BorderRadius.circular(12 * _scaleFactor),
-          border: Border.all(color: Colors.orangeAccent, width: 2 * _scaleFactor),
+          border: Border.all(color: Colors.purpleAccent, width: 2 * _scaleFactor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.3),
@@ -825,7 +986,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
                 Icon(Icons.lightbulb, color: Colors.white, size: 20 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  '💡 Hint Activated!',
+                  '💡 PHP Expert Hint Activated!',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16 * _scaleFactor,
@@ -846,7 +1007,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Hint will disappear in 5 seconds...',
+              'Expert hint will disappear in 5 seconds...',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 12 * _scaleFactor,
@@ -868,7 +1029,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
         child: Container(
           padding: EdgeInsets.all(12 * _scaleFactor),
           decoration: BoxDecoration(
-            color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
+            color: _availableHintCards > 0 ? Colors.deepPurple : Colors.grey,
             borderRadius: BorderRadius.circular(20 * _scaleFactor),
             boxShadow: [
               BoxShadow(
@@ -878,7 +1039,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
               )
             ],
             border: Border.all(
-              color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
+              color: _availableHintCards > 0 ? Colors.purpleAccent : Colors.grey,
               width: 2 * _scaleFactor,
             ),
           ),
@@ -902,14 +1063,14 @@ class _PythonLevel2State extends State<PythonLevel2> {
     );
   }
 
-  // Code Preview Widget
+  // Advanced PHP code preview for hard level 2
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(8 * _scaleFactor),
-        border: Border.all(color: Colors.grey[700]!),
+        border: Border.all(color: Colors.deepPurple),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -925,14 +1086,15 @@ class _PythonLevel2State extends State<PythonLevel2> {
             ),
             child: Row(
               children: [
-                Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
+                Icon(Icons.functions, color: Colors.purpleAccent, size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'rectangle_area.py',
+                  'array_processing.php',
                   style: TextStyle(
-                    color: Colors.grey[400],
+                    color: Colors.purpleAccent,
                     fontSize: 12 * _scaleFactor,
                     fontFamily: 'monospace',
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
@@ -942,7 +1104,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
             padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: _buildOrganizedCodePreview(),
+              children: _buildAdvancedCodePreview(),
             ),
           ),
         ],
@@ -950,19 +1112,19 @@ class _PythonLevel2State extends State<PythonLevel2> {
     );
   }
 
-  List<Widget> _buildOrganizedCodePreview() {
+  List<Widget> _buildAdvancedCodePreview() {
     List<Widget> codeLines = [];
 
     for (int i = 0; i < _codeStructure.length; i++) {
       String line = _codeStructure[i];
 
-      if (line.contains('# Your code here')) {
+      if (line.contains('// Your code here')) {
         // Add user's dragged code in the correct position
         codeLines.add(_buildUserCodeSection());
       } else if (line.trim().isEmpty) {
         codeLines.add(SizedBox(height: 16 * _scaleFactor));
       } else {
-        codeLines.add(_buildSyntaxHighlightedLine(line, i + 1));
+        codeLines.add(_buildAdvancedPHPSyntaxHighlightedLine(line, i + 1));
       }
     }
 
@@ -974,7 +1136,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
       return Container(
         padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
         child: Text(
-          '# Drag blocks here...',
+          '    // Drag array processing logic here',
           style: TextStyle(
             color: Colors.grey[600],
             fontSize: 12 * _scaleFactor,
@@ -994,7 +1156,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
             Container(
               margin: EdgeInsets.only(bottom: 4 * _scaleFactor),
               child: Text(
-                block,
+                '    $block',
                 style: TextStyle(
                   color: Colors.greenAccent[400],
                   fontSize: 12 * _scaleFactor,
@@ -1008,19 +1170,31 @@ class _PythonLevel2State extends State<PythonLevel2> {
     );
   }
 
-  Widget _buildSyntaxHighlightedLine(String code, int lineNumber) {
+  Widget _buildAdvancedPHPSyntaxHighlightedLine(String code, int lineNumber) {
     Color textColor = Colors.white;
     String displayCode = code;
 
-    // Python syntax highlighting rules
-    if (code.trim().startsWith('#')) {
+    // Advanced PHP Syntax highlighting rules
+    if (code.trim().startsWith('<?php') || code.trim().startsWith('?>')) {
+      textColor = Color(0xFF569CD6); // PHP tags - blue
+    } else if (code.trim().startsWith('function')) {
+      textColor = Color(0xFFDCDCAA); // Function declaration - yellow
+    } else if (code.trim().startsWith('if') || code.trim().contains('elseif') || code.trim().contains('else')) {
+      textColor = Color(0xFFC586C0); // Control structures - pink
+    } else if (code.contains('foreach') || code.contains('for')) {
+      textColor = Color(0xFFC586C0); // Loops - pink
+    } else if (code.contains('return')) {
+      textColor = Color(0xFF569CD6); // Return statement - blue
+    } else if (code.trim().startsWith('//')) {
       textColor = Color(0xFF6A9955); // Comments - green
-    } else if (code.contains('print(')) {
-      textColor = Color(0xFF569CD6); // Functions - blue
+    } else if (code.contains('\$')) {
+      textColor = Color(0xFF9CDCFE); // Variables - light blue
+    } else if (code.contains('print_r') || code.contains('echo')) {
+      textColor = Color(0xFFDCDCAA); // Output functions - yellow
     } else if (code.contains('"') || code.contains("'")) {
       textColor = Color(0xFFCE9178); // Strings - orange
-    } else if (code.contains('=')) {
-      textColor = Color(0xFF9CDCFE); // Variables - light blue
+    } else if (code.contains('[') && code.contains(']')) {
+      textColor = Color(0xFFDCDCAA); // Arrays - yellow
     }
 
     return Container(
@@ -1073,8 +1247,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: Text("🐍 Python - Level 2", style: TextStyle(fontSize: 18)),
-          backgroundColor: Colors.green,
+          title: Text("⚡ PHP Hard - Level 2", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.deepPurple,
         ),
         body: Container(
           decoration: BoxDecoration(
@@ -1092,15 +1266,15 @@ class _PythonLevel2State extends State<PythonLevel2> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CircularProgressIndicator(color: Colors.green),
+                CircularProgressIndicator(color: Colors.deepPurple),
                 SizedBox(height: 20),
                 Text(
-                  "Loading Python Level 2 Configuration...",
+                  "Loading PHP Hard Level 2 Configuration...",
                   style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
                 SizedBox(height: 10),
                 Text(
-                  "From Database",
+                  "Advanced Array Processing Challenge",
                   style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
@@ -1113,8 +1287,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (errorMessage != null && !gameStarted) {
       return Scaffold(
         appBar: AppBar(
-          title: Text("🐍 Python - Level 2", style: TextStyle(fontSize: 18)),
-          backgroundColor: Colors.green,
+          title: Text("⚡ PHP Hard - Level 2", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.deepPurple,
         ),
         body: Container(
           decoration: BoxDecoration(
@@ -1134,10 +1308,10 @@ class _PythonLevel2State extends State<PythonLevel2> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.warning_amber, color: Colors.green, size: 50),
+                  Icon(Icons.warning_amber, color: Colors.deepPurple, size: 50),
                   SizedBox(height: 20),
                   Text(
-                    "Configuration Warning",
+                    "PHP Hard Level 2 Configuration Warning",
                     style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10),
@@ -1149,18 +1323,18 @@ class _PythonLevel2State extends State<PythonLevel2> {
                   SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: _loadGameConfig,
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
                     child: Text("Retry Loading"),
                   ),
                   SizedBox(height: 10),
                   TextButton(
                     onPressed: () {
                       Navigator.pushReplacementNamed(context, '/levels', arguments: {
-                        'language': 'Python',
-                        'difficulty': 'Easy'
+                        'language': 'PHP',
+                        'difficulty': 'Hard'
                       });
                     },
-                    child: Text("Back to Levels", style: TextStyle(color: Colors.green)),
+                    child: Text("Back to Levels", style: TextStyle(color: Colors.deepPurple)),
                   ),
                 ],
               ),
@@ -1185,8 +1359,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("🐍 Python - Level 2", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.green,
+        title: Text("⚡ PHP Hard - Level 2", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.deepPurple,
         actions: gameStarted
             ? [
           Padding(
@@ -1240,35 +1414,34 @@ class _PythonLevel2State extends State<PythonLevel2> {
             ElevatedButton.icon(
               onPressed: gameConfig != null ? () {
                 final musicService = Provider.of<MusicService>(context, listen: false);
-                musicService.playSoundEffect('button_click.mp3');
+                musicService.playSoundEffect('challenge_start.mp3');
                 startGame();
               } : null,
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text(gameConfig != null ? "Start" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text(gameConfig != null ? "Start Challenge" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: gameConfig != null ? Colors.green : Colors.grey,
+                backgroundColor: gameConfig != null ? Colors.deepPurple : Colors.grey,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
 
-            // Display available hint cards in start screen
             Container(
               padding: EdgeInsets.all(12 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.2),
+                color: Colors.deepPurple.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.green),
+                border: Border.all(color: Colors.deepPurple),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.lightbulb_outline, color: Colors.green, size: 20 * _scaleFactor),
+                  Icon(Icons.lightbulb_outline, color: Colors.purpleAccent, size: 20 * _scaleFactor),
                   SizedBox(width: 8 * _scaleFactor),
                   Text(
-                    'Hint Cards: $_availableHintCards',
+                    'Expert Hint Cards: $_availableHintCards',
                     style: TextStyle(
-                      color: Colors.green,
+                      color: Colors.purpleAccent,
                       fontSize: 16 * _scaleFactor,
                       fontWeight: FontWeight.bold,
                     ),
@@ -1278,27 +1451,27 @@ class _PythonLevel2State extends State<PythonLevel2> {
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Use hint cards during the game for help!',
+              'Use hint cards for advanced PHP array guidance!',
               style: TextStyle(
                 color: Colors.white70,
                 fontSize: 12 * _scaleFactor,
               ),
             ),
 
-            if (level2Completed)
+            if (levelCompleted)
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Level 2 completed with perfect score!",
-                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
+                      "🏆 PHP Hard Level 2 Mastered!",
+                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "You've mastered Python basics!",
-                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "You've unlocked Level 3 Hard!",
+                      style: TextStyle(color: Colors.purpleAccent, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1310,14 +1483,14 @@ class _PythonLevel2State extends State<PythonLevel2> {
                 child: Column(
                   children: [
                     Text(
-                      "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
+                      "📊 Your previous PHP Hard Level 2 score: $previousScore/3",
+                      style: TextStyle(color: Colors.purpleAccent, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score!",
-                      style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
+                      "Complete the challenge perfectly to unlock Level 3!",
+                      style: TextStyle(color: Colors.purpleAccent, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1329,14 +1502,14 @@ class _PythonLevel2State extends State<PythonLevel2> {
                   child: Column(
                     children: [
                       Text(
-                        "😅 Your previous score: $previousScore/3",
-                        style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
+                        "💪 PHP Hard Level 2 Challenge Awaits!",
+                        style: TextStyle(color: Colors.orange, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
-                        "Don't give up! You can do better this time!",
-                        style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
+                        "Advanced array processing - expert level!",
+                        style: TextStyle(color: Colors.purpleAccent, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1348,32 +1521,41 @@ class _PythonLevel2State extends State<PythonLevel2> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.green[50]!.withOpacity(0.9),
+                color: Colors.deepPurple[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.green[200]!),
+                border: Border.all(color: Colors.deepPurple[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    gameConfig?['objective'] ?? "🎯 Python Level 2 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.green[800]),
+                    gameConfig?['objective'] ?? "🎯 PHP Hard Level 2: Array Processing Mastery",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.deepPurple[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    gameConfig?['objective'] ?? "Learn Python variables and basic calculations",
+                    gameConfig?['objective'] ?? "Create a PHP function that processes student grades array and categorizes them into A, B, C, F grades",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.green[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.deepPurple[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "📝 Create a program that calculates rectangle area using variables",
+                    "🏆 3× POINTS MULTIPLIER",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 14 * _scaleFactor,
+                        color: Colors.deepPurple,
+                        fontWeight: FontWeight.bold
+                    ),
+                  ),
+                  SizedBox(height: 5 * _scaleFactor),
+                  Text(
+                    "⏰ Extended Time: 5 Minutes",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
-                        color: Colors.purple,
-                        fontWeight: FontWeight.bold,
-                        fontStyle: FontStyle.italic
+                        color: Colors.orange,
+                        fontWeight: FontWeight.bold
                     ),
                   ),
                 ],
@@ -1395,7 +1577,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Short Story', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text('📖 Expert PHP Array Challenge', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
                 onPressed: () {
@@ -1413,28 +1595,28 @@ class _PythonLevel2State extends State<PythonLevel2> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? (gameConfig?['story_tagalog'] ?? 'Ngayon ay Level 2 ng Python! Matuto ng variables at calculations.')
-                : (gameConfig?['story_english'] ?? 'This is Python Level 2! Learn about variables and basic calculations.'),
+                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Hard Level 2 ng PHP programming! Hamon sa array processing at complex conditional logic.')
+                : (gameConfig?['story_english'] ?? 'This is PHP Hard Level 2! Master array processing with complex conditional logic and multiple return paths.'),
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
           Text(_instructionText,
-              style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
+              style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 140 * _scaleFactor,
-              maxHeight: 200 * _scaleFactor,
+              minHeight: 180 * _scaleFactor,
+              maxHeight: 250 * _scaleFactor,
             ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.green, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.deepPurple, width: 3 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -1464,10 +1646,10 @@ class _PythonLevel2State extends State<PythonLevel2> {
                         data: block,
                         feedback: Material(
                           color: Colors.transparent,
-                          child: puzzleBlock(block, Colors.greenAccent),
+                          child: puzzleBlock(block, Colors.deepPurpleAccent),
                         ),
-                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.greenAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.deepPurpleAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.deepPurpleAccent),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
@@ -1511,12 +1693,13 @@ class _PythonLevel2State extends State<PythonLevel2> {
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 100 * _scaleFactor,
+              minHeight: 140 * _scaleFactor,
             ),
             padding: EdgeInsets.all(12 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[800]!.withOpacity(0.3),
               borderRadius: BorderRadius.circular(12 * _scaleFactor),
+              border: Border.all(color: Colors.deepPurple.withOpacity(0.5)),
             ),
             child: Wrap(
               spacing: 8 * _scaleFactor,
@@ -1530,13 +1713,13 @@ class _PythonLevel2State extends State<PythonLevel2> {
                   data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(block, Colors.green),
+                    child: puzzleBlock(block, Colors.deepPurple),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.green),
+                    child: puzzleBlock(block, Colors.deepPurple),
                   ),
-                  child: puzzleBlock(block, Colors.green),
+                  child: puzzleBlock(block, Colors.deepPurple),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
@@ -1575,9 +1758,9 @@ class _PythonLevel2State extends State<PythonLevel2> {
               checkAnswer();
             },
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
-            label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
+            label: Text("Execute PHP Function", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: Colors.deepPurple,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -1593,7 +1776,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
               musicService.playSoundEffect('button_click.mp3');
               resetGame();
             },
-            child: Text("🔁 Retry", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+            child: Text("🔄 Restart Challenge", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
           ),
         ],
       ),
@@ -1607,7 +1790,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 12 * _scaleFactor,
+          fontSize: 11 * _scaleFactor,
           color: Colors.black,
         ),
       ),
@@ -1617,7 +1800,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
     final textWidth = textPainter.width;
     final minWidth = 80 * _scaleFactor;
-    final maxWidth = 240 * _scaleFactor;
+    final maxWidth = 280 * _scaleFactor;
 
     return Container(
       constraints: BoxConstraints(
@@ -1649,7 +1832,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 12 * _scaleFactor,
+          fontSize: 11 * _scaleFactor,
           color: Colors.black,
           shadows: [
             Shadow(

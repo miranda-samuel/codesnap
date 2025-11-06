@@ -2,25 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:convert';
-import '../../../services/api_service.dart';
-import '../../../services/user_preferences.dart';
-import '../../../services/music_service.dart';
-import '../../../services/daily_challenge_service.dart';
+import '../../../../services/api_service.dart';
+import '../../../../services/user_preferences.dart';
+import '../../../../services/music_service.dart';
+import '../../../../services/daily_challenge_service.dart';
 
-class PythonLevel2 extends StatefulWidget {
-  const PythonLevel2({super.key});
+class SqlLevel2Medium extends StatefulWidget {
+  const SqlLevel2Medium({super.key});
 
   @override
-  State<PythonLevel2> createState() => _PythonLevel2State();
+  State<SqlLevel2Medium> createState() => _SqlLevel2MediumState();
 }
 
-class _PythonLevel2State extends State<PythonLevel2> {
+class _SqlLevel2MediumState extends State<SqlLevel2Medium> {
   List<String> allBlocks = [];
   List<String> droppedBlocks = [];
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level2Completed = false;
+  bool levelCompleted = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
@@ -30,29 +30,29 @@ class _PythonLevel2State extends State<PythonLevel2> {
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
-  // Track currently dragged block
   String? currentlyDraggedBlock;
-
-  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // Game configuration from database
   Map<String, dynamic>? gameConfig;
   bool isLoading = true;
   String? errorMessage;
 
-  // HINT SYSTEM
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
   bool _isUsingHint = false;
 
-  // Configurable elements from database
-  String _codePreviewTitle = '💻 Code Preview:';
-  String _instructionText = '🧩 Arrange the blocks to create a Python program that calculates the area of a rectangle';
+  String _codePreviewTitle = '💻 SQL Query Preview:';
+  String _instructionText = '🧩 Arrange the blocks to form the correct SQL query with JOIN and aggregation';
   List<String> _codeStructure = [];
-  String _expectedOutput = 'Area: 50';
+  String _expectedOutput = '';
+
+  // Database tables preview for Medium Level 2 with JOIN
+  List<Map<String, dynamic>> _employeesTable = [];
+  List<Map<String, dynamic>> _departmentsTable = [];
+  String _employeesTableName = 'employees';
+  String _departmentsTableName = 'departments';
 
   @override
   void initState() {
@@ -71,9 +71,9 @@ class _PythonLevel2State extends State<PythonLevel2> {
         errorMessage = null;
       });
 
-      final response = await ApiService.getGameConfig('Python', 2);
+      final response = await ApiService.getGameConfigWithDifficulty('SQL', 'Medium', 2);
 
-      print('🔍 PYTHON LEVEL 2 GAME CONFIG RESPONSE:');
+      print('🔍 SQL MEDIUM LEVEL 2 GAME CONFIG RESPONSE:');
       print('   Success: ${response['success']}');
       print('   Message: ${response['message']}');
 
@@ -84,11 +84,11 @@ class _PythonLevel2State extends State<PythonLevel2> {
         });
       } else {
         setState(() {
-          errorMessage = response['message'] ?? 'Failed to load game configuration from database';
+          errorMessage = response['message'] ?? 'Failed to load SQL Level 2 configuration from database';
         });
       }
     } catch (e) {
-      print('❌ Error loading game config: $e');
+      print('❌ Error loading SQL Level 2 game config: $e');
       setState(() {
         errorMessage = 'Connection error: $e';
       });
@@ -103,7 +103,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (gameConfig == null) return;
 
     try {
-      print('🔄 INITIALIZING PYTHON LEVEL 2 GAME FROM CONFIG');
+      print('🔄 INITIALIZING SQL MEDIUM LEVEL 2 GAME FROM CONFIG');
 
       // Load timer duration from database
       if (gameConfig!['timer_duration'] != null) {
@@ -144,13 +144,13 @@ class _PythonLevel2State extends State<PythonLevel2> {
               _codeStructure = List<String>.from(codeStructureJson);
             });
           } catch (e) {
-            print('❌ Error parsing code structure: $e');
+            print('❌ Error parsing SQL Level 2 code structure: $e');
             setState(() {
               _codeStructure = _getDefaultCodeStructure();
             });
           }
         }
-        print('📝 Code structure loaded: $_codeStructure');
+        print('📝 SQL Level 2 code structure loaded: $_codeStructure');
       } else {
         setState(() {
           _codeStructure = _getDefaultCodeStructure();
@@ -165,25 +165,28 @@ class _PythonLevel2State extends State<PythonLevel2> {
         print('🎯 Expected output loaded: $_expectedOutput');
       }
 
+      // Load tables data from database
+      _loadTablesData();
+
       // Load hint from database
       if (gameConfig!['hint_text'] != null) {
         setState(() {
           _currentHint = gameConfig!['hint_text'].toString();
         });
-        print('💡 Hint loaded from database: $_currentHint');
+        print('💡 SQL Level 2 hint loaded from database: $_currentHint');
       } else {
         setState(() {
           _currentHint = _getDefaultHint();
         });
-        print('💡 Using default hint');
+        print('💡 Using default SQL Level 2 hint');
       }
 
       // Parse blocks with better error handling
       List<String> correctBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
       List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
 
-      print('✅ Correct Blocks: $correctBlocks');
-      print('✅ Incorrect Blocks: $incorrectBlocks');
+      print('✅ SQL Level 2 Correct Blocks from DB: $correctBlocks');
+      print('✅ SQL Level 2 Incorrect Blocks from DB: $incorrectBlocks');
 
       // Combine and shuffle blocks
       allBlocks = [
@@ -191,29 +194,105 @@ class _PythonLevel2State extends State<PythonLevel2> {
         ...incorrectBlocks,
       ]..shuffle();
 
-      print('🎮 All Blocks Final: $allBlocks');
+      print('🎮 SQL Level 2 All Blocks Final: $allBlocks');
+
+      // DEBUG: Print the expected correct answer from database
+      if (gameConfig!['correct_answer'] != null) {
+        print('🎯 SQL Level 2 Expected Correct Answer from DB: ${gameConfig!['correct_answer']}');
+      }
 
     } catch (e) {
-      print('❌ Error parsing game config: $e');
+      print('❌ Error parsing SQL Level 2 game config: $e');
       _initializeDefaultBlocks();
+    }
+  }
+
+  void _loadTablesData() {
+    // Load employees table data
+    if (gameConfig!['employees_table'] != null) {
+      try {
+        String employeesTableStr = gameConfig!['employees_table'].toString();
+        List<dynamic> employeesTableJson = json.decode(employeesTableStr);
+        setState(() {
+          _employeesTable = List<Map<String, dynamic>>.from(employeesTableJson);
+        });
+        print('📊 Employees table data loaded: ${_employeesTable.length} rows');
+      } catch (e) {
+        print('❌ Error parsing employees table data: $e');
+        setState(() {
+          _employeesTable = _getDefaultEmployeesTable();
+        });
+      }
+    } else {
+      setState(() {
+        _employeesTable = _getDefaultEmployeesTable();
+      });
+    }
+
+    // Load departments table data
+    if (gameConfig!['departments_table'] != null) {
+      try {
+        String departmentsTableStr = gameConfig!['departments_table'].toString();
+        List<dynamic> departmentsTableJson = json.decode(departmentsTableStr);
+        setState(() {
+          _departmentsTable = List<Map<String, dynamic>>.from(departmentsTableJson);
+        });
+        print('📊 Departments table data loaded: ${_departmentsTable.length} rows');
+      } catch (e) {
+        print('❌ Error parsing departments table data: $e');
+        setState(() {
+          _departmentsTable = _getDefaultDepartmentsTable();
+        });
+      }
+    } else {
+      setState(() {
+        _departmentsTable = _getDefaultDepartmentsTable();
+      });
+    }
+
+    // Load table names
+    if (gameConfig!['employees_table_name'] != null) {
+      setState(() {
+        _employeesTableName = gameConfig!['employees_table_name'].toString();
+      });
+    }
+    if (gameConfig!['departments_table_name'] != null) {
+      setState(() {
+        _departmentsTableName = gameConfig!['departments_table_name'].toString();
+      });
     }
   }
 
   List<String> _getDefaultCodeStructure() {
     return [
-      "# Python Rectangle Area Calculator",
+      "-- SQL Query to calculate average salary by department",
+      "-- Complete the query using JOIN and aggregation",
       "",
-      "# Define variables",
-      "length = 10",
-      "width = 5",
-      "",
-      "# Calculate area",
-      "area = length * width",
-      "",
-      "# Display result",
-      "print(f\"Area: {area}\")",
-      "",
-      "# Program ends here"
+      "SELECT d.department_name, AVG(e.salary) as avg_salary",
+      "FROM employees e",
+      "JOIN departments d ON e.department_id = d.department_id",
+      "GROUP BY d.department_name",
+      "ORDER BY avg_salary DESC;"
+    ];
+  }
+
+  List<Map<String, dynamic>> _getDefaultEmployeesTable() {
+    return [
+      {'employee_id': 1, 'name': 'Juan Dela Cruz', 'department_id': 1, 'salary': 55000},
+      {'employee_id': 2, 'name': 'Maria Santos', 'department_id': 2, 'salary': 45000},
+      {'employee_id': 3, 'name': 'Pedro Reyes', 'department_id': 1, 'salary': 60000},
+      {'employee_id': 4, 'name': 'Ana Lopez', 'department_id': 3, 'salary': 52000},
+      {'employee_id': 5, 'name': 'Luis Garcia', 'department_id': 1, 'salary': 48000},
+      {'employee_id': 6, 'name': 'Sofia Martinez', 'department_id': 2, 'salary': 47000},
+      {'employee_id': 7, 'name': 'Carlos Lim', 'department_id': 3, 'salary': 58000},
+    ];
+  }
+
+  List<Map<String, dynamic>> _getDefaultDepartmentsTable() {
+    return [
+      {'department_id': 1, 'department_name': 'Sales'},
+      {'department_id': 2, 'department_name': 'HR'},
+      {'department_id': 3, 'department_name': 'IT'},
     ];
   }
 
@@ -221,68 +300,139 @@ class _PythonLevel2State extends State<PythonLevel2> {
     List<String> blocks = [];
 
     if (blocksData == null) {
+      print('⚠️ SQL Level 2 $type blocks are NULL in database');
       return _getDefaultBlocks(type);
     }
 
     try {
       if (blocksData is List) {
         blocks = List<String>.from(blocksData);
+        print('✅ SQL Level 2 $type blocks parsed as List: $blocks');
       } else if (blocksData is String) {
         String blocksStr = blocksData.trim();
+        print('🔍 Raw SQL Level 2 $type blocks string: $blocksStr');
 
         if (blocksStr.startsWith('[') && blocksStr.endsWith(']')) {
           // Parse as JSON array
-          List<dynamic> blocksJson = json.decode(blocksStr);
-          blocks = List<String>.from(blocksJson);
+          try {
+            List<dynamic> blocksJson = json.decode(blocksStr);
+            blocks = List<String>.from(blocksJson);
+            print('✅ SQL Level 2 $type blocks parsed as JSON: $blocks');
+          } catch (e) {
+            print('❌ JSON parsing failed for SQL Level 2 $type blocks: $e');
+            // Fallback: try comma separation
+            blocks = _parseCommaSeparated(blocksStr);
+          }
         } else {
           // Parse as comma-separated string
-          blocks = blocksStr.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+          blocks = _parseCommaSeparated(blocksStr);
         }
       }
     } catch (e) {
-      print('❌ Error parsing $type blocks: $e');
+      print('❌ Error parsing SQL Level 2 $type blocks: $e');
       blocks = _getDefaultBlocks(type);
     }
 
+    // Remove any empty strings
+    blocks = blocks.where((block) => block.trim().isNotEmpty).toList();
+
+    print('🎯 Final SQL Level 2 $type blocks: $blocks');
     return blocks;
+  }
+
+  List<String> _parseCommaSeparated(String input) {
+    try {
+      // Remove brackets if present
+      String cleaned = input.replaceAll('[', '').replaceAll(']', '').trim();
+
+      // Split by comma but handle quoted strings
+      List<String> items = [];
+      StringBuffer current = StringBuffer();
+      bool inQuotes = false;
+
+      for (int i = 0; i < cleaned.length; i++) {
+        String char = cleaned[i];
+
+        if (char == '"') {
+          inQuotes = !inQuotes;
+          current.write(char);
+        } else if (char == ',' && !inQuotes) {
+          String item = current.toString().trim();
+          if (item.isNotEmpty) {
+            // Remove surrounding quotes if present
+            if (item.startsWith('"') && item.endsWith('"')) {
+              item = item.substring(1, item.length - 1);
+            }
+            items.add(item);
+          }
+          current.clear();
+        } else {
+          current.write(char);
+        }
+      }
+
+      // Add the last item
+      String lastItem = current.toString().trim();
+      if (lastItem.isNotEmpty) {
+        if (lastItem.startsWith('"') && lastItem.endsWith('"')) {
+          lastItem = lastItem.substring(1, lastItem.length - 1);
+        }
+        items.add(lastItem);
+      }
+
+      print('✅ SQL Level 2 Comma-separated parsing result: $items');
+      return items;
+    } catch (e) {
+      print('❌ SQL Level 2 Comma-separated parsing failed: $e');
+      // Ultimate fallback: simple split
+      List<String> fallback = input.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+      print('🔄 Using simple split fallback: $fallback');
+      return fallback;
+    }
   }
 
   List<String> _getDefaultBlocks(String type) {
     if (type == 'correct') {
       return [
-        'length = 10',
-        'width = 5',
-        'area = length * width',
-        'print(f"Area: {area}")'
+        'SELECT d.department_name, AVG(e.salary) as avg_salary',
+        'FROM employees e',
+        'JOIN departments d ON e.department_id = d.department_id',
+        'GROUP BY d.department_name',
+        'ORDER BY avg_salary DESC;'
       ];
     } else {
       return [
-        'int length = 10;',
-        'var width = 5;',
-        'area = length x width',
-        'printf("Area: %d", area);',
-        'cout << "Area: " << area;',
-        'System.out.println("Area: " + area);'
+        'SELECT department_name, AVG(salary)',
+        'FROM employees',
+        'INNER JOIN departments',
+        'WHERE e.department_id = d.department_id',
+        'GROUP BY department',
+        'ORDER BY AVG(salary) DESC',
+        'SORT BY avg_salary',
+        'AGGREGATE salary BY department'
       ];
     }
   }
 
   String _getDefaultHint() {
-    return "💡 Hint: Python uses variables without type declarations. Use f-strings for formatted output!";
+    return "💡 SQL Level 2 Hint: Use JOIN to combine tables, AVG() for average calculation, GROUP BY for aggregation, and ORDER BY for sorting results.";
   }
 
   void _initializeDefaultBlocks() {
     allBlocks = [
-      'length = 10',
-      'width = 5',
-      'area = length * width',
-      'print(f"Area: {area}")',
-      'int length = 10;',
-      'var width = 5;',
-      'area = length x width',
-      'printf("Area: %d", area);',
-      'cout << "Area: " << area;',
-      'System.out.println("Area: " + area);'
+      'SELECT d.department_name, AVG(e.salary) as avg_salary',
+      'FROM employees e',
+      'JOIN departments d ON e.department_id = d.department_id',
+      'GROUP BY d.department_name',
+      'ORDER BY avg_salary DESC;',
+      'SELECT department_name, AVG(salary)',
+      'FROM employees',
+      'INNER JOIN departments',
+      'WHERE e.department_id = d.department_id',
+      'GROUP BY department',
+      'ORDER BY AVG(salary) DESC',
+      'SORT BY avg_salary',
+      'AGGREGATE salary BY department'
     ]..shuffle();
   }
 
@@ -383,7 +533,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Game configuration not loaded. Please retry.'),
+          content: Text('SQL Level 2 configuration not loaded. Please retry.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -408,7 +558,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
       resetBlocks();
     });
 
-    print('🎮 PYTHON LEVEL 2 GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
+    print('🎮 SQL MEDIUM LEVEL 2 GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
     startTimers();
   }
 
@@ -496,41 +646,41 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
   Future<void> saveScoreToDatabase(int score) async {
     if (currentUser?['id'] == null) {
-      print('❌ Cannot save score: No user ID');
+      print('❌ Cannot save SQL Level 2 score: No user ID');
       return;
     }
 
     try {
-      print('💾 SAVING PYTHON LEVEL 2 SCORE:');
+      print('💾 SAVING SQL MEDIUM LEVEL 2 SCORE:');
       print('   User ID: ${currentUser!['id']}');
-      print('   Language: Python');
+      print('   Language: SQL_Medium');
       print('   Level: 2');
       print('   Score: $score/3');
-      print('   Completed: ${score == 3}');
 
-      final response = await ApiService.saveScore(
+      final response = await ApiService.saveScoreWithDifficulty(
         currentUser!['id'],
-        'Python',
+        'SQL',
+        'Medium',
         2,
         score,
         score == 3,
       );
 
-      print('📡 SERVER RESPONSE: $response');
+      print('📡 SQL LEVEL 2 SERVER RESPONSE: $response');
 
       if (response['success'] == true) {
         setState(() {
-          level2Completed = score == 3;
+          levelCompleted = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
 
-        print('✅ PYTHON LEVEL 2 SCORE SAVED SUCCESSFULLY TO DATABASE');
+        print('✅ SQL MEDIUM LEVEL 2 SCORE SAVED SUCCESSFULLY');
       } else {
-        print('❌ FAILED TO SAVE SCORE: ${response['message']}');
+        print('❌ FAILED TO SAVE SQL LEVEL 2 SCORE: ${response['message']}');
       }
     } catch (e) {
-      print('❌ ERROR SAVING PYTHON LEVEL 2 SCORE: $e');
+      print('❌ ERROR SAVING SQL MEDIUM LEVEL 2 SCORE: $e');
     }
   }
 
@@ -538,7 +688,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScores(currentUser!['id'], 'Python');
+      final response = await ApiService.getScoresWithDifficulty(currentUser!['id'], 'SQL', 'Medium');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
@@ -547,13 +697,13 @@ class _PythonLevel2State extends State<PythonLevel2> {
         if (level2Data != null) {
           setState(() {
             previousScore = level2Data['score'] ?? 0;
-            level2Completed = level2Data['completed'] ?? false;
+            levelCompleted = level2Data['completed'] ?? false;
             hasPreviousScore = true;
           });
         }
       }
     } catch (e) {
-      print('Error loading Python Level 2 score: $e');
+      print('Error loading SQL medium level 2 score: $e');
     }
   }
 
@@ -561,33 +711,46 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (gameConfig != null) {
       try {
         List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
-        return incorrectBlocks.contains(block);
+        bool isIncorrect = incorrectBlocks.contains(block);
+        if (isIncorrect) {
+          print('❌ SQL Level 2 Block "$block" is in incorrect blocks list');
+        }
+        return isIncorrect;
       } catch (e) {
-        print('Error checking incorrect block: $e');
+        print('Error checking SQL Level 2 incorrect block: $e');
       }
     }
 
-    // Default incorrect blocks for Python Level 2
+    // Default incorrect blocks for SQL Medium Level 2
     List<String> incorrectBlocks = [
-      'int length = 10;',
-      'var width = 5;',
-      'area = length x width',
-      'printf("Area: %d", area);',
-      'cout << "Area: " << area;',
-      'System.out.println("Area: " + area);'
+      'SELECT department_name, AVG(salary)',
+      'FROM employees',
+      'INNER JOIN departments',
+      'WHERE e.department_id = d.department_id',
+      'GROUP BY department',
+      'ORDER BY AVG(salary) DESC',
+      'SORT BY avg_salary',
+      'AGGREGATE salary BY department'
     ];
     return incorrectBlocks.contains(block);
   }
 
+  // IMPROVED: SQL Level 2 answer checking logic
   void checkAnswer() async {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
+    // DEBUG: Print what we're checking
+    print('🔍 CHECKING SQL MEDIUM LEVEL 2 ANSWER:');
+    print('   Dropped blocks: $droppedBlocks');
+    print('   All blocks: $allBlocks');
+
     // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
+      print('❌ SQL LEVEL 2 HAS INCORRECT BLOCK');
       musicService.playSoundEffect('error.mp3');
 
       if (score > 1) {
@@ -596,7 +759,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ You used incorrect code! -1 point. Current score: $score"),
+            content: Text("❌ You used incorrect SQL syntax! -1 point. Current score: $score"),
             backgroundColor: Colors.red,
           ),
         );
@@ -614,7 +777,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("You used incorrect code and lost all points!"),
+            content: Text("You used incorrect SQL syntax and lost all points!"),
             actions: [
               TextButton(
                 onPressed: () {
@@ -631,43 +794,65 @@ class _PythonLevel2State extends State<PythonLevel2> {
       return;
     }
 
-    // Check correct answer - for Python Level 2, we need to check the logical order
-    String answer = droppedBlocks.join(' ');
-    String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
-
+    // IMPROVED SQL LEVEL 2 ANSWER CHECKING LOGIC
     bool isCorrect = false;
 
     if (gameConfig != null) {
-      // Use configured correct answer
-      String expectedAnswer = gameConfig!['correct_answer'] ?? '';
-      String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
-      isCorrect = normalizedAnswer == normalizedExpected;
+      // Get expected correct blocks from database
+      List<String> expectedCorrectBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
+
+      print('🎯 SQL LEVEL 2 EXPECTED CORRECT BLOCKS: $expectedCorrectBlocks');
+      print('🎯 SQL LEVEL 2 USER DROPPED BLOCKS: $droppedBlocks');
+
+      // METHOD 1: Check if user has all correct blocks and no extra correct blocks
+      bool hasAllCorrectBlocks = expectedCorrectBlocks.every((block) => droppedBlocks.contains(block));
+      bool noExtraCorrectBlocks = droppedBlocks.every((block) => expectedCorrectBlocks.contains(block));
+
+      // METHOD 2: Check string comparison (normalized for SQL)
+      String userAnswer = droppedBlocks.join(' ');
+      String normalizedUserAnswer = userAnswer
+          .replaceAll(' ', '')
+          .replaceAll('\n', '')
+          .replaceAll('"', "'")
+          .toLowerCase();
+
+      if (gameConfig!['correct_answer'] != null) {
+        String expectedAnswer = gameConfig!['correct_answer'].toString();
+        String normalizedExpected = expectedAnswer
+            .replaceAll(' ', '')
+            .replaceAll('\n', '')
+            .replaceAll('"', "'")
+            .toLowerCase();
+
+        print('📝 SQL LEVEL 2 USER ANSWER: $userAnswer');
+        print('📝 SQL LEVEL 2 NORMALIZED USER: $normalizedUserAnswer');
+        print('🎯 SQL LEVEL 2 EXPECTED ANSWER: $expectedAnswer');
+        print('🎯 SQL LEVEL 2 NORMALIZED EXPECTED: $normalizedExpected');
+
+        bool stringMatch = normalizedUserAnswer == normalizedExpected;
+
+        // Use both methods for verification
+        isCorrect = (hasAllCorrectBlocks && noExtraCorrectBlocks) || stringMatch;
+
+        print('✅ SQL LEVEL 2 BLOCK CHECK: hasAllCorrectBlocks=$hasAllCorrectBlocks, noExtraCorrectBlocks=$noExtraCorrectBlocks');
+        print('✅ SQL LEVEL 2 STRING CHECK: stringMatch=$stringMatch');
+        print('✅ SQL LEVEL 2 FINAL RESULT: $isCorrect');
+      } else {
+        // Fallback: only use block comparison
+        isCorrect = hasAllCorrectBlocks && noExtraCorrectBlocks;
+        print('⚠️ No correct_answer in DB, using block comparison only: $isCorrect');
+      }
     } else {
-      // Fallback check for Python Level 2 - check if all required blocks are present in logical order
-      List<String> requiredBlocks = [
-        'length=10',
-        'width=5',
-        'area=length*width',
-        'print(f"area:{area}")'
-      ];
+      // Fallback check for SQL Level 2 requirements
+      print('⚠️ No SQL Level 2 game config, using fallback check');
+      bool hasSelect = droppedBlocks.any((block) => block.toLowerCase().contains('select'));
+      bool hasFrom = droppedBlocks.any((block) => block.toLowerCase().contains('from'));
+      bool hasJoin = droppedBlocks.any((block) => block.toLowerCase().contains('join'));
+      bool hasGroupBy = droppedBlocks.any((block) => block.toLowerCase().contains('group by'));
+      bool hasOrderBy = droppedBlocks.any((block) => block.toLowerCase().contains('order by'));
 
-      String userAnswer = droppedBlocks.join('').toLowerCase().replaceAll(' ', '');
-      bool hasAllBlocks = requiredBlocks.every((block) => userAnswer.contains(block));
-
-      // Check basic logical order (variables before calculation, calculation before output)
-      int lengthIndex = droppedBlocks.indexWhere((block) => block.toLowerCase().contains('length=10'));
-      int widthIndex = droppedBlocks.indexWhere((block) => block.toLowerCase().contains('width=5'));
-      int areaIndex = droppedBlocks.indexWhere((block) => block.toLowerCase().contains('area=length*width'));
-      int printIndex = droppedBlocks.indexWhere((block) => block.toLowerCase().contains('print(f"area:{area}")'));
-
-      isCorrect = hasAllBlocks &&
-          lengthIndex >= 0 &&
-          widthIndex >= 0 &&
-          areaIndex >= 0 &&
-          printIndex >= 0 &&
-          areaIndex > lengthIndex &&
-          areaIndex > widthIndex &&
-          printIndex > areaIndex;
+      isCorrect = hasSelect && hasFrom && hasJoin && hasGroupBy && hasOrderBy;
+      print('✅ SQL LEVEL 2 FALLBACK CHECK: $isCorrect');
     }
 
     if (isCorrect) {
@@ -680,7 +865,6 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
       saveScoreToDatabase(score);
 
-      // PLAY SUCCESS SOUND BASED ON SCORE
       if (score == 3) {
         musicService.playSoundEffect('perfect.mp3');
       } else {
@@ -690,38 +874,31 @@ class _PythonLevel2State extends State<PythonLevel2> {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text("✅ Correct!"),
+          title: Text("✅ Correct SQL Query!"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent work Python Programmer!"),
+              Text("Excellent work SQL Intermediate Level 2!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've mastered Level 2!",
+                  "🎉 Perfect! You've completed SQL Medium Level 2!",
                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) to complete this level!",
+                  "⚠️ Get a perfect score (3/3) to complete the level!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
-              Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("Query Result:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
-                child: Text(
-                  _expectedOutput,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'monospace',
-                    fontSize: 16,
-                  ),
-                ),
+                child: _buildQueryResultPreview(),
               ),
             ],
           ),
@@ -733,22 +910,23 @@ class _PythonLevel2State extends State<PythonLevel2> {
                 if (score == 3) {
                   musicService.playSoundEffect('level_complete.mp3');
                   Navigator.pushReplacementNamed(context, '/levels', arguments: {
-                    'language': 'Python',
-                    'difficulty': 'Easy'
+                    'language': 'SQL',
+                    'difficulty': 'Medium'
                   });
                 } else {
                   Navigator.pushReplacementNamed(context, '/levels', arguments: {
-                    'language': 'Python',
-                    'difficulty': 'Easy'
+                    'language': 'SQL',
+                    'difficulty': 'Medium'
                   });
                 }
               },
-              child: Text(score == 3 ? "Back to Levels" : "Try Again"),
+              child: Text(score == 3 ? "Back to Levels" : "Go Back"),
             )
           ],
         ),
       );
     } else {
+      print('❌ SQL LEVEL 2 ANSWER INCORRECT');
       musicService.playSoundEffect('wrong.mp3');
 
       if (score > 1) {
@@ -757,7 +935,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ Incorrect arrangement. -1 point. Current score: $score"),
+            content: Text("❌ Incorrect SQL arrangement. -1 point. Current score: $score"),
           ),
         );
       } else {
@@ -789,6 +967,58 @@ class _PythonLevel2State extends State<PythonLevel2> {
         );
       }
     }
+  }
+
+  Widget _buildQueryResultPreview() {
+    // Calculate average salary by department using JOIN
+    Map<String, List<int>> departmentSalaries = {};
+
+    for (var employee in _employeesTable) {
+      int? departmentId = employee['department_id'];
+      int salary = employee['salary'];
+
+      // Find department name
+      String departmentName = "Unknown";
+      for (var dept in _departmentsTable) {
+        if (dept['department_id'] == departmentId) {
+          departmentName = dept['department_name'].toString();
+          break;
+        }
+      }
+
+      if (!departmentSalaries.containsKey(departmentName)) {
+        departmentSalaries[departmentName] = [];
+      }
+      departmentSalaries[departmentName]!.add(salary);
+    }
+
+    // Calculate averages and sort by average salary DESC
+    List<Map<String, dynamic>> resultData = [];
+    departmentSalaries.forEach((deptName, salaries) {
+      double avgSalary = salaries.reduce((a, b) => a + b) / salaries.length;
+      resultData.add({
+        'department_name': deptName,
+        'avg_salary': avgSalary.toStringAsFixed(2)
+      });
+    });
+
+    resultData.sort((a, b) => double.parse(b['avg_salary']).compareTo(double.parse(a['avg_salary'])));
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columns: [
+          DataColumn(label: Text('Department', style: TextStyle(color: Colors.white))),
+          DataColumn(label: Text('Avg Salary', style: TextStyle(color: Colors.white))),
+        ],
+        rows: resultData.map((row) {
+          return DataRow(cells: [
+            DataCell(Text(row['department_name'].toString(), style: TextStyle(color: Colors.white))),
+            DataCell(Text('₱${row['avg_salary']}', style: TextStyle(color: Colors.greenAccent))),
+          ]);
+        }).toList(),
+      ),
+    );
   }
 
   String formatTime(int seconds) {
@@ -825,7 +1055,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
                 Icon(Icons.lightbulb, color: Colors.white, size: 20 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  '💡 Hint Activated!',
+                  '💡 SQL Level 2 Hint Activated!',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16 * _scaleFactor,
@@ -902,7 +1132,152 @@ class _PythonLevel2State extends State<PythonLevel2> {
     );
   }
 
-  // Code Preview Widget
+  // Database Tables Preview Widget for Level 2
+  Widget getDatabasePreview() {
+    return Column(
+      children: [
+        // Employees Table
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(8 * _scaleFactor),
+            border: Border.all(color: Colors.grey[700]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
+                decoration: BoxDecoration(
+                  color: Color(0xFF2D2D2D),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(8 * _scaleFactor),
+                    topRight: Radius.circular(8 * _scaleFactor),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.storage, color: Colors.grey[400], size: 16 * _scaleFactor),
+                    SizedBox(width: 8 * _scaleFactor),
+                    Text(
+                      'Table: $_employeesTableName',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 12 * _scaleFactor,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.all(12 * _scaleFactor),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columnSpacing: 20 * _scaleFactor,
+                    dataRowHeight: 32 * _scaleFactor,
+                    headingRowHeight: 40 * _scaleFactor,
+                    columns: [
+                      DataColumn(
+                        label: Text('employee_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                      ),
+                      DataColumn(
+                        label: Text('name', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                      ),
+                      DataColumn(
+                        label: Text('department_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                      ),
+                      DataColumn(
+                        label: Text('salary', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                    rows: _employeesTable.map((row) {
+                      return DataRow(cells: [
+                        DataCell(Text(row['employee_id'].toString(), style: TextStyle(color: Colors.white))),
+                        DataCell(Text(row['name'].toString(), style: TextStyle(color: Colors.white))),
+                        DataCell(Text(row['department_id'].toString(), style: TextStyle(color: Colors.white))),
+                        DataCell(Text(row['salary'].toString(), style: TextStyle(color: Colors.greenAccent))),
+                      ]);
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        SizedBox(height: 16 * _scaleFactor),
+
+        // Departments Table
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(8 * _scaleFactor),
+            border: Border.all(color: Colors.grey[700]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
+                decoration: BoxDecoration(
+                  color: Color(0xFF2D2D2D),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(8 * _scaleFactor),
+                    topRight: Radius.circular(8 * _scaleFactor),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.storage, color: Colors.grey[400], size: 16 * _scaleFactor),
+                    SizedBox(width: 8 * _scaleFactor),
+                    Text(
+                      'Table: $_departmentsTableName',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 12 * _scaleFactor,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.all(12 * _scaleFactor),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columnSpacing: 20 * _scaleFactor,
+                    dataRowHeight: 32 * _scaleFactor,
+                    headingRowHeight: 40 * _scaleFactor,
+                    columns: [
+                      DataColumn(
+                        label: Text('department_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                      ),
+                      DataColumn(
+                        label: Text('department_name', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                    rows: _departmentsTable.map((row) {
+                      return DataRow(cells: [
+                        DataCell(Text(row['department_id'].toString(), style: TextStyle(color: Colors.white))),
+                        DataCell(Text(row['department_name'].toString(), style: TextStyle(color: Colors.white))),
+                      ]);
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Organized SQL code preview for Level 2
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -928,7 +1303,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'rectangle_area.py',
+                  'query_level2.sql',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -942,7 +1317,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
             padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: _buildOrganizedCodePreview(),
+              children: _buildOrganizedSQLPreview(),
             ),
           ),
         ],
@@ -950,31 +1325,31 @@ class _PythonLevel2State extends State<PythonLevel2> {
     );
   }
 
-  List<Widget> _buildOrganizedCodePreview() {
+  List<Widget> _buildOrganizedSQLPreview() {
     List<Widget> codeLines = [];
 
     for (int i = 0; i < _codeStructure.length; i++) {
       String line = _codeStructure[i];
 
-      if (line.contains('# Your code here')) {
-        // Add user's dragged code in the correct position
-        codeLines.add(_buildUserCodeSection());
+      if (line.contains('-- Complete the query using JOIN and aggregation')) {
+        // Add user's dragged SQL code in the correct position
+        codeLines.add(_buildUserSQLSection());
       } else if (line.trim().isEmpty) {
         codeLines.add(SizedBox(height: 16 * _scaleFactor));
       } else {
-        codeLines.add(_buildSyntaxHighlightedLine(line, i + 1));
+        codeLines.add(_buildSQLSyntaxHighlightedLine(line, i + 1));
       }
     }
 
     return codeLines;
   }
 
-  Widget _buildUserCodeSection() {
+  Widget _buildUserSQLSection() {
     if (droppedBlocks.isEmpty) {
       return Container(
         padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
         child: Text(
-          '# Drag blocks here...',
+          '-- Drag SQL blocks here to build your JOIN query...',
           style: TextStyle(
             color: Colors.grey[600],
             fontSize: 12 * _scaleFactor,
@@ -1008,19 +1383,26 @@ class _PythonLevel2State extends State<PythonLevel2> {
     );
   }
 
-  Widget _buildSyntaxHighlightedLine(String code, int lineNumber) {
+  Widget _buildSQLSyntaxHighlightedLine(String code, int lineNumber) {
     Color textColor = Colors.white;
     String displayCode = code;
 
-    // Python syntax highlighting rules
-    if (code.trim().startsWith('#')) {
+    // SQL Syntax highlighting rules for Level 2
+    if (code.trim().startsWith('--')) {
       textColor = Color(0xFF6A9955); // Comments - green
-    } else if (code.contains('print(')) {
-      textColor = Color(0xFF569CD6); // Functions - blue
+    } else if (code.toUpperCase().contains('SELECT') ||
+        code.toUpperCase().contains('FROM') ||
+        code.toUpperCase().contains('JOIN') ||
+        code.toUpperCase().contains('ON') ||
+        code.toUpperCase().contains('GROUP BY') ||
+        code.toUpperCase().contains('ORDER BY') ||
+        code.toUpperCase().contains('DESC') ||
+        code.toUpperCase().contains('AVG')) {
+      textColor = Color(0xFF569CD6); // SQL Keywords - blue
     } else if (code.contains('"') || code.contains("'")) {
       textColor = Color(0xFFCE9178); // Strings - orange
-    } else if (code.contains('=')) {
-      textColor = Color(0xFF9CDCFE); // Variables - light blue
+    } else if (code.contains('.')) {
+      textColor = Color(0xFFDCDCAA); // Table aliases - yellow
     }
 
     return Container(
@@ -1073,8 +1455,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: Text("🐍 Python - Level 2", style: TextStyle(fontSize: 18)),
-          backgroundColor: Colors.green,
+          title: Text("⚡ SQL Medium - Level 2", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.orange,
         ),
         body: Container(
           decoration: BoxDecoration(
@@ -1092,10 +1474,10 @@ class _PythonLevel2State extends State<PythonLevel2> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CircularProgressIndicator(color: Colors.green),
+                CircularProgressIndicator(color: Colors.orange),
                 SizedBox(height: 20),
                 Text(
-                  "Loading Python Level 2 Configuration...",
+                  "Loading SQL Medium Level 2 Configuration...",
                   style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
                 SizedBox(height: 10),
@@ -1113,8 +1495,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (errorMessage != null && !gameStarted) {
       return Scaffold(
         appBar: AppBar(
-          title: Text("🐍 Python - Level 2", style: TextStyle(fontSize: 18)),
-          backgroundColor: Colors.green,
+          title: Text("⚡ SQL Medium - Level 2", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.orange,
         ),
         body: Container(
           decoration: BoxDecoration(
@@ -1134,10 +1516,10 @@ class _PythonLevel2State extends State<PythonLevel2> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.warning_amber, color: Colors.green, size: 50),
+                  Icon(Icons.warning_amber, color: Colors.orange, size: 50),
                   SizedBox(height: 20),
                   Text(
-                    "Configuration Warning",
+                    "SQL Level 2 Configuration Warning",
                     style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10),
@@ -1149,18 +1531,18 @@ class _PythonLevel2State extends State<PythonLevel2> {
                   SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: _loadGameConfig,
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
                     child: Text("Retry Loading"),
                   ),
                   SizedBox(height: 10),
                   TextButton(
                     onPressed: () {
                       Navigator.pushReplacementNamed(context, '/levels', arguments: {
-                        'language': 'Python',
-                        'difficulty': 'Easy'
+                        'language': 'SQL',
+                        'difficulty': 'Medium'
                       });
                     },
-                    child: Text("Back to Levels", style: TextStyle(color: Colors.green)),
+                    child: Text("Back to Levels", style: TextStyle(color: Colors.orange)),
                   ),
                 ],
               ),
@@ -1185,8 +1567,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("🐍 Python - Level 2", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.green,
+        title: Text("⚡ SQL Medium - Level 2", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.orange,
         actions: gameStarted
             ? [
           Padding(
@@ -1247,28 +1629,27 @@ class _PythonLevel2State extends State<PythonLevel2> {
               label: Text(gameConfig != null ? "Start" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: gameConfig != null ? Colors.green : Colors.grey,
+                backgroundColor: gameConfig != null ? Colors.orange : Colors.grey,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
 
-            // Display available hint cards in start screen
             Container(
               padding: EdgeInsets.all(12 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.2),
+                color: Colors.orange.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.green),
+                border: Border.all(color: Colors.orange),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.lightbulb_outline, color: Colors.green, size: 20 * _scaleFactor),
+                  Icon(Icons.lightbulb_outline, color: Colors.orange, size: 20 * _scaleFactor),
                   SizedBox(width: 8 * _scaleFactor),
                   Text(
                     'Hint Cards: $_availableHintCards',
                     style: TextStyle(
-                      color: Colors.green,
+                      color: Colors.orange,
                       fontSize: 16 * _scaleFactor,
                       fontWeight: FontWeight.bold,
                     ),
@@ -1278,27 +1659,27 @@ class _PythonLevel2State extends State<PythonLevel2> {
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Use hint cards during the game for help!',
+              'Use hint cards during the game for SQL help!',
               style: TextStyle(
                 color: Colors.white70,
                 fontSize: 12 * _scaleFactor,
               ),
             ),
 
-            if (level2Completed)
+            if (levelCompleted)
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Level 2 completed with perfect score!",
+                      "✅ SQL Level 2 Medium completed with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "You've mastered Python basics!",
-                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "You've mastered SQL Medium difficulty!",
+                      style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1310,14 +1691,14 @@ class _PythonLevel2State extends State<PythonLevel2> {
                 child: Column(
                   children: [
                     Text(
-                      "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
+                      "📊 Your previous SQL Level 2 score: $previousScore/3",
+                      style: TextStyle(color: Colors.orange, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score!",
-                      style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
+                      "Try again to get a perfect score and complete the level!",
+                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1329,14 +1710,14 @@ class _PythonLevel2State extends State<PythonLevel2> {
                   child: Column(
                     children: [
                       Text(
-                        "😅 Your previous score: $previousScore/3",
-                        style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
+                        "😅 Your previous SQL Level 2 score: $previousScore/3",
+                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
                         "Don't give up! You can do better this time!",
-                        style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
+                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1348,32 +1729,42 @@ class _PythonLevel2State extends State<PythonLevel2> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.green[50]!.withOpacity(0.9),
+                color: Colors.orange[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.green[200]!),
+                border: Border.all(color: Colors.orange[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    gameConfig?['objective'] ?? "🎯 Python Level 2 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.green[800]),
+                    "🎯 SQL Medium Level 2 Objective",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.orange[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    gameConfig?['objective'] ?? "Learn Python variables and basic calculations",
+                    "Learn to write SQL queries with JOIN operations, aggregate functions (AVG), GROUP BY, and complex sorting",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.green[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.orange[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "📝 Create a program that calculates rectangle area using variables",
+                    "🎁 Get a perfect score (3/3) to complete SQL Medium Level 2!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
                         color: Colors.purple,
                         fontWeight: FontWeight.bold,
                         fontStyle: FontStyle.italic
+                    ),
+                  ),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Text(
+                    "🏆 2× POINTS MULTIPLIER",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 14 * _scaleFactor,
+                        color: Colors.orange,
+                        fontWeight: FontWeight.bold
                     ),
                   ),
                 ],
@@ -1395,7 +1786,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Short Story', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text('📖 SQL Level 2 Short Story', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
                 onPressed: () {
@@ -1413,8 +1804,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? (gameConfig?['story_tagalog'] ?? 'Ngayon ay Level 2 ng Python! Matuto ng variables at calculations.')
-                : (gameConfig?['story_english'] ?? 'This is Python Level 2! Learn about variables and basic calculations.'),
+                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Medium Level 2 ng SQL! Hamon sa JOIN operations, aggregate functions, at complex queries.')
+                : (gameConfig?['story_english'] ?? 'This is SQL Medium Level 2! Challenge yourself with JOIN operations, aggregate functions, and complex queries.'),
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
@@ -1423,6 +1814,12 @@ class _PythonLevel2State extends State<PythonLevel2> {
           Text(_instructionText,
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
+          SizedBox(height: 20 * _scaleFactor),
+
+          // Database Tables Preview
+          Text("📊 Database Tables Preview", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          SizedBox(height: 10 * _scaleFactor),
+          getDatabasePreview(),
           SizedBox(height: 20 * _scaleFactor),
 
           Container(
@@ -1434,7 +1831,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.green, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.orange, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -1464,10 +1861,10 @@ class _PythonLevel2State extends State<PythonLevel2> {
                         data: block,
                         feedback: Material(
                           color: Colors.transparent,
-                          child: puzzleBlock(block, Colors.greenAccent),
+                          child: puzzleBlock(block, Colors.orangeAccent),
                         ),
-                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.greenAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.orangeAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.orangeAccent),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
@@ -1530,13 +1927,13 @@ class _PythonLevel2State extends State<PythonLevel2> {
                   data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(block, Colors.green),
+                    child: puzzleBlock(block, Colors.orange),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.green),
+                    child: puzzleBlock(block, Colors.orange),
                   ),
-                  child: puzzleBlock(block, Colors.green),
+                  child: puzzleBlock(block, Colors.orange),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
@@ -1575,9 +1972,9 @@ class _PythonLevel2State extends State<PythonLevel2> {
               checkAnswer();
             },
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
-            label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
+            label: Text("Execute Query", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: Colors.orange,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,

@@ -7,14 +7,14 @@ import '../../../../services/user_preferences.dart';
 import '../../../../services/music_service.dart';
 import '../../../../services/daily_challenge_service.dart';
 
-class SqlLevel1Hard extends StatefulWidget {
-  const SqlLevel1Hard({super.key});
+class SqlLevel3Hard extends StatefulWidget {
+  const SqlLevel3Hard({super.key});
 
   @override
-  State<SqlLevel1Hard> createState() => _SqlLevel1HardState();
+  State<SqlLevel3Hard> createState() => _SqlLevel3HardState();
 }
 
-class _SqlLevel1HardState extends State<SqlLevel1Hard> {
+class _SqlLevel3HardState extends State<SqlLevel3Hard> {
   List<String> allBlocks = [];
   List<String> droppedBlocks = [];
   bool gameStarted = false;
@@ -25,7 +25,7 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 240;
+  int remainingSeconds = 360; // 6 minutes for expert level
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -43,16 +43,25 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
   String _currentHint = '';
   bool _isUsingHint = false;
 
-  String _codePreviewTitle = '💻 Advanced SQL Query Preview:';
-  String _instructionText = '🧩 Arrange the blocks to form a complex SQL query with JOIN and aggregation';
+  String _codePreviewTitle = '💻 SQL Grand Master Query Preview:';
+  String _instructionText = '🧩 Arrange the blocks to form an expert-level SQL query with recursive CTEs, advanced window functions, and complex analytics';
   List<String> _codeStructure = [];
   String _expectedOutput = '';
 
-  // Database tables preview for Hard level
+  // Database tables preview for Grand Master level
   List<Map<String, dynamic>> _employeesTable = [];
   List<Map<String, dynamic>> _departmentsTable = [];
+  List<Map<String, dynamic>> _projectsTable = [];
+  List<Map<String, dynamic>> _salariesTable = [];
+  List<Map<String, dynamic>> _employeeHierarchyTable = [];
+  List<Map<String, dynamic>> _projectAssignmentsTable = [];
+
   String _employeesTableName = 'employees';
   String _departmentsTableName = 'departments';
+  String _projectsTableName = 'projects';
+  String _salariesTableName = 'salaries';
+  String _employeeHierarchyTableName = 'employee_hierarchy';
+  String _projectAssignmentsTableName = 'project_assignments';
 
   @override
   void initState() {
@@ -71,9 +80,9 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
         errorMessage = null;
       });
 
-      final response = await ApiService.getGameConfigWithDifficulty('SQL', 'Hard', 1);
+      final response = await ApiService.getGameConfigWithDifficulty('SQL', 'Hard', 3);
 
-      print('🔍 SQL HARD GAME CONFIG RESPONSE:');
+      print('🔍 SQL HARD LEVEL 3 GAME CONFIG RESPONSE:');
       print('   Success: ${response['success']}');
       print('   Message: ${response['message']}');
 
@@ -84,11 +93,11 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
         });
       } else {
         setState(() {
-          errorMessage = response['message'] ?? 'Failed to load SQL Hard game configuration from database';
+          errorMessage = response['message'] ?? 'Failed to load SQL Hard Level 3 game configuration from database';
         });
       }
     } catch (e) {
-      print('❌ Error loading SQL Hard game config: $e');
+      print('❌ Error loading SQL Hard Level 3 game config: $e');
       setState(() {
         errorMessage = 'Connection error: $e';
       });
@@ -103,11 +112,11 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
     if (gameConfig == null) return;
 
     try {
-      print('🔄 INITIALIZING SQL HARD GAME FROM CONFIG');
+      print('🔄 INITIALIZING SQL HARD LEVEL 3 GAME FROM CONFIG');
 
       // Load timer duration from database
       if (gameConfig!['timer_duration'] != null) {
-        int timerDuration = int.tryParse(gameConfig!['timer_duration'].toString()) ?? 240;
+        int timerDuration = int.tryParse(gameConfig!['timer_duration'].toString()) ?? 360;
         setState(() {
           remainingSeconds = timerDuration;
         });
@@ -144,13 +153,13 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
               _codeStructure = List<String>.from(codeStructureJson);
             });
           } catch (e) {
-            print('❌ Error parsing SQL Hard code structure: $e');
+            print('❌ Error parsing SQL Hard Level 3 code structure: $e');
             setState(() {
               _codeStructure = _getDefaultCodeStructure();
             });
           }
         }
-        print('📝 SQL Hard code structure loaded: $_codeStructure');
+        print('📝 SQL Hard Level 3 code structure loaded: $_codeStructure');
       } else {
         setState(() {
           _codeStructure = _getDefaultCodeStructure();
@@ -173,20 +182,20 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
         setState(() {
           _currentHint = gameConfig!['hint_text'].toString();
         });
-        print('💡 SQL Hard hint loaded from database: $_currentHint');
+        print('💡 SQL Hard Level 3 hint loaded from database: $_currentHint');
       } else {
         setState(() {
           _currentHint = _getDefaultHint();
         });
-        print('💡 Using default SQL Hard hint');
+        print('💡 Using default SQL Hard Level 3 hint');
       }
 
       // Parse blocks with better error handling
       List<String> correctBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
       List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
 
-      print('✅ SQL Hard Correct Blocks from DB: $correctBlocks');
-      print('✅ SQL Hard Incorrect Blocks from DB: $incorrectBlocks');
+      print('✅ SQL Hard Level 3 Correct Blocks from DB: $correctBlocks');
+      print('✅ SQL Hard Level 3 Incorrect Blocks from DB: $incorrectBlocks');
 
       // Combine and shuffle blocks
       allBlocks = [
@@ -194,15 +203,15 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
         ...incorrectBlocks,
       ]..shuffle();
 
-      print('🎮 SQL Hard All Blocks Final: $allBlocks');
+      print('🎮 SQL Hard Level 3 All Blocks Final: $allBlocks');
 
       // DEBUG: Print the expected correct answer from database
       if (gameConfig!['correct_answer'] != null) {
-        print('🎯 SQL Hard Expected Correct Answer from DB: ${gameConfig!['correct_answer']}');
+        print('🎯 SQL Hard Level 3 Expected Correct Answer from DB: ${gameConfig!['correct_answer']}');
       }
 
     } catch (e) {
-      print('❌ Error parsing SQL Hard game config: $e');
+      print('❌ Error parsing SQL Hard Level 3 game config: $e');
       _initializeDefaultBlocks();
     }
   }
@@ -250,6 +259,90 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
       });
     }
 
+    // Load projects table data
+    if (gameConfig!['projects_table_data'] != null) {
+      try {
+        String tableDataStr = gameConfig!['projects_table_data'].toString();
+        List<dynamic> tableDataJson = json.decode(tableDataStr);
+        setState(() {
+          _projectsTable = List<Map<String, dynamic>>.from(tableDataJson);
+        });
+        print('📊 Projects table data loaded: ${_projectsTable.length} rows');
+      } catch (e) {
+        print('❌ Error parsing projects table data: $e');
+        setState(() {
+          _projectsTable = _getDefaultProjectsTable();
+        });
+      }
+    } else {
+      setState(() {
+        _projectsTable = _getDefaultProjectsTable();
+      });
+    }
+
+    // Load salaries table data
+    if (gameConfig!['salaries_table_data'] != null) {
+      try {
+        String tableDataStr = gameConfig!['salaries_table_data'].toString();
+        List<dynamic> tableDataJson = json.decode(tableDataStr);
+        setState(() {
+          _salariesTable = List<Map<String, dynamic>>.from(tableDataJson);
+        });
+        print('📊 Salaries table data loaded: ${_salariesTable.length} rows');
+      } catch (e) {
+        print('❌ Error parsing salaries table data: $e');
+        setState(() {
+          _salariesTable = _getDefaultSalariesTable();
+        });
+      }
+    } else {
+      setState(() {
+        _salariesTable = _getDefaultSalariesTable();
+      });
+    }
+
+    // Load employee hierarchy table data
+    if (gameConfig!['employee_hierarchy_table_data'] != null) {
+      try {
+        String tableDataStr = gameConfig!['employee_hierarchy_table_data'].toString();
+        List<dynamic> tableDataJson = json.decode(tableDataStr);
+        setState(() {
+          _employeeHierarchyTable = List<Map<String, dynamic>>.from(tableDataJson);
+        });
+        print('📊 Employee hierarchy table data loaded: ${_employeeHierarchyTable.length} rows');
+      } catch (e) {
+        print('❌ Error parsing employee hierarchy table data: $e');
+        setState(() {
+          _employeeHierarchyTable = _getDefaultEmployeeHierarchyTable();
+        });
+      }
+    } else {
+      setState(() {
+        _employeeHierarchyTable = _getDefaultEmployeeHierarchyTable();
+      });
+    }
+
+    // Load project assignments table data
+    if (gameConfig!['project_assignments_table_data'] != null) {
+      try {
+        String tableDataStr = gameConfig!['project_assignments_table_data'].toString();
+        List<dynamic> tableDataJson = json.decode(tableDataStr);
+        setState(() {
+          _projectAssignmentsTable = List<Map<String, dynamic>>.from(tableDataJson);
+        });
+        print('📊 Project assignments table data loaded: ${_projectAssignmentsTable.length} rows');
+      } catch (e) {
+        print('❌ Error parsing project assignments table data: $e');
+        setState(() {
+          _projectAssignmentsTable = _getDefaultProjectAssignmentsTable();
+        });
+      }
+    } else {
+      setState(() {
+        _projectAssignmentsTable = _getDefaultProjectAssignmentsTable();
+      });
+    }
+
     // Load table names
     if (gameConfig!['employees_table_name'] != null) {
       setState(() {
@@ -261,38 +354,194 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
         _departmentsTableName = gameConfig!['departments_table_name'].toString();
       });
     }
+    if (gameConfig!['projects_table_name'] != null) {
+      setState(() {
+        _projectsTableName = gameConfig!['projects_table_name'].toString();
+      });
+    }
+    if (gameConfig!['salaries_table_name'] != null) {
+      setState(() {
+        _salariesTableName = gameConfig!['salaries_table_name'].toString();
+      });
+    }
+    if (gameConfig!['employee_hierarchy_table_name'] != null) {
+      setState(() {
+        _employeeHierarchyTableName = gameConfig!['employee_hierarchy_table_name'].toString();
+      });
+    }
+    if (gameConfig!['project_assignments_table_name'] != null) {
+      setState(() {
+        _projectAssignmentsTableName = gameConfig!['project_assignments_table_name'].toString();
+      });
+    }
   }
 
   List<String> _getDefaultCodeStructure() {
     return [
-      "-- Advanced SQL Query: Department-wise Salary Analysis",
-      "-- Complete the query below to get average salary by department",
+      "-- SQL Grand Master Challenge: Advanced Organizational Analytics",
+      "-- Complete the recursive CTE query below to analyze employee hierarchy and performance",
       "",
-      "SELECT d.department_name, AVG(e.salary) as avg_salary",
-      "FROM employees e",
-      "JOIN departments d ON e.department_id = d.department_id",
-      "GROUP BY d.department_name",
-      "ORDER BY avg_salary DESC;"
+      "WITH RECURSIVE EmployeeHierarchy AS (",
+      "  -- Anchor: Find top-level managers (no manager)",
+      "  SELECT e.employee_id,",
+      "         e.name,",
+      "         e.position,",
+      "         d.department_name,",
+      "         eh.manager_id,",
+      "         0 as hierarchy_level,",
+      "         CAST(e.name AS VARCHAR(255)) as hierarchy_path",
+      "  FROM employees e",
+      "  JOIN employee_hierarchy eh ON e.employee_id = eh.employee_id",
+      "  JOIN departments d ON e.department_id = d.department_id",
+      "  WHERE eh.manager_id IS NULL",
+      "",
+      "  UNION ALL",
+      "",
+      "  -- Recursive: Find subordinates for each manager",
+      "  SELECT e.employee_id,",
+      "         e.name,",
+      "         e.position,",
+      "         d.department_name,",
+      "         eh.manager_id,",
+      "         eh_parent.hierarchy_level + 1,",
+      "         CAST(eh_parent.hierarchy_path || ' -> ' || e.name AS VARCHAR(255))",
+      "  FROM employees e",
+      "  JOIN employee_hierarchy eh ON e.employee_id = eh.employee_id",
+      "  JOIN departments d ON e.department_id = d.department_id",
+      "  JOIN EmployeeHierarchy eh_parent ON eh.manager_id = eh_parent.employee_id",
+      "),",
+      "",
+      "DepartmentPerformance AS (",
+      "  SELECT d.department_id,",
+      "         d.department_name,",
+      "         COUNT(DISTINCT e.employee_id) as total_employees,",
+      "         AVG(s.salary_amount) as avg_salary,",
+      "         COUNT(DISTINCT p.project_id) as total_projects,",
+      "         SUM(p.budget) as total_budget,",
+      "         COUNT(DISTINCT pa.assignment_id) as total_assignments",
+      "  FROM departments d",
+      "  LEFT JOIN employees e ON d.department_id = e.department_id",
+      "  LEFT JOIN salaries s ON e.employee_id = s.employee_id",
+      "  LEFT JOIN projects p ON d.department_id = p.department_id",
+      "  LEFT JOIN project_assignments pa ON e.employee_id = pa.employee_id",
+      "  GROUP BY d.department_id, d.department_name",
+      "),",
+      "",
+      "EmployeePerformance AS (",
+      "  SELECT e.employee_id,",
+      "         e.name,",
+      "         d.department_name,",
+      "         s.salary_amount,",
+      "         COUNT(pa.assignment_id) as project_count,",
+      "         AVG(COUNT(pa.assignment_id)) OVER (PARTITION BY d.department_id) as dept_avg_projects,",
+      "         RANK() OVER (PARTITION BY d.department_id ORDER BY s.salary_amount DESC) as salary_rank_in_dept,",
+      "         PERCENT_RANK() OVER (PARTITION BY d.department_id ORDER BY s.salary_amount) as salary_percentile",
+      "  FROM employees e",
+      "  JOIN departments d ON e.department_id = d.department_id",
+      "  LEFT JOIN salaries s ON e.employee_id = s.employee_id",
+      "  LEFT JOIN project_assignments pa ON e.employee_id = pa.employee_id",
+      "  GROUP BY e.employee_id, e.name, d.department_name, s.salary_amount, d.department_id",
+      ")",
+      "",
+      "SELECT eh.hierarchy_level,",
+      "       eh.name as employee_name,",
+      "       eh.position,",
+      "       eh.department_name,",
+      "       eh.hierarchy_path,",
+      "       ep.salary_amount,",
+      "       ep.project_count,",
+      "       ep.salary_rank_in_dept,",
+      "       ROUND(ep.salary_percentile * 100, 2) as salary_percentile",
+      "FROM EmployeeHierarchy eh",
+      "LEFT JOIN EmployeePerformance ep ON eh.employee_id = ep.employee_id",
+      "WHERE eh.hierarchy_level <= 3",
+      "ORDER BY eh.hierarchy_level, eh.hierarchy_path;"
     ];
   }
 
   List<Map<String, dynamic>> _getDefaultEmployeesTable() {
     return [
-      {'employee_id': 1, 'name': 'Juan Dela Cruz', 'department_id': 1, 'salary': 55000},
-      {'employee_id': 2, 'name': 'Maria Santos', 'department_id': 2, 'salary': 45000},
-      {'employee_id': 3, 'name': 'Pedro Reyes', 'department_id': 1, 'salary': 60000},
-      {'employee_id': 4, 'name': 'Ana Lopez', 'department_id': 3, 'salary': 52000},
-      {'employee_id': 5, 'name': 'Luis Garcia', 'department_id': 1, 'salary': 48000},
-      {'employee_id': 6, 'name': 'Sofia Martinez', 'department_id': 2, 'salary': 47000},
-      {'employee_id': 7, 'name': 'Carlos Lim', 'department_id': 3, 'salary': 58000},
+      {'employee_id': 1, 'name': 'Maria Santos', 'department_id': 1, 'position': 'CEO'},
+      {'employee_id': 2, 'name': 'Juan Dela Cruz', 'department_id': 1, 'position': 'CTO'},
+      {'employee_id': 3, 'name': 'Ana Lopez', 'department_id': 2, 'position': 'HR Director'},
+      {'employee_id': 4, 'name': 'Pedro Reyes', 'department_id': 3, 'position': 'Sales Director'},
+      {'employee_id': 5, 'name': 'Luis Garcia', 'department_id': 1, 'position': 'Senior Developer'},
+      {'employee_id': 6, 'name': 'Sofia Martinez', 'department_id': 2, 'position': 'HR Manager'},
+      {'employee_id': 7, 'name': 'Carlos Lim', 'department_id': 3, 'position': 'Sales Manager'},
+      {'employee_id': 8, 'name': 'Elena Torres', 'department_id': 1, 'position': 'Junior Developer'},
+      {'employee_id': 9, 'name': 'Miguel Ramos', 'department_id': 2, 'position': 'Recruitment Specialist'},
+      {'employee_id': 10, 'name': 'Isabel Chen', 'department_id': 3, 'position': 'Sales Executive'},
     ];
   }
 
   List<Map<String, dynamic>> _getDefaultDepartmentsTable() {
     return [
-      {'department_id': 1, 'department_name': 'Sales'},
+      {'department_id': 1, 'department_name': 'Executive'},
       {'department_id': 2, 'department_name': 'HR'},
-      {'department_id': 3, 'department_name': 'IT'},
+      {'department_id': 3, 'department_name': 'Sales'},
+      {'department_id': 4, 'department_name': 'IT'},
+    ];
+  }
+
+  List<Map<String, dynamic>> _getDefaultProjectsTable() {
+    return [
+      {'project_id': 1, 'project_name': 'Digital Transformation', 'department_id': 1, 'budget': 2000000},
+      {'project_id': 2, 'project_name': 'Mobile App Development', 'department_id': 4, 'budget': 1500000},
+      {'project_id': 3, 'project_name': 'Sales Training Program', 'department_id': 3, 'budget': 500000},
+      {'project_id': 4, 'project_name': 'HR System Upgrade', 'department_id': 2, 'budget': 800000},
+      {'project_id': 5, 'project_name': 'Market Expansion', 'department_id': 3, 'budget': 1200000},
+      {'project_id': 6, 'project_name': 'Cloud Migration', 'department_id': 4, 'budget': 1800000},
+    ];
+  }
+
+  List<Map<String, dynamic>> _getDefaultSalariesTable() {
+    return [
+      {'salary_id': 1, 'employee_id': 1, 'salary_amount': 250000},
+      {'salary_id': 2, 'employee_id': 2, 'salary_amount': 200000},
+      {'salary_id': 3, 'employee_id': 3, 'salary_amount': 150000},
+      {'salary_id': 4, 'employee_id': 4, 'salary_amount': 140000},
+      {'salary_id': 5, 'employee_id': 5, 'salary_amount': 120000},
+      {'salary_id': 6, 'employee_id': 6, 'salary_amount': 90000},
+      {'salary_id': 7, 'employee_id': 7, 'salary_amount': 95000},
+      {'salary_id': 8, 'employee_id': 8, 'salary_amount': 60000},
+      {'salary_id': 9, 'employee_id': 9, 'salary_amount': 65000},
+      {'salary_id': 10, 'employee_id': 10, 'salary_amount': 70000},
+    ];
+  }
+
+  List<Map<String, dynamic>> _getDefaultEmployeeHierarchyTable() {
+    return [
+      {'hierarchy_id': 1, 'employee_id': 1, 'manager_id': null},
+      {'hierarchy_id': 2, 'employee_id': 2, 'manager_id': 1},
+      {'hierarchy_id': 3, 'employee_id': 3, 'manager_id': 1},
+      {'hierarchy_id': 4, 'employee_id': 4, 'manager_id': 1},
+      {'hierarchy_id': 5, 'employee_id': 5, 'manager_id': 2},
+      {'hierarchy_id': 6, 'employee_id': 6, 'manager_id': 3},
+      {'hierarchy_id': 7, 'employee_id': 7, 'manager_id': 4},
+      {'hierarchy_id': 8, 'employee_id': 8, 'manager_id': 5},
+      {'hierarchy_id': 9, 'employee_id': 9, 'manager_id': 6},
+      {'hierarchy_id': 10, 'employee_id': 10, 'manager_id': 7},
+    ];
+  }
+
+  List<Map<String, dynamic>> _getDefaultProjectAssignmentsTable() {
+    return [
+      {'assignment_id': 1, 'employee_id': 1, 'project_id': 1, 'role': 'Project Sponsor'},
+      {'assignment_id': 2, 'employee_id': 2, 'project_id': 1, 'role': 'Technical Lead'},
+      {'assignment_id': 3, 'employee_id': 2, 'project_id': 2, 'role': 'Project Manager'},
+      {'assignment_id': 4, 'employee_id': 3, 'project_id': 4, 'role': 'HR Lead'},
+      {'assignment_id': 5, 'employee_id': 4, 'project_id': 3, 'role': 'Sales Lead'},
+      {'assignment_id': 6, 'employee_id': 4, 'project_id': 5, 'role': 'Strategy Lead'},
+      {'assignment_id': 7, 'employee_id': 5, 'project_id': 2, 'role': 'Lead Developer'},
+      {'assignment_id': 8, 'employee_id': 5, 'project_id': 6, 'role': 'Cloud Architect'},
+      {'assignment_id': 9, 'employee_id': 6, 'project_id': 4, 'role': 'HR Analyst'},
+      {'assignment_id': 10, 'employee_id': 7, 'project_id': 3, 'role': 'Trainer'},
+      {'assignment_id': 11, 'employee_id': 7, 'project_id': 5, 'role': 'Sales Analyst'},
+      {'assignment_id': 12, 'employee_id': 8, 'project_id': 2, 'role': 'Developer'},
+      {'assignment_id': 13, 'employee_id': 8, 'project_id': 6, 'role': 'Support'},
+      {'assignment_id': 14, 'employee_id': 9, 'project_id': 4, 'role': 'Recruiter'},
+      {'assignment_id': 15, 'employee_id': 10, 'project_id': 3, 'role': 'Assistant'},
+      {'assignment_id': 16, 'employee_id': 10, 'project_id': 5, 'role': 'Researcher'},
     ];
   }
 
@@ -300,26 +549,26 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
     List<String> blocks = [];
 
     if (blocksData == null) {
-      print('⚠️ SQL Hard $type blocks are NULL in database');
+      print('⚠️ SQL Hard Level 3 $type blocks are NULL in database');
       return _getDefaultBlocks(type);
     }
 
     try {
       if (blocksData is List) {
         blocks = List<String>.from(blocksData);
-        print('✅ SQL Hard $type blocks parsed as List: $blocks');
+        print('✅ SQL Hard Level 3 $type blocks parsed as List: $blocks');
       } else if (blocksData is String) {
         String blocksStr = blocksData.trim();
-        print('🔍 Raw SQL Hard $type blocks string: $blocksStr');
+        print('🔍 Raw SQL Hard Level 3 $type blocks string: $blocksStr');
 
         if (blocksStr.startsWith('[') && blocksStr.endsWith(']')) {
           // Parse as JSON array
           try {
             List<dynamic> blocksJson = json.decode(blocksStr);
             blocks = List<String>.from(blocksJson);
-            print('✅ SQL Hard $type blocks parsed as JSON: $blocks');
+            print('✅ SQL Hard Level 3 $type blocks parsed as JSON: $blocks');
           } catch (e) {
-            print('❌ JSON parsing failed for SQL Hard $type blocks: $e');
+            print('❌ JSON parsing failed for SQL Hard Level 3 $type blocks: $e');
             blocks = _parseCommaSeparated(blocksStr);
           }
         } else {
@@ -328,14 +577,14 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
         }
       }
     } catch (e) {
-      print('❌ Error parsing SQL Hard $type blocks: $e');
+      print('❌ Error parsing SQL Hard Level 3 $type blocks: $e');
       blocks = _getDefaultBlocks(type);
     }
 
     // Remove any empty strings
     blocks = blocks.where((block) => block.trim().isNotEmpty).toList();
 
-    print('🎯 Final SQL Hard $type blocks: $blocks');
+    print('🎯 Final SQL Hard Level 3 $type blocks: $blocks');
     return blocks;
   }
 
@@ -374,10 +623,10 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
         items.add(lastItem);
       }
 
-      print('✅ SQL Hard Comma-separated parsing result: $items');
+      print('✅ SQL Hard Level 3 Comma-separated parsing result: $items');
       return items;
     } catch (e) {
-      print('❌ SQL Hard Comma-separated parsing failed: $e');
+      print('❌ SQL Hard Level 3 Comma-separated parsing failed: $e');
       List<String> fallback = input.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
       print('🔄 Using simple split fallback: $fallback');
       return fallback;
@@ -387,47 +636,205 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
   List<String> _getDefaultBlocks(String type) {
     if (type == 'correct') {
       return [
-        'SELECT d.department_name, AVG(e.salary) as avg_salary',
+        'WITH RECURSIVE EmployeeHierarchy AS (',
+        'SELECT e.employee_id,',
+        'e.name,',
+        'e.position,',
+        'd.department_name,',
+        'eh.manager_id,',
+        '0 as hierarchy_level,',
+        'CAST(e.name AS VARCHAR(255)) as hierarchy_path',
+        'FROM employees e',
+        'JOIN employee_hierarchy eh ON e.employee_id = eh.employee_id',
+        'JOIN departments d ON e.department_id = d.department_id',
+        'WHERE eh.manager_id IS NULL',
+        'UNION ALL',
+        'SELECT e.employee_id,',
+        'e.name,',
+        'e.position,',
+        'd.department_name,',
+        'eh.manager_id,',
+        'eh_parent.hierarchy_level + 1,',
+        'CAST(eh_parent.hierarchy_path || \' -> \' || e.name AS VARCHAR(255))',
+        'FROM employees e',
+        'JOIN employee_hierarchy eh ON e.employee_id = eh.employee_id',
+        'JOIN departments d ON e.department_id = d.department_id',
+        'JOIN EmployeeHierarchy eh_parent ON eh.manager_id = eh_parent.employee_id',
+        '),',
+        'DepartmentPerformance AS (',
+        'SELECT d.department_id,',
+        'd.department_name,',
+        'COUNT(DISTINCT e.employee_id) as total_employees,',
+        'AVG(s.salary_amount) as avg_salary,',
+        'COUNT(DISTINCT p.project_id) as total_projects,',
+        'SUM(p.budget) as total_budget,',
+        'COUNT(DISTINCT pa.assignment_id) as total_assignments',
+        'FROM departments d',
+        'LEFT JOIN employees e ON d.department_id = e.department_id',
+        'LEFT JOIN salaries s ON e.employee_id = s.employee_id',
+        'LEFT JOIN projects p ON d.department_id = p.department_id',
+        'LEFT JOIN project_assignments pa ON e.employee_id = pa.employee_id',
+        'GROUP BY d.department_id, d.department_name',
+        '),',
+        'EmployeePerformance AS (',
+        'SELECT e.employee_id,',
+        'e.name,',
+        'd.department_name,',
+        's.salary_amount,',
+        'COUNT(pa.assignment_id) as project_count,',
+        'AVG(COUNT(pa.assignment_id)) OVER (PARTITION BY d.department_id) as dept_avg_projects,',
+        'RANK() OVER (PARTITION BY d.department_id ORDER BY s.salary_amount DESC) as salary_rank_in_dept,',
+        'PERCENT_RANK() OVER (PARTITION BY d.department_id ORDER BY s.salary_amount) as salary_percentile',
         'FROM employees e',
         'JOIN departments d ON e.department_id = d.department_id',
-        'GROUP BY d.department_name',
-        'ORDER BY avg_salary DESC;'
+        'LEFT JOIN salaries s ON e.employee_id = s.employee_id',
+        'LEFT JOIN project_assignments pa ON e.employee_id = pa.employee_id',
+        'GROUP BY e.employee_id, e.name, d.department_name, s.salary_amount, d.department_id',
+        ')',
+        'SELECT eh.hierarchy_level,',
+        'eh.name as employee_name,',
+        'eh.position,',
+        'eh.department_name,',
+        'eh.hierarchy_path,',
+        'ep.salary_amount,',
+        'ep.project_count,',
+        'ep.salary_rank_in_dept,',
+        'ROUND(ep.salary_percentile * 100, 2) as salary_percentile',
+        'FROM EmployeeHierarchy eh',
+        'LEFT JOIN EmployeePerformance ep ON eh.employee_id = ep.employee_id',
+        'WHERE eh.hierarchy_level <= 3',
+        'ORDER BY eh.hierarchy_level, eh.hierarchy_path;'
       ];
     } else {
       return [
-        'SELECT department_name, AVG(salary)',
-        'FROM employees',
-        'INNER JOIN departments',
-        'WHERE e.department_id = d.department_id',
+        'WITH EmployeeData AS (',
+        'SELECT * FROM employees',
+        'WHERE salary > 100000',
         'GROUP BY department',
+        'HAVING COUNT(*) > 5',
         'ORDER BY salary DESC',
-        'SUM(e.salary) as total',
-        'COUNT(*) as employee_count',
-        'HAVING AVG(salary) > 50000'
+        'LIMIT 10',
+        'UNION ALL',
+        'SELECT name, position, salary',
+        'FROM managers',
+        'INNER JOIN departments ON managers.dept_id = departments.id',
+        'CROSS JOIN projects',
+        'NATURAL JOIN salaries',
+        'FULL OUTER JOIN employee_history',
+        'USING (employee_id)',
+        'WINDOW w AS (PARTITION BY department ORDER BY salary)',
+        'LAG(salary) OVER w as prev_salary',
+        'LEAD(salary) OVER w as next_salary',
+        'FIRST_VALUE(salary) OVER w as first_salary',
+        'LAST_VALUE(salary) OVER w as last_salary',
+        'NTILE(4) OVER w as salary_quartile',
+        'CUME_DIST() OVER w as cumulative_dist',
+        'ROLLUP(department, position)',
+        'CUBE(region, department)',
+        'GROUPING SETS ((department), (position), ())'
       ];
     }
   }
 
   String _getDefaultHint() {
-    return "💡 SQL Hard Hint: Use JOIN to combine tables, AVG() for average calculation, GROUP BY for aggregation, and ORDER BY for sorting results.";
+    return "💡 SQL Grand Master Hint: Use RECURSIVE CTE for hierarchical data, multiple window functions (RANK, PERCENT_RANK) for analytics, complex JOINs across 6+ tables, and advanced aggregation with PARTITION BY.";
   }
 
   void _initializeDefaultBlocks() {
     allBlocks = [
-      'SELECT d.department_name, AVG(e.salary) as avg_salary',
+      'WITH RECURSIVE EmployeeHierarchy AS (',
+      'SELECT e.employee_id,',
+      'e.name,',
+      'e.position,',
+      'd.department_name,',
+      'eh.manager_id,',
+      '0 as hierarchy_level,',
+      'CAST(e.name AS VARCHAR(255)) as hierarchy_path',
+      'FROM employees e',
+      'JOIN employee_hierarchy eh ON e.employee_id = eh.employee_id',
+      'JOIN departments d ON e.department_id = d.department_id',
+      'WHERE eh.manager_id IS NULL',
+      'UNION ALL',
+      'SELECT e.employee_id,',
+      'e.name,',
+      'e.position,',
+      'd.department_name,',
+      'eh.manager_id,',
+      'eh_parent.hierarchy_level + 1,',
+      'CAST(eh_parent.hierarchy_path || \' -> \' || e.name AS VARCHAR(255))',
+      'FROM employees e',
+      'JOIN employee_hierarchy eh ON e.employee_id = eh.employee_id',
+      'JOIN departments d ON e.department_id = d.department_id',
+      'JOIN EmployeeHierarchy eh_parent ON eh.manager_id = eh_parent.employee_id',
+      '),',
+      'DepartmentPerformance AS (',
+      'SELECT d.department_id,',
+      'd.department_name,',
+      'COUNT(DISTINCT e.employee_id) as total_employees,',
+      'AVG(s.salary_amount) as avg_salary,',
+      'COUNT(DISTINCT p.project_id) as total_projects,',
+      'SUM(p.budget) as total_budget,',
+      'COUNT(DISTINCT pa.assignment_id) as total_assignments',
+      'FROM departments d',
+      'LEFT JOIN employees e ON d.department_id = e.department_id',
+      'LEFT JOIN salaries s ON e.employee_id = s.employee_id',
+      'LEFT JOIN projects p ON d.department_id = p.department_id',
+      'LEFT JOIN project_assignments pa ON e.employee_id = pa.employee_id',
+      'GROUP BY d.department_id, d.department_name',
+      '),',
+      'EmployeePerformance AS (',
+      'SELECT e.employee_id,',
+      'e.name,',
+      'd.department_name,',
+      's.salary_amount,',
+      'COUNT(pa.assignment_id) as project_count,',
+      'AVG(COUNT(pa.assignment_id)) OVER (PARTITION BY d.department_id) as dept_avg_projects,',
+      'RANK() OVER (PARTITION BY d.department_id ORDER BY s.salary_amount DESC) as salary_rank_in_dept,',
+      'PERCENT_RANK() OVER (PARTITION BY d.department_id ORDER BY s.salary_amount) as salary_percentile',
       'FROM employees e',
       'JOIN departments d ON e.department_id = d.department_id',
-      'GROUP BY d.department_name',
-      'ORDER BY avg_salary DESC;',
-      'SELECT department_name, AVG(salary)',
-      'FROM employees',
-      'INNER JOIN departments',
-      'WHERE e.department_id = d.department_id',
+      'LEFT JOIN salaries s ON e.employee_id = s.employee_id',
+      'LEFT JOIN project_assignments pa ON e.employee_id = pa.employee_id',
+      'GROUP BY e.employee_id, e.name, d.department_name, s.salary_amount, d.department_id',
+      ')',
+      'SELECT eh.hierarchy_level,',
+      'eh.name as employee_name,',
+      'eh.position,',
+      'eh.department_name,',
+      'eh.hierarchy_path,',
+      'ep.salary_amount,',
+      'ep.project_count,',
+      'ep.salary_rank_in_dept,',
+      'ROUND(ep.salary_percentile * 100, 2) as salary_percentile',
+      'FROM EmployeeHierarchy eh',
+      'LEFT JOIN EmployeePerformance ep ON eh.employee_id = ep.employee_id',
+      'WHERE eh.hierarchy_level <= 3',
+      'ORDER BY eh.hierarchy_level, eh.hierarchy_path;',
+      'WITH EmployeeData AS (',
+      'SELECT * FROM employees',
+      'WHERE salary > 100000',
       'GROUP BY department',
+      'HAVING COUNT(*) > 5',
       'ORDER BY salary DESC',
-      'SUM(e.salary) as total',
-      'COUNT(*) as employee_count',
-      'HAVING AVG(salary) > 50000'
+      'LIMIT 10',
+      'UNION ALL',
+      'SELECT name, position, salary',
+      'FROM managers',
+      'INNER JOIN departments ON managers.dept_id = departments.id',
+      'CROSS JOIN projects',
+      'NATURAL JOIN salaries',
+      'FULL OUTER JOIN employee_history',
+      'USING (employee_id)',
+      'WINDOW w AS (PARTITION BY department ORDER BY salary)',
+      'LAG(salary) OVER w as prev_salary',
+      'LEAD(salary) OVER w as next_salary',
+      'FIRST_VALUE(salary) OVER w as first_salary',
+      'LAST_VALUE(salary) OVER w as last_salary',
+      'NTILE(4) OVER w as salary_quartile',
+      'CUME_DIST() OVER w as cumulative_dist',
+      'ROLLUP(department, position)',
+      'CUBE(region, department)',
+      'GROUPING SETS ((department), (position), ())'
     ]..shuffle();
   }
 
@@ -528,7 +935,7 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('SQL Hard game configuration not loaded. Please retry.'),
+          content: Text('SQL Hard Level 3 game configuration not loaded. Please retry.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -539,8 +946,8 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
     musicService.playSoundEffect('level_start.mp3');
 
     int timerDuration = gameConfig!['timer_duration'] != null
-        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 240
-        : 240;
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 360
+        : 360;
 
     setState(() {
       gameStarted = true;
@@ -553,7 +960,7 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
       resetBlocks();
     });
 
-    print('🎮 SQL HARD GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
+    print('🎮 SQL HARD LEVEL 3 GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
     startTimers();
   }
 
@@ -622,8 +1029,8 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
     musicService.playSoundEffect('reset.mp3');
 
     int timerDuration = gameConfig!['timer_duration'] != null
-        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 240
-        : 240;
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 360
+        : 360;
 
     setState(() {
       score = 3;
@@ -641,27 +1048,27 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
 
   Future<void> saveScoreToDatabase(int score) async {
     if (currentUser?['id'] == null) {
-      print('❌ Cannot save SQL Hard score: No user ID');
+      print('❌ Cannot save SQL Hard Level 3 score: No user ID');
       return;
     }
 
     try {
-      print('💾 SAVING SQL HARD SCORE:');
+      print('💾 SAVING SQL HARD LEVEL 3 SCORE:');
       print('   User ID: ${currentUser!['id']}');
       print('   Language: SQL_Hard');
-      print('   Level: 1');
+      print('   Level: 3');
       print('   Score: $score/3');
 
       final response = await ApiService.saveScoreWithDifficulty(
         currentUser!['id'],
         'SQL',
         'Hard',
-        1,
+        3,
         score,
         score == 3,
       );
 
-      print('📡 SQL HARD SERVER RESPONSE: $response');
+      print('📡 SQL HARD LEVEL 3 SERVER RESPONSE: $response');
 
       if (response['success'] == true) {
         setState(() {
@@ -670,12 +1077,12 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
           hasPreviousScore = true;
         });
 
-        print('✅ SQL HARD SCORE SAVED SUCCESSFULLY');
+        print('✅ SQL HARD LEVEL 3 SCORE SAVED SUCCESSFULLY');
       } else {
-        print('❌ FAILED TO SAVE SQL HARD SCORE: ${response['message']}');
+        print('❌ FAILED TO SAVE SQL HARD LEVEL 3 SCORE: ${response['message']}');
       }
     } catch (e) {
-      print('❌ ERROR SAVING SQL HARD SCORE: $e');
+      print('❌ ERROR SAVING SQL HARD LEVEL 3 SCORE: $e');
     }
   }
 
@@ -687,18 +1094,18 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level1Data = scoresData['1'];
+        final level3Data = scoresData['3'];
 
-        if (level1Data != null) {
+        if (level3Data != null) {
           setState(() {
-            previousScore = level1Data['score'] ?? 0;
-            levelCompleted = level1Data['completed'] ?? false;
+            previousScore = level3Data['score'] ?? 0;
+            levelCompleted = level3Data['completed'] ?? false;
             hasPreviousScore = true;
           });
         }
       }
     } catch (e) {
-      print('Error loading SQL Hard score: $e');
+      print('Error loading SQL Hard Level 3 score: $e');
     }
   }
 
@@ -708,25 +1115,41 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
         List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
         bool isIncorrect = incorrectBlocks.contains(block);
         if (isIncorrect) {
-          print('❌ SQL Hard Block "$block" is in incorrect blocks list');
+          print('❌ SQL Hard Level 3 Block "$block" is in incorrect blocks list');
         }
         return isIncorrect;
       } catch (e) {
-        print('Error checking SQL Hard incorrect block: $e');
+        print('Error checking SQL Hard Level 3 incorrect block: $e');
       }
     }
 
-    // Default incorrect blocks for SQL Hard
+    // Default incorrect blocks for SQL Hard Level 3
     List<String> incorrectBlocks = [
-      'SELECT department_name, AVG(salary)',
-      'FROM employees',
-      'INNER JOIN departments',
-      'WHERE e.department_id = d.department_id',
+      'WITH EmployeeData AS (',
+      'SELECT * FROM employees',
+      'WHERE salary > 100000',
       'GROUP BY department',
+      'HAVING COUNT(*) > 5',
       'ORDER BY salary DESC',
-      'SUM(e.salary) as total',
-      'COUNT(*) as employee_count',
-      'HAVING AVG(salary) > 50000'
+      'LIMIT 10',
+      'UNION ALL',
+      'SELECT name, position, salary',
+      'FROM managers',
+      'INNER JOIN departments ON managers.dept_id = departments.id',
+      'CROSS JOIN projects',
+      'NATURAL JOIN salaries',
+      'FULL OUTER JOIN employee_history',
+      'USING (employee_id)',
+      'WINDOW w AS (PARTITION BY department ORDER BY salary)',
+      'LAG(salary) OVER w as prev_salary',
+      'LEAD(salary) OVER w as next_salary',
+      'FIRST_VALUE(salary) OVER w as first_salary',
+      'LAST_VALUE(salary) OVER w as last_salary',
+      'NTILE(4) OVER w as salary_quartile',
+      'CUME_DIST() OVER w as cumulative_dist',
+      'ROLLUP(department, position)',
+      'CUBE(region, department)',
+      'GROUPING SETS ((department), (position), ())'
     ];
     return incorrectBlocks.contains(block);
   }
@@ -737,14 +1160,14 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
     final musicService = Provider.of<MusicService>(context, listen: false);
 
     // DEBUG: Print what we're checking
-    print('🔍 CHECKING SQL HARD ANSWER:');
+    print('🔍 CHECKING SQL HARD LEVEL 3 ANSWER:');
     print('   Dropped blocks: $droppedBlocks');
 
     // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
-      print('❌ SQL HARD HAS INCORRECT BLOCK');
+      print('❌ SQL HARD LEVEL 3 HAS INCORRECT BLOCK');
       musicService.playSoundEffect('error.mp3');
 
       if (score > 1) {
@@ -788,15 +1211,15 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
       return;
     }
 
-    // ADVANCED SQL ANSWER CHECKING LOGIC
+    // GRAND MASTER SQL ANSWER CHECKING LOGIC
     bool isCorrect = false;
 
     if (gameConfig != null) {
       // Get expected correct blocks from database
       List<String> expectedCorrectBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
 
-      print('🎯 SQL HARD EXPECTED CORRECT BLOCKS: $expectedCorrectBlocks');
-      print('🎯 SQL HARD USER DROPPED BLOCKS: $droppedBlocks');
+      print('🎯 SQL HARD LEVEL 3 EXPECTED CORRECT BLOCKS: $expectedCorrectBlocks');
+      print('🎯 SQL HARD LEVEL 3 USER DROPPED BLOCKS: $droppedBlocks');
 
       // METHOD 1: Check if user has all correct blocks and no extra correct blocks
       bool hasAllCorrectBlocks = expectedCorrectBlocks.every((block) => droppedBlocks.contains(block));
@@ -818,35 +1241,35 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
             .replaceAll('"', "'")
             .toLowerCase();
 
-        print('📝 SQL HARD USER ANSWER: $userAnswer');
-        print('📝 SQL HARD NORMALIZED USER: $normalizedUserAnswer');
-        print('🎯 SQL HARD EXPECTED ANSWER: $expectedAnswer');
-        print('🎯 SQL HARD NORMALIZED EXPECTED: $normalizedExpected');
+        print('📝 SQL HARD LEVEL 3 USER ANSWER: $userAnswer');
+        print('📝 SQL HARD LEVEL 3 NORMALIZED USER: $normalizedUserAnswer');
+        print('🎯 SQL HARD LEVEL 3 EXPECTED ANSWER: $expectedAnswer');
+        print('🎯 SQL HARD LEVEL 3 NORMALIZED EXPECTED: $normalizedExpected');
 
         bool stringMatch = normalizedUserAnswer == normalizedExpected;
 
         // Use both methods for verification
         isCorrect = (hasAllCorrectBlocks && noExtraCorrectBlocks) || stringMatch;
 
-        print('✅ SQL HARD BLOCK CHECK: hasAllCorrectBlocks=$hasAllCorrectBlocks, noExtraCorrectBlocks=$noExtraCorrectBlocks');
-        print('✅ SQL HARD STRING CHECK: stringMatch=$stringMatch');
-        print('✅ SQL HARD FINAL RESULT: $isCorrect');
+        print('✅ SQL HARD LEVEL 3 BLOCK CHECK: hasAllCorrectBlocks=$hasAllCorrectBlocks, noExtraCorrectBlocks=$noExtraCorrectBlocks');
+        print('✅ SQL HARD LEVEL 3 STRING CHECK: stringMatch=$stringMatch');
+        print('✅ SQL HARD LEVEL 3 FINAL RESULT: $isCorrect');
       } else {
         // Fallback: only use block comparison
         isCorrect = hasAllCorrectBlocks && noExtraCorrectBlocks;
         print('⚠️ No correct_answer in DB, using block comparison only: $isCorrect');
       }
     } else {
-      // Fallback check for advanced SQL requirements
-      print('⚠️ No SQL Hard game config, using fallback check');
-      bool hasSelect = droppedBlocks.any((block) => block.toLowerCase().contains('select'));
-      bool hasFrom = droppedBlocks.any((block) => block.toLowerCase().contains('from'));
-      bool hasJoin = droppedBlocks.any((block) => block.toLowerCase().contains('join'));
-      bool hasGroupBy = droppedBlocks.any((block) => block.toLowerCase().contains('group by'));
-      bool hasOrderBy = droppedBlocks.any((block) => block.toLowerCase().contains('order by'));
+      // Fallback check for grand master SQL requirements
+      print('⚠️ No SQL Hard Level 3 game config, using fallback check');
+      bool hasRecursiveCTE = droppedBlocks.any((block) => block.toLowerCase().contains('recursive'));
+      bool hasMultipleCTEs = droppedBlocks.where((block) => block.toLowerCase().contains('as (')).length >= 2;
+      bool hasAdvancedWindowFunctions = droppedBlocks.any((block) => block.toLowerCase().contains('percent_rank'));
+      bool hasComplexJoins = droppedBlocks.where((block) => block.toLowerCase().contains('join')).length >= 4;
+      bool hasHierarchicalQuery = droppedBlocks.any((block) => block.toLowerCase().contains('hierarchy_level'));
 
-      isCorrect = hasSelect && hasFrom && hasJoin && hasGroupBy && hasOrderBy;
-      print('✅ SQL HARD FALLBACK CHECK: $isCorrect');
+      isCorrect = hasRecursiveCTE && hasMultipleCTEs && hasAdvancedWindowFunctions && hasComplexJoins && hasHierarchicalQuery;
+      print('✅ SQL HARD LEVEL 3 FALLBACK CHECK: $isCorrect');
     }
 
     if (isCorrect) {
@@ -868,27 +1291,27 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text("✅ Correct Advanced SQL Query!"),
+          title: Text("🏆 SQL Grand Master Achievement!"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent work SQL Expert!"),
+              Text("Incredible! You've mastered the most complex SQL challenge!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've mastered SQL Level 1 Hard!",
-                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                  "🎉 PERFECT SCORE! You are now a SQL Grand Master!",
+                  style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) to complete this challenge!",
+                  "⚠️ Get a perfect score (3/3) to achieve Grand Master status!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
-              Text("Query Result:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("Query Result Preview:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
@@ -903,7 +1326,11 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
                 Navigator.pop(context);
                 if (score == 3) {
                   musicService.playSoundEffect('level_complete.mp3');
-                  Navigator.pushReplacementNamed(context, '/sql_level2_hard');
+                  Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                    'language': 'SQL',
+                    'difficulty': 'Hard',
+                    'completed': true
+                  });
                 } else {
                   Navigator.pushReplacementNamed(context, '/levels', arguments: {
                     'language': 'SQL',
@@ -911,13 +1338,13 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
                   });
                 }
               },
-              child: Text(score == 3 ? "Next Level" : "Go Back"),
+              child: Text(score == 3 ? "Complete Mastery" : "Go Back"),
             )
           ],
         ),
       );
     } else {
-      print('❌ SQL HARD ANSWER INCORRECT');
+      print('❌ SQL HARD LEVEL 3 ANSWER INCORRECT');
       musicService.playSoundEffect('wrong.mp3');
 
       if (score > 1) {
@@ -961,49 +1388,93 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
   }
 
   Widget _buildQueryResultPreview() {
-    // Simulate the JOIN query result: average salary by department
-    Map<String, List<int>> departmentSalaries = {};
+    // Simulate the complex recursive CTE query result
+    List<Map<String, dynamic>> hierarchyResults = [];
 
-    for (var employee in _employeesTable) {
-      String deptId = employee['department_id'].toString();
-      if (!departmentSalaries.containsKey(deptId)) {
-        departmentSalaries[deptId] = [];
-      }
-      departmentSalaries[deptId]!.add(employee['salary'] as int);
+    // Build hierarchy manually for preview
+    Map<int, Map<String, dynamic>> employeeMap = {};
+    for (var emp in _employeesTable) {
+      employeeMap[emp['employee_id']] = {
+        'name': emp['name'],
+        'position': emp['position'],
+        'department_name': _departmentsTable.firstWhere(
+                (dept) => dept['department_id'] == emp['department_id'],
+            orElse: () => {'department_name': 'Unknown'}
+        )['department_name'],
+      };
     }
 
-    List<Map<String, dynamic>> resultData = [];
+    // Add top-level (level 0)
+    var ceo = _employeeHierarchyTable.firstWhere((h) => h['manager_id'] == null);
+    hierarchyResults.add({
+      'hierarchy_level': 0,
+      'employee_name': employeeMap[ceo['employee_id']]!['name'],
+      'position': employeeMap[ceo['employee_id']]!['position'],
+      'department_name': employeeMap[ceo['employee_id']]!['department_name'],
+      'hierarchy_path': employeeMap[ceo['employee_id']]!['name'],
+      'salary_amount': _salariesTable.firstWhere((s) => s['employee_id'] == ceo['employee_id'])['salary_amount'],
+      'project_count': _projectAssignmentsTable.where((pa) => pa['employee_id'] == ceo['employee_id']).length,
+      'salary_rank_in_dept': 1,
+      'salary_percentile': 100.0,
+    });
 
-    for (var department in _departmentsTable) {
-      String deptId = department['department_id'].toString();
-      if (departmentSalaries.containsKey(deptId)) {
-        List<int> salaries = departmentSalaries[deptId]!;
-        double avgSalary = salaries.reduce((a, b) => a + b) / salaries.length;
+    // Add level 1
+    var level1 = _employeeHierarchyTable.where((h) => h['manager_id'] == ceo['employee_id']);
+    for (var emp in level1) {
+      hierarchyResults.add({
+        'hierarchy_level': 1,
+        'employee_name': employeeMap[emp['employee_id']]!['name'],
+        'position': employeeMap[emp['employee_id']]!['position'],
+        'department_name': employeeMap[emp['employee_id']]!['department_name'],
+        'hierarchy_path': '${employeeMap[ceo['employee_id']]!['name']} -> ${employeeMap[emp['employee_id']]!['name']}',
+        'salary_amount': _salariesTable.firstWhere((s) => s['employee_id'] == emp['employee_id'])['salary_amount'],
+        'project_count': _projectAssignmentsTable.where((pa) => pa['employee_id'] == emp['employee_id']).length,
+        'salary_rank_in_dept': 1,
+        'salary_percentile': 100.0,
+      });
+    }
 
-        resultData.add({
-          'department_name': department['department_name'],
-          'avg_salary': avgSalary.toStringAsFixed(2),
-          'employee_count': salaries.length
+    // Add level 2
+    for (var l1 in level1) {
+      var level2 = _employeeHierarchyTable.where((h) => h['manager_id'] == l1['employee_id']);
+      for (var emp in level2) {
+        hierarchyResults.add({
+          'hierarchy_level': 2,
+          'employee_name': employeeMap[emp['employee_id']]!['name'],
+          'position': employeeMap[emp['employee_id']]!['position'],
+          'department_name': employeeMap[emp['employee_id']]!['department_name'],
+          'hierarchy_path': '${employeeMap[ceo['employee_id']]!['name']} -> ${employeeMap[l1['employee_id']]!['name']} -> ${employeeMap[emp['employee_id']]!['name']}',
+          'salary_amount': _salariesTable.firstWhere((s) => s['employee_id'] == emp['employee_id'])['salary_amount'],
+          'project_count': _projectAssignmentsTable.where((pa) => pa['employee_id'] == emp['employee_id']).length,
+          'salary_rank_in_dept': 1,
+          'salary_percentile': 100.0,
         });
       }
     }
-
-    // Sort by average salary DESC
-    resultData.sort((a, b) => double.parse(b['avg_salary']).compareTo(double.parse(a['avg_salary'])));
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
         columns: [
+          DataColumn(label: Text('Level', style: TextStyle(color: Colors.white))),
+          DataColumn(label: Text('Employee', style: TextStyle(color: Colors.white))),
+          DataColumn(label: Text('Position', style: TextStyle(color: Colors.white))),
           DataColumn(label: Text('Department', style: TextStyle(color: Colors.white))),
-          DataColumn(label: Text('Avg Salary', style: TextStyle(color: Colors.white))),
-          DataColumn(label: Text('Employees', style: TextStyle(color: Colors.white))),
+          DataColumn(label: Text('Salary', style: TextStyle(color: Colors.white))),
+          DataColumn(label: Text('Projects', style: TextStyle(color: Colors.white))),
+          DataColumn(label: Text('Rank', style: TextStyle(color: Colors.white))),
+          DataColumn(label: Text('Percentile', style: TextStyle(color: Colors.white))),
         ],
-        rows: resultData.map((row) {
+        rows: hierarchyResults.map((row) {
           return DataRow(cells: [
+            DataCell(Text(row['hierarchy_level'].toString(), style: TextStyle(color: Colors.white))),
+            DataCell(Text(row['employee_name'].toString(), style: TextStyle(color: Colors.white))),
+            DataCell(Text(row['position'].toString(), style: TextStyle(color: Colors.white))),
             DataCell(Text(row['department_name'].toString(), style: TextStyle(color: Colors.white))),
-            DataCell(Text('₱${row['avg_salary']}', style: TextStyle(color: Colors.greenAccent))),
-            DataCell(Text(row['employee_count'].toString(), style: TextStyle(color: Colors.white))),
+            DataCell(Text('₱${row['salary_amount']}', style: TextStyle(color: Colors.greenAccent))),
+            DataCell(Text(row['project_count'].toString(), style: TextStyle(color: Colors.white))),
+            DataCell(Text(row['salary_rank_in_dept'].toString(), style: TextStyle(color: Colors.yellowAccent))),
+            DataCell(Text('${row['salary_percentile']}%', style: TextStyle(color: Colors.blueAccent))),
           ]);
         }).toList(),
       ),
@@ -1026,9 +1497,9 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
       child: Container(
         padding: EdgeInsets.all(16 * _scaleFactor),
         decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.95),
+          color: Colors.purple.withOpacity(0.95),
           borderRadius: BorderRadius.circular(12 * _scaleFactor),
-          border: Border.all(color: Colors.redAccent, width: 2 * _scaleFactor),
+          border: Border.all(color: Colors.purpleAccent, width: 2 * _scaleFactor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.3),
@@ -1044,7 +1515,7 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
                 Icon(Icons.lightbulb, color: Colors.white, size: 20 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  '💡 SQL Expert Hint Activated!',
+                  '💡 SQL Grand Master Hint Activated!',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16 * _scaleFactor,
@@ -1087,7 +1558,7 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
         child: Container(
           padding: EdgeInsets.all(12 * _scaleFactor),
           decoration: BoxDecoration(
-            color: _availableHintCards > 0 ? Colors.red : Colors.grey,
+            color: _availableHintCards > 0 ? Colors.purple : Colors.grey,
             borderRadius: BorderRadius.circular(20 * _scaleFactor),
             boxShadow: [
               BoxShadow(
@@ -1097,7 +1568,7 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
               )
             ],
             border: Border.all(
-              color: _availableHintCards > 0 ? Colors.redAccent : Colors.grey,
+              color: _availableHintCards > 0 ? Colors.purpleAccent : Colors.grey,
               width: 2 * _scaleFactor,
             ),
           ),
@@ -1172,14 +1643,14 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
                       DataColumn(label: Text('employee_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
                       DataColumn(label: Text('name', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
                       DataColumn(label: Text('department_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('salary', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('position', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
                     ],
                     rows: _employeesTable.map((row) {
                       return DataRow(cells: [
                         DataCell(Text(row['employee_id'].toString(), style: TextStyle(color: Colors.white))),
                         DataCell(Text(row['name'].toString(), style: TextStyle(color: Colors.white))),
                         DataCell(Text(row['department_id'].toString(), style: TextStyle(color: Colors.white))),
-                        DataCell(Text('₱${row['salary']}', style: TextStyle(color: Colors.greenAccent))),
+                        DataCell(Text(row['position'].toString(), style: TextStyle(color: Colors.white))),
                       ]);
                     }).toList(),
                   ),
@@ -1250,6 +1721,136 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
             ],
           ),
         ),
+
+        SizedBox(height: 16 * _scaleFactor),
+
+        // Employee Hierarchy Table
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(8 * _scaleFactor),
+            border: Border.all(color: Colors.grey[700]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
+                decoration: BoxDecoration(
+                  color: Color(0xFF2D2D2D),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(8 * _scaleFactor),
+                    topRight: Radius.circular(8 * _scaleFactor),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.account_tree, color: Colors.grey[400], size: 16 * _scaleFactor),
+                    SizedBox(width: 8 * _scaleFactor),
+                    Text(
+                      'Table: $_employeeHierarchyTableName',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 12 * _scaleFactor,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.all(12 * _scaleFactor),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columnSpacing: 20 * _scaleFactor,
+                    dataRowHeight: 32 * _scaleFactor,
+                    headingRowHeight: 40 * _scaleFactor,
+                    columns: [
+                      DataColumn(label: Text('hierarchy_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('employee_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('manager_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                    ],
+                    rows: _employeeHierarchyTable.map((row) {
+                      return DataRow(cells: [
+                        DataCell(Text(row['hierarchy_id'].toString(), style: TextStyle(color: Colors.white))),
+                        DataCell(Text(row['employee_id'].toString(), style: TextStyle(color: Colors.white))),
+                        DataCell(Text(row['manager_id']?.toString() ?? 'NULL', style: TextStyle(color: row['manager_id'] == null ? Colors.orange : Colors.white))),
+                      ]);
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        SizedBox(height: 16 * _scaleFactor),
+
+        // Project Assignments Table
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(8 * _scaleFactor),
+            border: Border.all(color: Colors.grey[700]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
+                decoration: BoxDecoration(
+                  color: Color(0xFF2D2D2D),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(8 * _scaleFactor),
+                    topRight: Radius.circular(8 * _scaleFactor),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.assignment, color: Colors.grey[400], size: 16 * _scaleFactor),
+                    SizedBox(width: 8 * _scaleFactor),
+                    Text(
+                      'Table: $_projectAssignmentsTableName',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 12 * _scaleFactor,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.all(12 * _scaleFactor),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columnSpacing: 20 * _scaleFactor,
+                    dataRowHeight: 32 * _scaleFactor,
+                    headingRowHeight: 40 * _scaleFactor,
+                    columns: [
+                      DataColumn(label: Text('assignment_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('employee_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('project_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('role', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                    ],
+                    rows: _projectAssignmentsTable.map((row) {
+                      return DataRow(cells: [
+                        DataCell(Text(row['assignment_id'].toString(), style: TextStyle(color: Colors.white))),
+                        DataCell(Text(row['employee_id'].toString(), style: TextStyle(color: Colors.white))),
+                        DataCell(Text(row['project_id'].toString(), style: TextStyle(color: Colors.white))),
+                        DataCell(Text(row['role'].toString(), style: TextStyle(color: Colors.greenAccent))),
+                      ]);
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -1280,7 +1881,7 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'advanced_query.sql',
+                  'grand_master_query.sql',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -1308,7 +1909,7 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
     for (int i = 0; i < _codeStructure.length; i++) {
       String line = _codeStructure[i];
 
-      if (line.contains('-- Complete the query below')) {
+      if (line.contains('-- Complete the recursive CTE query below')) {
         // Add user's dragged SQL code in the correct position
         codeLines.add(_buildUserSQLSection());
       } else if (line.trim().isEmpty) {
@@ -1326,7 +1927,7 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
       return Container(
         padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
         child: Text(
-          '-- Drag SQL blocks here to build your advanced query...',
+          '-- Drag SQL blocks here to build your grand master recursive CTE query...',
           style: TextStyle(
             color: Colors.grey[600],
             fontSize: 12 * _scaleFactor,
@@ -1348,7 +1949,7 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
               child: Text(
                 block,
                 style: TextStyle(
-                  color: Colors.greenAccent[400],
+                  color: Colors.purpleAccent[400],
                   fontSize: 12 * _scaleFactor,
                   fontFamily: 'monospace',
                   fontWeight: FontWeight.bold,
@@ -1367,19 +1968,33 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
     // SQL Syntax highlighting rules
     if (code.trim().startsWith('--')) {
       textColor = Color(0xFF6A9955); // Comments - green
-    } else if (code.toUpperCase().contains('SELECT') ||
+    } else if (code.toUpperCase().contains('WITH RECURSIVE') ||
+        code.toUpperCase().contains('UNION ALL') ||
+        code.toUpperCase().contains('SELECT') ||
         code.toUpperCase().contains('FROM') ||
         code.toUpperCase().contains('JOIN') ||
         code.toUpperCase().contains('ON') ||
+        code.toUpperCase().contains('WHERE') ||
         code.toUpperCase().contains('GROUP BY') ||
         code.toUpperCase().contains('ORDER BY') ||
-        code.toUpperCase().contains('DESC') ||
-        code.toUpperCase().contains('AVG')) {
+        code.toUpperCase().contains('PARTITION BY') ||
+        code.toUpperCase().contains('OVER') ||
+        code.toUpperCase().contains('CAST') ||
+        code.toUpperCase().contains('AS') ||
+        code.toUpperCase().contains('LEFT') ||
+        code.toUpperCase().contains('NULL')) {
       textColor = Color(0xFF569CD6); // SQL Keywords - blue
-    } else if (code.contains('"') || code.contains("'")) {
-      textColor = Color(0xFFCE9178); // Strings - orange
+    } else if (code.contains('PERCENT_RANK') ||
+        code.contains('RANK') ||
+        code.contains('AVG') ||
+        code.contains('COUNT') ||
+        code.contains('SUM') ||
+        code.contains('ROUND')) {
+      textColor = Color(0xFFDCDCAA); // Functions - yellow
+    } else if (code.contains('"') || code.contains("'") || code.contains('->')) {
+      textColor = Color(0xFFCE9178); // Strings and paths - orange
     } else if (code.contains('.')) {
-      textColor = Color(0xFFDCDCAA); // Table aliases - yellow
+      textColor = Color(0xFF9CDCFE); // Table aliases - light blue
     }
 
     return Container(
@@ -1432,8 +2047,8 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
     if (isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: Text("🔥 SQL Hard - Level 1", style: TextStyle(fontSize: 18)),
-          backgroundColor: Colors.red,
+          title: Text("🏆 SQL Grand Master - Level 3", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.purple,
         ),
         body: Container(
           decoration: BoxDecoration(
@@ -1441,9 +2056,9 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Color(0xFF0D1B2A),
-                Color(0xFF1B263B),
-                Color(0xFF415A77),
+                Color(0xFF1A1A2E),
+                Color(0xFF16213E),
+                Color(0xFF0F3460),
               ],
             ),
           ),
@@ -1451,16 +2066,17 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CircularProgressIndicator(color: Colors.red),
+                CircularProgressIndicator(color: Colors.purple),
                 SizedBox(height: 20),
                 Text(
-                  "Loading SQL Hard Game Configuration...",
+                  "Loading SQL Grand Master Level 3 Configuration...",
                   style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
                 SizedBox(height: 10),
                 Text(
-                  "From Database",
+                  "Ultimate Challenge - Recursive CTEs & Advanced Analytics",
                   style: TextStyle(color: Colors.white70, fontSize: 12),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
@@ -1472,8 +2088,8 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
     if (errorMessage != null && !gameStarted) {
       return Scaffold(
         appBar: AppBar(
-          title: Text("🔥 SQL Hard - Level 1", style: TextStyle(fontSize: 18)),
-          backgroundColor: Colors.red,
+          title: Text("🏆 SQL Grand Master - Level 3", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.purple,
         ),
         body: Container(
           decoration: BoxDecoration(
@@ -1481,9 +2097,9 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Color(0xFF0D1B2A),
-                Color(0xFF1B263B),
-                Color(0xFF415A77),
+                Color(0xFF1A1A2E),
+                Color(0xFF16213E),
+                Color(0xFF0F3460),
               ],
             ),
           ),
@@ -1493,10 +2109,10 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.warning_amber, color: Colors.red, size: 50),
+                  Icon(Icons.warning_amber, color: Colors.purple, size: 50),
                   SizedBox(height: 20),
                   Text(
-                    "SQL Hard Configuration Warning",
+                    "SQL Grand Master Level 3 Configuration Warning",
                     style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10),
@@ -1508,7 +2124,7 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
                   SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: _loadGameConfig,
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
                     child: Text("Retry Loading"),
                   ),
                   SizedBox(height: 10),
@@ -1519,7 +2135,7 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
                         'difficulty': 'Hard'
                       });
                     },
-                    child: Text("Back to Levels", style: TextStyle(color: Colors.red)),
+                    child: Text("Back to Levels", style: TextStyle(color: Colors.purple)),
                   ),
                 ],
               ),
@@ -1544,8 +2160,8 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("🔥 SQL Hard - Level 1", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.red,
+        title: Text("🏆 SQL Grand Master - Level 3", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.purple,
         actions: gameStarted
             ? [
           Padding(
@@ -1570,9 +2186,9 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF0D1B2A),
-              Color(0xFF1B263B),
-              Color(0xFF415A77),
+              Color(0xFF1A1A2E),
+              Color(0xFF16213E),
+              Color(0xFF0F3460),
             ],
           ),
         ),
@@ -1603,10 +2219,10 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
                 startGame();
               } : null,
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text(gameConfig != null ? "Start Challenge" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text(gameConfig != null ? "Start Grand Master Challenge" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: gameConfig != null ? Colors.red : Colors.grey,
+                backgroundColor: gameConfig != null ? Colors.purple : Colors.grey,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
@@ -1614,19 +2230,19 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
             Container(
               padding: EdgeInsets.all(12 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.2),
+                color: Colors.purple.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.red),
+                border: Border.all(color: Colors.purple),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.lightbulb_outline, color: Colors.red, size: 20 * _scaleFactor),
+                  Icon(Icons.lightbulb_outline, color: Colors.purple, size: 20 * _scaleFactor),
                   SizedBox(width: 8 * _scaleFactor),
                   Text(
                     'Hint Cards: $_availableHintCards',
                     style: TextStyle(
-                      color: Colors.red,
+                      color: Colors.purple,
                       fontSize: 16 * _scaleFactor,
                       fontWeight: FontWeight.bold,
                     ),
@@ -1636,7 +2252,7 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Use hint cards for advanced SQL help!',
+              'Use hint cards for grand master SQL help!',
               style: TextStyle(
                 color: Colors.white70,
                 fontSize: 12 * _scaleFactor,
@@ -1649,14 +2265,14 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
                 child: Column(
                   children: [
                     Text(
-                      "✅ SQL Level 1 Hard mastered with perfect score!",
-                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
+                      "🏆 SQL Grand Master Level 3 Completed!",
+                      style: TextStyle(color: Colors.purpleAccent, fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "You've unlocked Level 2 SQL Hard!",
-                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "You've achieved the highest SQL mastery level!",
+                      style: TextStyle(color: Colors.purple, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1668,13 +2284,13 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
                 child: Column(
                   children: [
                     Text(
-                      "📊 Your previous SQL Hard score: $previousScore/3",
-                      style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                      "📊 Your previous Grand Master score: $previousScore/3",
+                      style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to master this advanced challenge!",
+                      "Complete with perfect score to become a SQL Grand Master!",
                       style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -1687,13 +2303,13 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
                   child: Column(
                     children: [
                       Text(
-                        "😅 Your previous SQL Hard score: $previousScore/3",
-                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                        "🎯 Your previous Grand Master attempt: $previousScore/3",
+                        style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
-                        "This is expert level! Study SQL JOINs and aggregation.",
+                        "This is the ultimate SQL challenge! Study recursive CTEs and advanced analytics.",
                         style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
@@ -1706,47 +2322,47 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.red[50]!.withOpacity(0.9),
+                color: Colors.purple[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.red[200]!),
+                border: Border.all(color: Colors.purple[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    gameConfig?['objective'] ?? "🎯 SQL Hard Level 1 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.red[800]),
+                    gameConfig?['objective'] ?? "🎯 SQL Grand Master Level 3 Objective",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.purple[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    gameConfig?['objective'] ?? "Master advanced SQL with JOIN operations, aggregate functions (AVG), GROUP BY, and complex query structuring",
+                    gameConfig?['objective'] ?? "Master the most advanced SQL concepts including RECURSIVE CTEs for hierarchical data, multiple Common Table Expressions, advanced window functions (PERCENT_RANK), complex multi-table JOINs across 6+ tables, and organizational analytics",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.red[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎁 Get a perfect score (3/3) to unlock Level 2 SQL Hard!",
+                    "👑 Achieve perfect score (3/3) to become a SQL Grand Master!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
-                        color: Colors.purple,
+                        color: Colors.deepPurple,
                         fontWeight: FontWeight.bold,
                         fontStyle: FontStyle.italic
                     ),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🏆 3× POINTS MULTIPLIER",
+                    "🏆 5× POINTS MULTIPLIER",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 14 * _scaleFactor,
-                        color: Colors.red,
+                        color: Colors.purple,
                         fontWeight: FontWeight.bold
                     ),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "⏱️ 240 seconds | ⚡ 45s penalties",
+                    "⏱️ 360 seconds | ⚡ 45s penalties",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
@@ -1773,7 +2389,7 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 SQL Expert Challenge', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text('👑 SQL Grand Master Challenge', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
                 onPressed: () {
@@ -1791,8 +2407,8 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Hard Level 1 ng SQL database query! Master level sa JOIN operations, aggregate functions, at complex query building.')
-                : (gameConfig?['story_english'] ?? 'This is SQL Hard Level 1! Expert challenge with JOIN operations, aggregate functions, and complex query building.'),
+                ? (gameConfig?['story_tagalog'] ?? 'Ito ang pinakamataas na antas ng SQL challenge! Grand Master level sa recursive CTEs, hierarchical queries, advanced window functions, at complex organizational analytics.')
+                : (gameConfig?['story_english'] ?? 'This is the ultimate SQL challenge! Grand Master level with recursive CTEs, hierarchical data analysis, advanced window functions, and complex organizational analytics across multiple tables.'),
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
@@ -1812,13 +2428,13 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 160 * _scaleFactor,
-              maxHeight: 220 * _scaleFactor,
+              minHeight: 180 * _scaleFactor,
+              maxHeight: 250 * _scaleFactor,
             ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.red, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.purple, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -1848,10 +2464,10 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
                         data: block,
                         feedback: Material(
                           color: Colors.transparent,
-                          child: puzzleBlock(block, Colors.redAccent),
+                          child: puzzleBlock(block, Colors.purpleAccent),
                         ),
-                        childWhenDragging: puzzleBlock(block, Colors.redAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.redAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.purpleAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.purpleAccent),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
@@ -1895,7 +2511,7 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 120 * _scaleFactor,
+              minHeight: 140 * _scaleFactor,
             ),
             padding: EdgeInsets.all(12 * _scaleFactor),
             decoration: BoxDecoration(
@@ -1914,13 +2530,13 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
                   data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(block, Colors.red),
+                    child: puzzleBlock(block, Colors.purple),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.red),
+                    child: puzzleBlock(block, Colors.purple),
                   ),
-                  child: puzzleBlock(block, Colors.red),
+                  child: puzzleBlock(block, Colors.purple),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
@@ -1959,9 +2575,9 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
               checkAnswer();
             },
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
-            label: Text("Execute Advanced Query", style: TextStyle(fontSize: 16 * _scaleFactor)),
+            label: Text("Execute Grand Master Query", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: Colors.purple,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -1977,7 +2593,7 @@ class _SqlLevel1HardState extends State<SqlLevel1Hard> {
               musicService.playSoundEffect('button_click.mp3');
               resetGame();
             },
-            child: Text("🔁 Retry Challenge", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+            child: Text("🔁 Retry Grand Master Challenge", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
           ),
         ],
       ),

@@ -2,25 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:convert';
-import '../../../services/api_service.dart';
-import '../../../services/user_preferences.dart';
-import '../../../services/music_service.dart';
-import '../../../services/daily_challenge_service.dart';
+import '../../../../services/api_service.dart';
+import '../../../../services/user_preferences.dart';
+import '../../../../services/music_service.dart';
+import '../../../../services/daily_challenge_service.dart';
 
-class PythonLevel2 extends StatefulWidget {
-  const PythonLevel2({super.key});
+class PhpLevel3Medium extends StatefulWidget {
+  const PhpLevel3Medium({super.key});
 
   @override
-  State<PythonLevel2> createState() => _PythonLevel2State();
+  State<PhpLevel3Medium> createState() => _PhpLevel3MediumState();
 }
 
-class _PythonLevel2State extends State<PythonLevel2> {
+class _PhpLevel3MediumState extends State<PhpLevel3Medium> {
   List<String> allBlocks = [];
   List<String> droppedBlocks = [];
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level2Completed = false;
+  bool levelCompleted = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
@@ -30,29 +30,23 @@ class _PythonLevel2State extends State<PythonLevel2> {
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
-  // Track currently dragged block
   String? currentlyDraggedBlock;
-
-  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // Game configuration from database
   Map<String, dynamic>? gameConfig;
   bool isLoading = true;
   String? errorMessage;
 
-  // HINT SYSTEM
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
   bool _isUsingHint = false;
 
-  // Configurable elements from database
   String _codePreviewTitle = '💻 Code Preview:';
-  String _instructionText = '🧩 Arrange the blocks to create a Python program that calculates the area of a rectangle';
+  String _instructionText = '🧩 Arrange the blocks to create a PHP class that handles file operations';
   List<String> _codeStructure = [];
-  String _expectedOutput = 'Area: 50';
+  String _expectedOutput = '';
 
   @override
   void initState() {
@@ -71,9 +65,9 @@ class _PythonLevel2State extends State<PythonLevel2> {
         errorMessage = null;
       });
 
-      final response = await ApiService.getGameConfig('Python', 2);
+      final response = await ApiService.getGameConfigWithDifficulty('PHP', 'Medium', 3);
 
-      print('🔍 PYTHON LEVEL 2 GAME CONFIG RESPONSE:');
+      print('🔍 PHP MEDIUM LEVEL 3 GAME CONFIG RESPONSE:');
       print('   Success: ${response['success']}');
       print('   Message: ${response['message']}');
 
@@ -84,11 +78,11 @@ class _PythonLevel2State extends State<PythonLevel2> {
         });
       } else {
         setState(() {
-          errorMessage = response['message'] ?? 'Failed to load game configuration from database';
+          errorMessage = response['message'] ?? 'Failed to load PHP Level 3 Medium game configuration from database';
         });
       }
     } catch (e) {
-      print('❌ Error loading game config: $e');
+      print('❌ Error loading PHP Level 3 Medium game config: $e');
       setState(() {
         errorMessage = 'Connection error: $e';
       });
@@ -103,7 +97,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (gameConfig == null) return;
 
     try {
-      print('🔄 INITIALIZING PYTHON LEVEL 2 GAME FROM CONFIG');
+      print('🔄 INITIALIZING PHP MEDIUM LEVEL 3 GAME FROM CONFIG');
 
       // Load timer duration from database
       if (gameConfig!['timer_duration'] != null) {
@@ -144,13 +138,13 @@ class _PythonLevel2State extends State<PythonLevel2> {
               _codeStructure = List<String>.from(codeStructureJson);
             });
           } catch (e) {
-            print('❌ Error parsing code structure: $e');
+            print('❌ Error parsing PHP Level 3 code structure: $e');
             setState(() {
               _codeStructure = _getDefaultCodeStructure();
             });
           }
         }
-        print('📝 Code structure loaded: $_codeStructure');
+        print('📝 PHP Level 3 Code structure loaded: $_codeStructure');
       } else {
         setState(() {
           _codeStructure = _getDefaultCodeStructure();
@@ -170,20 +164,20 @@ class _PythonLevel2State extends State<PythonLevel2> {
         setState(() {
           _currentHint = gameConfig!['hint_text'].toString();
         });
-        print('💡 Hint loaded from database: $_currentHint');
+        print('💡 PHP Level 3 Hint loaded from database: $_currentHint');
       } else {
         setState(() {
           _currentHint = _getDefaultHint();
         });
-        print('💡 Using default hint');
+        print('💡 Using default PHP Level 3 hint');
       }
 
       // Parse blocks with better error handling
       List<String> correctBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
       List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
 
-      print('✅ Correct Blocks: $correctBlocks');
-      print('✅ Incorrect Blocks: $incorrectBlocks');
+      print('✅ PHP Level 3 Correct Blocks from DB: $correctBlocks');
+      print('✅ PHP Level 3 Incorrect Blocks from DB: $incorrectBlocks');
 
       // Combine and shuffle blocks
       allBlocks = [
@@ -191,29 +185,48 @@ class _PythonLevel2State extends State<PythonLevel2> {
         ...incorrectBlocks,
       ]..shuffle();
 
-      print('🎮 All Blocks Final: $allBlocks');
+      print('🎮 PHP Level 3 All Blocks Final: $allBlocks');
+
+      // DEBUG: Print the expected correct answer from database
+      if (gameConfig!['correct_answer'] != null) {
+        print('🎯 PHP Level 3 Expected Correct Answer from DB: ${gameConfig!['correct_answer']}');
+      }
 
     } catch (e) {
-      print('❌ Error parsing game config: $e');
+      print('❌ Error parsing PHP Level 3 game config: $e');
       _initializeDefaultBlocks();
     }
   }
 
   List<String> _getDefaultCodeStructure() {
     return [
-      "# Python Rectangle Area Calculator",
+      "<?php",
       "",
-      "# Define variables",
-      "length = 10",
-      "width = 5",
+      "// FileHandler Class for file operations",
+      "class FileHandler {",
+      "    private \$filename;",
       "",
-      "# Calculate area",
-      "area = length * width",
+      "    public function __construct(\$filename) {",
+      "        \$this->filename = \$filename;",
+      "    }",
       "",
-      "# Display result",
-      "print(f\"Area: {area}\")",
+      "    // Method to write content to file",
+      "    public function writeToFile(\$content) {",
+      "        // Your code here",
+      "    }",
       "",
-      "# Program ends here"
+      "    // Method to read content from file",
+      "    public function readFromFile() {",
+      "        // Your code here",
+      "    }",
+      "}",
+      "",
+      "// Usage example",
+      "\$fileHandler = new FileHandler('test.txt');",
+      "\$fileHandler->writeToFile('Hello, PHP OOP!');",
+      "echo \$fileHandler->readFromFile();",
+      "",
+      "?>"
     ];
   }
 
@@ -221,68 +234,141 @@ class _PythonLevel2State extends State<PythonLevel2> {
     List<String> blocks = [];
 
     if (blocksData == null) {
+      print('⚠️ PHP Level 3 $type blocks are NULL in database');
       return _getDefaultBlocks(type);
     }
 
     try {
       if (blocksData is List) {
         blocks = List<String>.from(blocksData);
+        print('✅ PHP Level 3 $type blocks parsed as List: $blocks');
       } else if (blocksData is String) {
         String blocksStr = blocksData.trim();
+        print('🔍 Raw PHP Level 3 $type blocks string: $blocksStr');
 
         if (blocksStr.startsWith('[') && blocksStr.endsWith(']')) {
           // Parse as JSON array
-          List<dynamic> blocksJson = json.decode(blocksStr);
-          blocks = List<String>.from(blocksJson);
+          try {
+            List<dynamic> blocksJson = json.decode(blocksStr);
+            blocks = List<String>.from(blocksJson);
+            print('✅ PHP Level 3 $type blocks parsed as JSON: $blocks');
+          } catch (e) {
+            print('❌ JSON parsing failed for PHP Level 3 $type blocks: $e');
+            // Fallback: try comma separation
+            blocks = _parseCommaSeparated(blocksStr);
+          }
         } else {
           // Parse as comma-separated string
-          blocks = blocksStr.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+          blocks = _parseCommaSeparated(blocksStr);
         }
       }
     } catch (e) {
-      print('❌ Error parsing $type blocks: $e');
+      print('❌ Error parsing PHP Level 3 $type blocks: $e');
       blocks = _getDefaultBlocks(type);
     }
 
+    // Remove any empty strings
+    blocks = blocks.where((block) => block.trim().isNotEmpty).toList();
+
+    print('🎯 Final PHP Level 3 $type blocks: $blocks');
     return blocks;
+  }
+
+  List<String> _parseCommaSeparated(String input) {
+    try {
+      // Remove brackets if present
+      String cleaned = input.replaceAll('[', '').replaceAll(']', '').trim();
+
+      // Split by comma but handle quoted strings
+      List<String> items = [];
+      StringBuffer current = StringBuffer();
+      bool inQuotes = false;
+
+      for (int i = 0; i < cleaned.length; i++) {
+        String char = cleaned[i];
+
+        if (char == '"') {
+          inQuotes = !inQuotes;
+          current.write(char);
+        } else if (char == ',' && !inQuotes) {
+          String item = current.toString().trim();
+          if (item.isNotEmpty) {
+            // Remove surrounding quotes if present
+            if (item.startsWith('"') && item.endsWith('"')) {
+              item = item.substring(1, item.length - 1);
+            }
+            items.add(item);
+          }
+          current.clear();
+        } else {
+          current.write(char);
+        }
+      }
+
+      // Add the last item
+      String lastItem = current.toString().trim();
+      if (lastItem.isNotEmpty) {
+        if (lastItem.startsWith('"') && lastItem.endsWith('"')) {
+          lastItem = lastItem.substring(1, lastItem.length - 1);
+        }
+        items.add(lastItem);
+      }
+
+      print('✅ PHP Level 3 Comma-separated parsing result: $items');
+      return items;
+    } catch (e) {
+      print('❌ PHP Level 3 Comma-separated parsing failed: $e');
+      // Ultimate fallback: simple split
+      List<String> fallback = input.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+      print('🔄 Using simple split fallback: $fallback');
+      return fallback;
+    }
   }
 
   List<String> _getDefaultBlocks(String type) {
     if (type == 'correct') {
       return [
-        'length = 10',
-        'width = 5',
-        'area = length * width',
-        'print(f"Area: {area}")'
+        '\$file = fopen(\$this->filename, "w");',
+        'fwrite(\$file, \$content);',
+        'fclose(\$file);',
+        'if (file_exists(\$this->filename)) {',
+        'return file_get_contents(\$this->filename);',
+        '} else {',
+        'return "File not found!";',
+        '}'
       ];
     } else {
       return [
-        'int length = 10;',
-        'var width = 5;',
-        'area = length x width',
-        'printf("Area: %d", area);',
-        'cout << "Area: " << area;',
-        'System.out.println("Area: " + area);'
+        'echo \$content;',
+        'return \$this->filename;',
+        'while (!feof(\$file)) {',
+        '\$file->save(\$content);',
+        'File::write(\$content);',
+        'readfile(\$this->filename);'
       ];
     }
   }
 
   String _getDefaultHint() {
-    return "💡 Hint: Python uses variables without type declarations. Use f-strings for formatted output!";
+    return "💡 PHP Level 3 Hint: Use fopen() with 'w' mode for writing, fwrite() to write content, fclose() to close file. For reading, use file_exists() and file_get_contents().";
   }
 
   void _initializeDefaultBlocks() {
     allBlocks = [
-      'length = 10',
-      'width = 5',
-      'area = length * width',
-      'print(f"Area: {area}")',
-      'int length = 10;',
-      'var width = 5;',
-      'area = length x width',
-      'printf("Area: %d", area);',
-      'cout << "Area: " << area;',
-      'System.out.println("Area: " + area);'
+      '\$file = fopen(\$this->filename, "w");',
+      'fwrite(\$file, \$content);',
+      'fclose(\$file);',
+      'if (file_exists(\$this->filename)) {',
+      'return file_get_contents(\$this->filename);',
+      '} else {',
+      'return "File not found!";',
+      '}',
+      'echo \$content;',
+      'return \$this->filename;',
+      'while (!feof(\$file)) {',
+      '\$file->save(\$content);',
+      'File::write(\$content);',
+      'readfile(\$this->filename);'
     ]..shuffle();
   }
 
@@ -383,7 +469,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Game configuration not loaded. Please retry.'),
+          content: Text('PHP Level 3 Medium game configuration not loaded. Please retry.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -408,7 +494,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
       resetBlocks();
     });
 
-    print('🎮 PYTHON LEVEL 2 GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
+    print('🎮 PHP MEDIUM LEVEL 3 GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
     startTimers();
   }
 
@@ -496,41 +582,41 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
   Future<void> saveScoreToDatabase(int score) async {
     if (currentUser?['id'] == null) {
-      print('❌ Cannot save score: No user ID');
+      print('❌ Cannot save PHP Level 3 score: No user ID');
       return;
     }
 
     try {
-      print('💾 SAVING PYTHON LEVEL 2 SCORE:');
+      print('💾 SAVING PHP MEDIUM LEVEL 3 SCORE:');
       print('   User ID: ${currentUser!['id']}');
-      print('   Language: Python');
-      print('   Level: 2');
+      print('   Language: PHP_Medium');
+      print('   Level: 3');
       print('   Score: $score/3');
-      print('   Completed: ${score == 3}');
 
-      final response = await ApiService.saveScore(
+      final response = await ApiService.saveScoreWithDifficulty(
         currentUser!['id'],
-        'Python',
-        2,
+        'PHP',
+        'Medium',
+        3,
         score,
         score == 3,
       );
 
-      print('📡 SERVER RESPONSE: $response');
+      print('📡 PHP LEVEL 3 SERVER RESPONSE: $response');
 
       if (response['success'] == true) {
         setState(() {
-          level2Completed = score == 3;
+          levelCompleted = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
 
-        print('✅ PYTHON LEVEL 2 SCORE SAVED SUCCESSFULLY TO DATABASE');
+        print('✅ PHP MEDIUM LEVEL 3 SCORE SAVED SUCCESSFULLY');
       } else {
-        print('❌ FAILED TO SAVE SCORE: ${response['message']}');
+        print('❌ FAILED TO SAVE PHP LEVEL 3 SCORE: ${response['message']}');
       }
     } catch (e) {
-      print('❌ ERROR SAVING PYTHON LEVEL 2 SCORE: $e');
+      print('❌ ERROR SAVING PHP MEDIUM LEVEL 3 SCORE: $e');
     }
   }
 
@@ -538,22 +624,22 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScores(currentUser!['id'], 'Python');
+      final response = await ApiService.getScoresWithDifficulty(currentUser!['id'], 'PHP', 'Medium');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level2Data = scoresData['2'];
+        final level3Data = scoresData['3'];
 
-        if (level2Data != null) {
+        if (level3Data != null) {
           setState(() {
-            previousScore = level2Data['score'] ?? 0;
-            level2Completed = level2Data['completed'] ?? false;
+            previousScore = level3Data['score'] ?? 0;
+            levelCompleted = level3Data['completed'] ?? false;
             hasPreviousScore = true;
           });
         }
       }
     } catch (e) {
-      print('Error loading Python Level 2 score: $e');
+      print('Error loading PHP medium level 3 score: $e');
     }
   }
 
@@ -561,20 +647,24 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (gameConfig != null) {
       try {
         List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
-        return incorrectBlocks.contains(block);
+        bool isIncorrect = incorrectBlocks.contains(block);
+        if (isIncorrect) {
+          print('❌ PHP Level 3 Block "$block" is in incorrect blocks list');
+        }
+        return isIncorrect;
       } catch (e) {
-        print('Error checking incorrect block: $e');
+        print('Error checking PHP Level 3 incorrect block: $e');
       }
     }
 
-    // Default incorrect blocks for Python Level 2
+    // Default PHP Level 3 incorrect blocks
     List<String> incorrectBlocks = [
-      'int length = 10;',
-      'var width = 5;',
-      'area = length x width',
-      'printf("Area: %d", area);',
-      'cout << "Area: " << area;',
-      'System.out.println("Area: " + area);'
+      'echo \$content;',
+      'return \$this->filename;',
+      'while (!feof(\$file)) {',
+      '\$file->save(\$content);',
+      'File::write(\$content);',
+      'readfile(\$this->filename);'
     ];
     return incorrectBlocks.contains(block);
   }
@@ -584,10 +674,16 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
+    // DEBUG: Print what we're checking
+    print('🔍 CHECKING PHP MEDIUM LEVEL 3 ANSWER:');
+    print('   Dropped blocks: $droppedBlocks');
+    print('   All blocks: $allBlocks');
+
     // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
+      print('❌ PHP LEVEL 3 HAS INCORRECT BLOCK');
       musicService.playSoundEffect('error.mp3');
 
       if (score > 1) {
@@ -596,7 +692,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ You used incorrect code! -1 point. Current score: $score"),
+            content: Text("❌ You used incorrect PHP code! -1 point. Current score: $score"),
             backgroundColor: Colors.red,
           ),
         );
@@ -614,7 +710,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("You used incorrect code and lost all points!"),
+            content: Text("You used incorrect PHP code and lost all points!"),
             actions: [
               TextButton(
                 onPressed: () {
@@ -631,43 +727,57 @@ class _PythonLevel2State extends State<PythonLevel2> {
       return;
     }
 
-    // Check correct answer - for Python Level 2, we need to check the logical order
-    String answer = droppedBlocks.join(' ');
-    String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
-
+    // IMPROVED ANSWER CHECKING LOGIC FOR PHP LEVEL 3
     bool isCorrect = false;
 
     if (gameConfig != null) {
-      // Use configured correct answer
-      String expectedAnswer = gameConfig!['correct_answer'] ?? '';
-      String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
-      isCorrect = normalizedAnswer == normalizedExpected;
+      // Get expected correct blocks from database
+      List<String> expectedCorrectBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
+
+      print('🎯 PHP LEVEL 3 EXPECTED CORRECT BLOCKS: $expectedCorrectBlocks');
+      print('🎯 PHP LEVEL 3 USER DROPPED BLOCKS: $droppedBlocks');
+
+      // METHOD 1: Check if user has all correct blocks and no extra correct blocks
+      bool hasAllCorrectBlocks = expectedCorrectBlocks.every((block) => droppedBlocks.contains(block));
+      bool noExtraCorrectBlocks = droppedBlocks.every((block) => expectedCorrectBlocks.contains(block));
+
+      // METHOD 2: Check string comparison (normalized)
+      String userAnswer = droppedBlocks.join(' ');
+      String normalizedUserAnswer = userAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+
+      if (gameConfig!['correct_answer'] != null) {
+        String expectedAnswer = gameConfig!['correct_answer'].toString();
+        String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+
+        print('📝 PHP LEVEL 3 USER ANSWER: $userAnswer');
+        print('📝 PHP LEVEL 3 NORMALIZED USER: $normalizedUserAnswer');
+        print('🎯 PHP LEVEL 3 EXPECTED ANSWER: $expectedAnswer');
+        print('🎯 PHP LEVEL 3 NORMALIZED EXPECTED: $normalizedExpected');
+
+        bool stringMatch = normalizedUserAnswer == normalizedExpected;
+
+        // Use both methods for verification
+        isCorrect = (hasAllCorrectBlocks && noExtraCorrectBlocks) || stringMatch;
+
+        print('✅ PHP LEVEL 3 BLOCK CHECK: hasAllCorrectBlocks=$hasAllCorrectBlocks, noExtraCorrectBlocks=$noExtraCorrectBlocks');
+        print('✅ PHP LEVEL 3 STRING CHECK: stringMatch=$stringMatch');
+        print('✅ PHP LEVEL 3 FINAL RESULT: $isCorrect');
+      } else {
+        // Fallback: only use block comparison
+        isCorrect = hasAllCorrectBlocks && noExtraCorrectBlocks;
+        print('⚠️ No PHP Level 3 correct_answer in DB, using block comparison only: $isCorrect');
+      }
     } else {
-      // Fallback check for Python Level 2 - check if all required blocks are present in logical order
-      List<String> requiredBlocks = [
-        'length=10',
-        'width=5',
-        'area=length*width',
-        'print(f"area:{area}")'
-      ];
+      // Fallback check for PHP Level 3 file handling class
+      print('⚠️ No PHP Level 3 game config, using fallback check');
+      bool hasFileOpen = droppedBlocks.any((block) => block.toLowerCase().contains('fopen'));
+      bool hasFwrite = droppedBlocks.any((block) => block.toLowerCase().contains('fwrite'));
+      bool hasFclose = droppedBlocks.any((block) => block.toLowerCase().contains('fclose'));
+      bool hasFileExists = droppedBlocks.any((block) => block.toLowerCase().contains('file_exists'));
+      bool hasFileGetContents = droppedBlocks.any((block) => block.toLowerCase().contains('file_get_contents'));
 
-      String userAnswer = droppedBlocks.join('').toLowerCase().replaceAll(' ', '');
-      bool hasAllBlocks = requiredBlocks.every((block) => userAnswer.contains(block));
-
-      // Check basic logical order (variables before calculation, calculation before output)
-      int lengthIndex = droppedBlocks.indexWhere((block) => block.toLowerCase().contains('length=10'));
-      int widthIndex = droppedBlocks.indexWhere((block) => block.toLowerCase().contains('width=5'));
-      int areaIndex = droppedBlocks.indexWhere((block) => block.toLowerCase().contains('area=length*width'));
-      int printIndex = droppedBlocks.indexWhere((block) => block.toLowerCase().contains('print(f"area:{area}")'));
-
-      isCorrect = hasAllBlocks &&
-          lengthIndex >= 0 &&
-          widthIndex >= 0 &&
-          areaIndex >= 0 &&
-          printIndex >= 0 &&
-          areaIndex > lengthIndex &&
-          areaIndex > widthIndex &&
-          printIndex > areaIndex;
+      isCorrect = hasFileOpen && hasFwrite && hasFclose && hasFileExists && hasFileGetContents;
+      print('✅ PHP LEVEL 3 FALLBACK CHECK: $isCorrect');
     }
 
     if (isCorrect) {
@@ -680,7 +790,6 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
       saveScoreToDatabase(score);
 
-      // PLAY SUCCESS SOUND BASED ON SCORE
       if (score == 3) {
         musicService.playSoundEffect('perfect.mp3');
       } else {
@@ -695,27 +804,27 @@ class _PythonLevel2State extends State<PythonLevel2> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent work Python Programmer!"),
+              Text("Excellent work PHP Intermediate Level 3!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've mastered Level 2!",
+                  "🎉 Perfect! You've mastered PHP Medium Track!",
                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) to complete this level!",
+                  "⚠️ Get a perfect score (3/3) to complete the track!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
-              Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("PHP Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  _expectedOutput,
+                  _expectedOutput.isNotEmpty ? _expectedOutput : 'Hello, PHP OOP!',
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
@@ -733,22 +842,23 @@ class _PythonLevel2State extends State<PythonLevel2> {
                 if (score == 3) {
                   musicService.playSoundEffect('level_complete.mp3');
                   Navigator.pushReplacementNamed(context, '/levels', arguments: {
-                    'language': 'Python',
-                    'difficulty': 'Easy'
+                    'language': 'PHP',
+                    'difficulty': 'Medium'
                   });
                 } else {
                   Navigator.pushReplacementNamed(context, '/levels', arguments: {
-                    'language': 'Python',
-                    'difficulty': 'Easy'
+                    'language': 'PHP',
+                    'difficulty': 'Medium'
                   });
                 }
               },
-              child: Text(score == 3 ? "Back to Levels" : "Try Again"),
+              child: Text(score == 3 ? "Complete Track" : "Go Back"),
             )
           ],
         ),
       );
     } else {
+      print('❌ PHP LEVEL 3 ANSWER INCORRECT');
       musicService.playSoundEffect('wrong.mp3');
 
       if (score > 1) {
@@ -757,7 +867,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ Incorrect arrangement. -1 point. Current score: $score"),
+            content: Text("❌ Incorrect PHP arrangement. -1 point. Current score: $score"),
           ),
         );
       } else {
@@ -825,7 +935,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
                 Icon(Icons.lightbulb, color: Colors.white, size: 20 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  '💡 Hint Activated!',
+                  '💡 PHP Level 3 Hint Activated!',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16 * _scaleFactor,
@@ -902,7 +1012,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
     );
   }
 
-  // Code Preview Widget
+  // Organized PHP code preview for Level 3
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -928,7 +1038,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'rectangle_area.py',
+                  'file_handler.php',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -956,13 +1066,13 @@ class _PythonLevel2State extends State<PythonLevel2> {
     for (int i = 0; i < _codeStructure.length; i++) {
       String line = _codeStructure[i];
 
-      if (line.contains('# Your code here')) {
+      if (line.contains('// Your code here')) {
         // Add user's dragged code in the correct position
         codeLines.add(_buildUserCodeSection());
       } else if (line.trim().isEmpty) {
         codeLines.add(SizedBox(height: 16 * _scaleFactor));
       } else {
-        codeLines.add(_buildSyntaxHighlightedLine(line, i + 1));
+        codeLines.add(_buildPHPSyntaxHighlightedLine(line, i + 1));
       }
     }
 
@@ -973,15 +1083,6 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (droppedBlocks.isEmpty) {
       return Container(
         padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
-        child: Text(
-          '# Drag blocks here...',
-          style: TextStyle(
-            color: Colors.grey[600],
-            fontSize: 12 * _scaleFactor,
-            fontFamily: 'monospace',
-            fontStyle: FontStyle.italic,
-          ),
-        ),
       );
     }
 
@@ -994,7 +1095,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
             Container(
               margin: EdgeInsets.only(bottom: 4 * _scaleFactor),
               child: Text(
-                block,
+                '        $block',
                 style: TextStyle(
                   color: Colors.greenAccent[400],
                   fontSize: 12 * _scaleFactor,
@@ -1008,19 +1109,25 @@ class _PythonLevel2State extends State<PythonLevel2> {
     );
   }
 
-  Widget _buildSyntaxHighlightedLine(String code, int lineNumber) {
+  Widget _buildPHPSyntaxHighlightedLine(String code, int lineNumber) {
     Color textColor = Colors.white;
     String displayCode = code;
 
-    // Python syntax highlighting rules
-    if (code.trim().startsWith('#')) {
+    // PHP Syntax highlighting rules for Level 3
+    if (code.trim().startsWith('<?php') || code.trim().startsWith('?>')) {
+      textColor = Color(0xFF569CD6); // PHP tags - blue
+    } else if (code.trim().startsWith('//') || code.trim().startsWith('/*') || code.trim().startsWith('*')) {
       textColor = Color(0xFF6A9955); // Comments - green
-    } else if (code.contains('print(')) {
-      textColor = Color(0xFF569CD6); // Functions - blue
+    } else if (code.contains('\$')) {
+      textColor = Color(0xFF9CDCFE); // Variables - light blue
+    } else if (code.contains('function') || code.contains('echo') || code.contains('class')) {
+      textColor = Color(0xFFDCDCAA); // Functions, classes and output - yellow
+    } else if (code.contains('if') || code.contains('else') || code.contains('return') || code.contains('private') || code.contains('public')) {
+      textColor = Color(0xFFC586C0); // Control structures and access modifiers - purple
     } else if (code.contains('"') || code.contains("'")) {
       textColor = Color(0xFFCE9178); // Strings - orange
-    } else if (code.contains('=')) {
-      textColor = Color(0xFF9CDCFE); // Variables - light blue
+    } else if (code.contains('fopen') || code.contains('fwrite') || code.contains('fclose') || code.contains('file_exists') || code.contains('file_get_contents')) {
+      textColor = Color(0xFF4EC9B0); // File functions - teal
     }
 
     return Container(
@@ -1073,8 +1180,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: Text("🐍 Python - Level 2", style: TextStyle(fontSize: 18)),
-          backgroundColor: Colors.green,
+          title: Text("⚡ PHP Medium - Level 3", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.purple,
         ),
         body: Container(
           decoration: BoxDecoration(
@@ -1092,10 +1199,10 @@ class _PythonLevel2State extends State<PythonLevel2> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CircularProgressIndicator(color: Colors.green),
+                CircularProgressIndicator(color: Colors.purple),
                 SizedBox(height: 20),
                 Text(
-                  "Loading Python Level 2 Configuration...",
+                  "Loading PHP Medium Level 3 Configuration...",
                   style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
                 SizedBox(height: 10),
@@ -1113,8 +1220,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (errorMessage != null && !gameStarted) {
       return Scaffold(
         appBar: AppBar(
-          title: Text("🐍 Python - Level 2", style: TextStyle(fontSize: 18)),
-          backgroundColor: Colors.green,
+          title: Text("⚡ PHP Medium - Level 3", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.purple,
         ),
         body: Container(
           decoration: BoxDecoration(
@@ -1134,10 +1241,10 @@ class _PythonLevel2State extends State<PythonLevel2> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.warning_amber, color: Colors.green, size: 50),
+                  Icon(Icons.warning_amber, color: Colors.purple, size: 50),
                   SizedBox(height: 20),
                   Text(
-                    "Configuration Warning",
+                    "PHP Level 3 Configuration Warning",
                     style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10),
@@ -1149,18 +1256,18 @@ class _PythonLevel2State extends State<PythonLevel2> {
                   SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: _loadGameConfig,
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
                     child: Text("Retry Loading"),
                   ),
                   SizedBox(height: 10),
                   TextButton(
                     onPressed: () {
                       Navigator.pushReplacementNamed(context, '/levels', arguments: {
-                        'language': 'Python',
-                        'difficulty': 'Easy'
+                        'language': 'PHP',
+                        'difficulty': 'Medium'
                       });
                     },
-                    child: Text("Back to Levels", style: TextStyle(color: Colors.green)),
+                    child: Text("Back to Levels", style: TextStyle(color: Colors.purple)),
                   ),
                 ],
               ),
@@ -1185,8 +1292,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("🐍 Python - Level 2", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.green,
+        title: Text("⚡ PHP Medium - Level 3", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.purple,
         actions: gameStarted
             ? [
           Padding(
@@ -1247,28 +1354,27 @@ class _PythonLevel2State extends State<PythonLevel2> {
               label: Text(gameConfig != null ? "Start" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: gameConfig != null ? Colors.green : Colors.grey,
+                backgroundColor: gameConfig != null ? Colors.purple : Colors.grey,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
 
-            // Display available hint cards in start screen
             Container(
               padding: EdgeInsets.all(12 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.2),
+                color: Colors.purple.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.green),
+                border: Border.all(color: Colors.purple),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.lightbulb_outline, color: Colors.green, size: 20 * _scaleFactor),
+                  Icon(Icons.lightbulb_outline, color: Colors.purple, size: 20 * _scaleFactor),
                   SizedBox(width: 8 * _scaleFactor),
                   Text(
                     'Hint Cards: $_availableHintCards',
                     style: TextStyle(
-                      color: Colors.green,
+                      color: Colors.purple,
                       fontSize: 16 * _scaleFactor,
                       fontWeight: FontWeight.bold,
                     ),
@@ -1285,20 +1391,20 @@ class _PythonLevel2State extends State<PythonLevel2> {
               ),
             ),
 
-            if (level2Completed)
+            if (levelCompleted)
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Level 2 completed with perfect score!",
+                      "✅ PHP Level 3 Medium completed with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "You've mastered Python basics!",
-                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "You've mastered the PHP Medium Track!",
+                      style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1310,14 +1416,14 @@ class _PythonLevel2State extends State<PythonLevel2> {
                 child: Column(
                   children: [
                     Text(
-                      "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
+                      "📊 Your previous PHP Level 3 score: $previousScore/3",
+                      style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score!",
-                      style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
+                      "Try again to get a perfect score and master the track!",
+                      style: TextStyle(color: Colors.purple, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1329,14 +1435,14 @@ class _PythonLevel2State extends State<PythonLevel2> {
                   child: Column(
                     children: [
                       Text(
-                        "😅 Your previous score: $previousScore/3",
-                        style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
+                        "😅 Your previous PHP Level 3 score: $previousScore/3",
+                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
                         "Don't give up! You can do better this time!",
-                        style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
+                        style: TextStyle(color: Colors.purple, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1348,32 +1454,42 @@ class _PythonLevel2State extends State<PythonLevel2> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.green[50]!.withOpacity(0.9),
+                color: Colors.purple[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.green[200]!),
+                border: Border.all(color: Colors.purple[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    gameConfig?['objective'] ?? "🎯 Python Level 2 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.green[800]),
+                    gameConfig?['objective'] ?? "🎯 PHP Medium Level 3 Objective",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.purple[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    gameConfig?['objective'] ?? "Learn Python variables and basic calculations",
+                    gameConfig?['objective'] ?? "Create a PHP class with file handling methods using OOP principles",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.green[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "📝 Create a program that calculates rectangle area using variables",
+                    "🎁 Get a perfect score (3/3) to master the PHP Medium Track!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
-                        color: Colors.purple,
+                        color: Colors.deepPurple,
                         fontWeight: FontWeight.bold,
                         fontStyle: FontStyle.italic
+                    ),
+                  ),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Text(
+                    "🏆 3× POINTS MULTIPLIER",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 14 * _scaleFactor,
+                        color: Colors.purple,
+                        fontWeight: FontWeight.bold
                     ),
                   ),
                 ],
@@ -1395,7 +1511,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Short Story', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text('📖 PHP Level 3 Short Story', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
                 onPressed: () {
@@ -1413,8 +1529,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? (gameConfig?['story_tagalog'] ?? 'Ngayon ay Level 2 ng Python! Matuto ng variables at calculations.')
-                : (gameConfig?['story_english'] ?? 'This is Python Level 2! Learn about variables and basic calculations.'),
+                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Medium Level 3 ng PHP programming! Hamon sa Object-Oriented Programming at file handling.')
+                : (gameConfig?['story_english'] ?? 'This is PHP Medium Level 3! Challenge yourself with Object-Oriented Programming and file handling.'),
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
@@ -1434,7 +1550,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.green, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.purple, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -1454,49 +1570,49 @@ class _PythonLevel2State extends State<PythonLevel2> {
               },
               builder: (context, candidateData, rejectedData) {
                 return SingleChildScrollView(
-                  child: Wrap(
-                    spacing: 8 * _scaleFactor,
-                    runSpacing: 8 * _scaleFactor,
-                    alignment: WrapAlignment.center,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: droppedBlocks.map((block) {
-                      return Draggable<String>(
-                        data: block,
-                        feedback: Material(
-                          color: Colors.transparent,
-                          child: puzzleBlock(block, Colors.greenAccent),
-                        ),
-                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.greenAccent),
-                        onDragStarted: () {
-                          final musicService = Provider.of<MusicService>(context, listen: false);
-                          musicService.playSoundEffect('block_pickup.mp3');
+                    child: Wrap(
+                      spacing: 8 * _scaleFactor,
+                      runSpacing: 8 * _scaleFactor,
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: droppedBlocks.map((block) {
+                        return Draggable<String>(
+                          data: block,
+                          feedback: Material(
+                            color: Colors.transparent,
+                            child: puzzleBlock(block, Colors.purpleAccent),
+                          ),
+                          childWhenDragging: puzzleBlock(block, Colors.purpleAccent.withOpacity(0.5)),
+                          child: puzzleBlock(block, Colors.purpleAccent),
+                          onDragStarted: () {
+                            final musicService = Provider.of<MusicService>(context, listen: false);
+                            musicService.playSoundEffect('block_pickup.mp3');
 
-                          setState(() {
-                            currentlyDraggedBlock = block;
-                          });
-                        },
-                        onDragEnd: (details) {
-                          setState(() {
-                            currentlyDraggedBlock = null;
-                          });
-
-                          if (!isAnsweredCorrectly && !details.wasAccepted) {
-                            Future.delayed(Duration(milliseconds: 50), () {
-                              if (mounted) {
-                                setState(() {
-                                  if (!allBlocks.contains(block)) {
-                                    allBlocks.add(block);
-                                  }
-                                  droppedBlocks.remove(block);
-                                });
-                              }
+                            setState(() {
+                              currentlyDraggedBlock = block;
                             });
-                          }
-                        },
-                      );
-                    }).toList(),
-                  ),
+                          },
+                          onDragEnd: (details) {
+                            setState(() {
+                              currentlyDraggedBlock = null;
+                            });
+
+                            if (!isAnsweredCorrectly && !details.wasAccepted) {
+                              Future.delayed(Duration(milliseconds: 50), () {
+                                if (mounted) {
+                                  setState(() {
+                                    if (!allBlocks.contains(block)) {
+                                      allBlocks.add(block);
+                                    }
+                                    droppedBlocks.remove(block);
+                                  });
+                                }
+                              });
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
                 );
               },
             ),
@@ -1530,13 +1646,13 @@ class _PythonLevel2State extends State<PythonLevel2> {
                   data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(block, Colors.green),
+                    child: puzzleBlock(block, Colors.purple),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.green),
+                    child: puzzleBlock(block, Colors.purple),
                   ),
-                  child: puzzleBlock(block, Colors.green),
+                  child: puzzleBlock(block, Colors.purple),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
@@ -1575,9 +1691,9 @@ class _PythonLevel2State extends State<PythonLevel2> {
               checkAnswer();
             },
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
-            label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
+            label: Text("Run PHP", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: Colors.purple,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,

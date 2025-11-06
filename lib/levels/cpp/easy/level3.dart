@@ -25,7 +25,7 @@ class _CppLevel3State extends State<CppLevel3> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 120;
+  int remainingSeconds = 180;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -37,38 +37,38 @@ class _CppLevel3State extends State<CppLevel3> {
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // NEW: Game configuration from database
+  // Game configuration from database
   Map<String, dynamic>? gameConfig;
   bool isLoading = true;
   String? errorMessage;
 
-  // HINT SYSTEM ONLY
+  // HINT SYSTEM
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
   bool _isUsingHint = false;
 
-  // NEW: Configurable code preview from database
+  // Configurable code preview from database
   String _codePreviewTitle = '💻 Code Preview:';
 
-  // NEW: Configurable instruction text from database
-  String _instructionText = '🧩 Arrange the blocks to form the correct C++ code';
+  // Configurable instruction text from database
+  String _instructionText = '🧩 Arrange the blocks to form a complete C++ program with functions';
 
-  // NEW: Configurable code structure from database
+  // Configurable code structure from database
   List<String> _codeStructure = [];
   String _expectedOutput = '';
 
   @override
   void initState() {
     super.initState();
-    _loadGameConfig(); // Load from database first
+    _loadGameConfig();
     _loadUserData();
     _calculateScaleFactor();
     _startGameMusic();
     _loadHintCards();
   }
 
-  // NEW METHOD: Load game configuration from database
+  // Load game configuration from database
   Future<void> _loadGameConfig() async {
     try {
       setState(() {
@@ -105,7 +105,7 @@ class _CppLevel3State extends State<CppLevel3> {
     }
   }
 
-  // NEW METHOD: Initialize game using database configuration - NO DEFAULTS
+  // Initialize game using database configuration
   void _initializeGameFromConfig() {
     if (gameConfig == null) return;
 
@@ -114,16 +114,16 @@ class _CppLevel3State extends State<CppLevel3> {
       print('📋 Correct Blocks Raw: ${gameConfig!['correct_blocks']}');
       print('📋 Incorrect Blocks Raw: ${gameConfig!['incorrect_blocks']}');
 
-      // NEW: Load timer duration from database - NO DEFAULT
+      // Load timer duration from database
       if (gameConfig!['timer_duration'] != null) {
-        int timerDuration = int.tryParse(gameConfig!['timer_duration'].toString()) ?? 120;
+        int timerDuration = int.tryParse(gameConfig!['timer_duration'].toString()) ?? 180;
         setState(() {
           remainingSeconds = timerDuration;
         });
         print('⏰ Timer duration loaded: $timerDuration seconds');
       }
 
-      // NEW: Load instruction text from database - NO DEFAULT
+      // Load instruction text from database
       if (gameConfig!['instruction_text'] != null) {
         setState(() {
           _instructionText = gameConfig!['instruction_text'].toString();
@@ -131,7 +131,7 @@ class _CppLevel3State extends State<CppLevel3> {
         print('📝 Instruction text loaded: $_instructionText');
       }
 
-      // NEW: Load code preview title from database - NO DEFAULT
+      // Load code preview title from database
       if (gameConfig!['code_preview_title'] != null) {
         setState(() {
           _codePreviewTitle = gameConfig!['code_preview_title'].toString();
@@ -139,9 +139,8 @@ class _CppLevel3State extends State<CppLevel3> {
         print('💻 Code preview title loaded: $_codePreviewTitle');
       }
 
-      // NEW: Load code structure from database - NO DEFAULT
+      // Load code structure from database
       if (gameConfig!['code_structure'] != null) {
-        // Check if it's already a List or needs parsing
         if (gameConfig!['code_structure'] is List) {
           setState(() {
             _codeStructure = List<String>.from(gameConfig!['code_structure']);
@@ -155,7 +154,6 @@ class _CppLevel3State extends State<CppLevel3> {
             });
           } catch (e) {
             print('❌ Error parsing code structure: $e');
-            // NO FALLBACK - SET EMPTY ARRAY
             setState(() {
               _codeStructure = [];
             });
@@ -163,13 +161,12 @@ class _CppLevel3State extends State<CppLevel3> {
         }
         print('📝 Code structure loaded: $_codeStructure');
       } else {
-        // NO DEFAULT - SET EMPTY ARRAY
         setState(() {
           _codeStructure = [];
         });
       }
 
-      // NEW: Load expected output from database - NO DEFAULT
+      // Load expected output from database
       if (gameConfig!['expected_output'] != null) {
         setState(() {
           _expectedOutput = gameConfig!['expected_output'].toString();
@@ -177,21 +174,20 @@ class _CppLevel3State extends State<CppLevel3> {
         print('🎯 Expected output loaded: $_expectedOutput');
       }
 
-      // NEW: Load hint from database
+      // Load hint from database
       if (gameConfig!['hint_text'] != null) {
         setState(() {
           _currentHint = gameConfig!['hint_text'].toString();
         });
         print('💡 Hint loaded from database: $_currentHint');
       } else {
-        // Fallback hint if database hint is not available
         setState(() {
           _currentHint = _getDefaultHint();
         });
         print('💡 Using default hint');
       }
 
-      // Parse correct blocks from JSON with better error handling
+      // Parse correct blocks from JSON
       List<String> correctBlocks = [];
       if (gameConfig!['correct_blocks'] != null) {
         if (gameConfig!['correct_blocks'] is List) {
@@ -203,13 +199,12 @@ class _CppLevel3State extends State<CppLevel3> {
             correctBlocks = List<String>.from(correctBlocksJson);
           } catch (e) {
             print('❌ JSON Parse failed for correct_blocks: $e');
-            // Fallback: Try to parse as string array
             correctBlocks = _parseStringArray(correctBlocksStr);
           }
         }
       }
 
-      // Parse incorrect blocks from JSON with better error handling
+      // Parse incorrect blocks from JSON
       List<String> incorrectBlocks = [];
       if (gameConfig!['incorrect_blocks'] != null) {
         if (gameConfig!['incorrect_blocks'] is List) {
@@ -221,7 +216,6 @@ class _CppLevel3State extends State<CppLevel3> {
             incorrectBlocks = List<String>.from(incorrectBlocksJson);
           } catch (e) {
             print('❌ JSON Parse failed for incorrect_blocks: $e');
-            // Fallback: Try to parse as string array
             incorrectBlocks = _parseStringArray(incorrectBlocksStr);
           }
         }
@@ -240,24 +234,21 @@ class _CppLevel3State extends State<CppLevel3> {
 
     } catch (e) {
       print('❌ Error parsing game config: $e');
-      resetBlocks(); // Fallback to default
+      resetBlocks();
     }
   }
 
-  // NEW METHOD: Parse string array with various formats - SIMPLE AND WORKING
+  // Parse string array with various formats
   List<String> _parseStringArray(String input) {
     try {
       print('🔄 PARSING INPUT: $input');
 
-      // Remove any extra spaces and brackets
       String cleaned = input.trim();
 
-      // Handle different formats
       if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
         cleaned = cleaned.substring(1, cleaned.length - 1);
       }
 
-      // Simple approach: split by comma but preserve quoted content
       List<String> items = [];
       StringBuffer current = StringBuffer();
       bool inQuotes = false;
@@ -279,7 +270,6 @@ class _CppLevel3State extends State<CppLevel3> {
         }
       }
 
-      // Add the last item
       String lastItem = current.toString().trim();
       if (lastItem.isNotEmpty) {
         items.add(lastItem);
@@ -290,7 +280,6 @@ class _CppLevel3State extends State<CppLevel3> {
     } catch (e) {
       print('❌ Error in _parseStringArray: $e');
 
-      // Fallback: simple split for emergency cases
       try {
         List<String> fallback = input
             .replaceAll('[', '')
@@ -308,13 +297,13 @@ class _CppLevel3State extends State<CppLevel3> {
     }
   }
 
-  // NEW: Get default hint if database hint is not available
+  // Get default hint if database hint is not available
   String _getDefaultHint() {
     if (gameConfig != null) {
       String correctAnswer = gameConfig!['correct_answer'] ?? '';
-      return "💡 Hint: The correct code structure is: $correctAnswer\n\nTry to arrange the blocks in the correct order!";
+      return "💡 Hint: The correct code structure is: $correctAnswer\n\nRemember to include function declarations and definitions!";
     }
-    return "💡 Hint: This is Level 3 - C++ conditionals and loops! Use if statements and for loops.";
+    return "💡 Hint: This is Level 3 - C++ functions! Remember to declare functions before main() and define them properly.";
   }
 
   void _startGameMusic() {
@@ -342,7 +331,7 @@ class _CppLevel3State extends State<CppLevel3> {
     });
   }
 
-  // NEW: Load hint cards using UserPreferences
+  // Load hint cards using UserPreferences
   Future<void> _loadHintCards() async {
     final user = await UserPreferences.getUser();
     if (user['id'] != null) {
@@ -353,7 +342,7 @@ class _CppLevel3State extends State<CppLevel3> {
     }
   }
 
-  // UPDATED: Use hint card - shows hint from database
+  // Use hint card - shows hint from database
   void _useHintCard() async {
     if (_availableHintCards > 0 && !_isUsingHint) {
       final musicService = Provider.of<MusicService>(context, listen: false);
@@ -362,7 +351,6 @@ class _CppLevel3State extends State<CppLevel3> {
       setState(() {
         _isUsingHint = true;
         _showHint = true;
-        // _currentHint is already loaded from database in _initializeGameFromConfig
         _availableHintCards--;
       });
 
@@ -413,7 +401,7 @@ class _CppLevel3State extends State<CppLevel3> {
   }
 
   void startGame() {
-    // Check muna kung may game config
+    // Check if game config is loaded
     if (gameConfig == null) {
       final musicService = Provider.of<MusicService>(context, listen: false);
       musicService.playSoundEffect('error.mp3');
@@ -430,14 +418,14 @@ class _CppLevel3State extends State<CppLevel3> {
     final musicService = Provider.of<MusicService>(context, listen: false);
     musicService.playSoundEffect('level_start.mp3');
 
-    // NEW: Reset timer to configured duration from database
+    // Reset timer to configured duration from database
     int timerDuration = gameConfig!['timer_duration'] != null
-        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 120
-        : 120;
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 180
+        : 180;
 
     setState(() {
       gameStarted = true;
-      score = 3; // ✅ ALWAYS START WITH 3 POINTS - DON'T USE PREVIOUS SCORE
+      score = 3; // ALWAYS START WITH 3 POINTS
       remainingSeconds = timerDuration;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
@@ -514,14 +502,14 @@ class _CppLevel3State extends State<CppLevel3> {
     final musicService = Provider.of<MusicService>(context, listen: false);
     musicService.playSoundEffect('reset.mp3');
 
-    // NEW: Reset to configured timer duration from database
+    // Reset to configured timer duration from database
     int timerDuration = gameConfig!['timer_duration'] != null
-        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 120
-        : 120;
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 180
+        : 180;
 
     setState(() {
       score = 3;
-      remainingSeconds = timerDuration; // Use configured timer duration
+      remainingSeconds = timerDuration;
       gameStarted = false;
       isAnsweredCorrectly = false;
       _showHint = false;
@@ -533,7 +521,7 @@ class _CppLevel3State extends State<CppLevel3> {
     });
   }
 
-  // UPDATED: Save score using UserPreferences and API
+  // Save score using UserPreferences and API
   Future<void> saveScoreToDatabase(int score) async {
     if (currentUser?['id'] == null) {
       print('❌ Cannot save score: No user ID');
@@ -569,7 +557,6 @@ class _CppLevel3State extends State<CppLevel3> {
       } else {
         print('❌ FAILED TO SAVE SCORE: ${response['message']}');
 
-        // Show error to user
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to save score: ${response['message']}'),
@@ -589,7 +576,7 @@ class _CppLevel3State extends State<CppLevel3> {
     }
   }
 
-  // UPDATED: Load score using UserPreferences and API
+  // Load score using UserPreferences and API
   Future<void> loadScoreFromDatabase() async {
     if (currentUser?['id'] == null) return;
 
@@ -605,7 +592,6 @@ class _CppLevel3State extends State<CppLevel3> {
             previousScore = level3Data['score'] ?? 0;
             level3Completed = level3Data['completed'] ?? false;
             hasPreviousScore = true;
-            // DON'T SET score HERE - game should always start with 3
           });
         }
       }
@@ -614,7 +600,7 @@ class _CppLevel3State extends State<CppLevel3> {
     }
   }
 
-  // NEW: Refresh score using UserPreferences and API
+  // Refresh score using UserPreferences and API
   Future<void> refreshScore() async {
     if (currentUser?['id'] != null) {
       try {
@@ -628,12 +614,10 @@ class _CppLevel3State extends State<CppLevel3> {
               previousScore = level3Data['score'] ?? 0;
               level3Completed = level3Data['completed'] ?? false;
               hasPreviousScore = true;
-              // DON'T SET score HERE - game should always start with 3
             } else {
               hasPreviousScore = false;
               previousScore = 0;
               level3Completed = false;
-              // DON'T SET score HERE - game should always start with 3
             }
           });
         }
@@ -658,21 +642,28 @@ class _CppLevel3State extends State<CppLevel3> {
     // Fallback incorrect blocks for Level 3
     List<String> incorrectBlocks = [
       'printf',
-      'cout >>',
       'System.out.print',
       'print',
       'Console.WriteLine',
       'scanf',
       'return 1;',
       'void main()',
+      'function',
+      'def',
     ];
     return incorrectBlocks.contains(block);
   }
 
+  // FIXED: Improved answer checking logic
   void checkAnswer() async {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
     final musicService = Provider.of<MusicService>(context, listen: false);
+
+    // Debug information
+    print('🔍 CHECKING ANSWER:');
+    print('   Dropped Blocks: $droppedBlocks');
+    print('   All Blocks: $allBlocks');
 
     // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
@@ -721,22 +712,67 @@ class _CppLevel3State extends State<CppLevel3> {
       return;
     }
 
-    // Check correct answer - use config or fallback
+    // FIXED: Improved answer checking with multiple validation methods
     String answer = droppedBlocks.join(' ');
     String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
 
-    bool isCorrect = false;
+    print('🔍 NORMALIZED ANSWER: $normalizedAnswer');
 
-    if (gameConfig != null) {
-      // Use configured correct answer
-      String expectedAnswer = gameConfig!['correct_answer'] ?? '';
+    bool isCorrect = false;
+    String expectedAnswer = '';
+
+    if (gameConfig != null && gameConfig!['correct_answer'] != null) {
+      // Use configured correct answer from database
+      expectedAnswer = gameConfig!['correct_answer'] ?? '';
       String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+
+      print('🔍 EXPECTED FROM DB: $normalizedExpected');
+      print('🔍 USER ANSWER: $normalizedAnswer');
+
       isCorrect = normalizedAnswer == normalizedExpected;
+
+      if (!isCorrect) {
+        // Additional check: try with different spacing
+        String alternativeAnswer = droppedBlocks.join('');
+        String normalizedAlternative = alternativeAnswer.replaceAll('\n', '').toLowerCase();
+        isCorrect = normalizedAlternative == normalizedExpected;
+
+        if (!isCorrect) {
+          // Final check: check if all correct blocks are used in correct order
+          List<String> correctBlocks = [];
+          if (gameConfig!['correct_blocks'] is List) {
+            correctBlocks = List<String>.from(gameConfig!['correct_blocks']);
+          } else {
+            String correctBlocksStr = gameConfig!['correct_blocks']?.toString() ?? '[]';
+            try {
+              List<dynamic> correctBlocksJson = json.decode(correctBlocksStr);
+              correctBlocks = List<String>.from(correctBlocksJson);
+            } catch (e) {
+              correctBlocks = _parseStringArray(correctBlocksStr);
+            }
+          }
+
+          // Check if dropped blocks match correct blocks exactly
+          if (droppedBlocks.length == correctBlocks.length) {
+            bool exactMatch = true;
+            for (int i = 0; i < droppedBlocks.length; i++) {
+              if (droppedBlocks[i] != correctBlocks[i]) {
+                exactMatch = false;
+                break;
+              }
+            }
+            isCorrect = exactMatch;
+          }
+        }
+      }
     } else {
       // Fallback to original check for Level 3
-      String expected = 'intmain(){for(inti=0;i<5;i++){cout<<i;}return0;}';
-      isCorrect = normalizedAnswer == expected;
+      expectedAnswer = 'int add(int a, int b) { return a + b; } int main() { int result = add(5, 3); cout << result; return 0; }';
+      String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+      isCorrect = normalizedAnswer == normalizedExpected;
     }
+
+    print('✅ FINAL CORRECTNESS CHECK: $isCorrect');
 
     if (isCorrect) {
       countdownTimer?.cancel();
@@ -763,18 +799,18 @@ class _CppLevel3State extends State<CppLevel3> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent work C++ Advanced!"),
+              Text("Excellent work C++ Expert!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've completed Level 3!",
+                  "🎉 Perfect! You've completed C++ Levels!",
                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) to complete this level!",
+                  "⚠️ Get a perfect score (3/3) to complete the level!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
@@ -783,7 +819,7 @@ class _CppLevel3State extends State<CppLevel3> {
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  _expectedOutput, // USE CONFIGURED EXPECTED OUTPUT
+                  _expectedOutput.isNotEmpty ? _expectedOutput : '8',
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
@@ -819,13 +855,23 @@ class _CppLevel3State extends State<CppLevel3> {
     } else {
       musicService.playSoundEffect('wrong.mp3');
 
+      // FIXED: Show more detailed error message
+      String errorMessage = "❌ Incorrect arrangement. -1 point. Current score: $score";
+
+      // Provide hints about what might be wrong
+      if (gameConfig != null && gameConfig!['correct_answer'] != null) {
+        String expected = gameConfig!['correct_answer'] ?? '';
+        errorMessage += "\n💡 Expected: ${expected.length > 50 ? expected.substring(0, 50) + '...' : expected}";
+      }
+
       if (score > 1) {
         setState(() {
           score--;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ Incorrect arrangement. -1 point. Current score: $score"),
+            content: Text(errorMessage),
+            duration: Duration(seconds: 3),
           ),
         );
       } else {
@@ -842,7 +888,7 @@ class _CppLevel3State extends State<CppLevel3> {
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("You lost all your points."),
+            content: Text("You lost all your points.\n\n💡 Try arranging the blocks in the correct order!"),
             actions: [
               TextButton(
                 onPressed: () {
@@ -865,7 +911,7 @@ class _CppLevel3State extends State<CppLevel3> {
     return "$m:$s";
   }
 
-  // UPDATED: Hint Display Widget with database hint
+  // Hint Display Widget with database hint
   Widget _buildHintDisplay() {
     if (!_showHint) return SizedBox();
 
@@ -972,7 +1018,7 @@ class _CppLevel3State extends State<CppLevel3> {
     );
   }
 
-  // UPDATED METHOD: Get code preview widget with configurable structure
+  // Get code preview widget with configurable structure
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -1040,14 +1086,14 @@ class _CppLevel3State extends State<CppLevel3> {
     );
   }
 
-  // NEW METHOD: Build line numbers dynamically based on code structure
+  // Build line numbers dynamically based on code structure
   List<Widget> _buildLineNumbers() {
     return List.generate(_codeStructure.length, (index) {
       return _buildCodeLine(index + 1);
     });
   }
 
-  // NEW METHOD: Build code lines with syntax highlighting and user code
+  // Build code lines with syntax highlighting and user code
   List<Widget> _buildCodeLines() {
     List<Widget> lines = [];
 
@@ -1125,10 +1171,10 @@ class _CppLevel3State extends State<CppLevel3> {
   Widget _buildSyntaxHighlightedLine(String code) {
     Color textColor = Colors.white;
 
-    // Syntax highlighting rules
+    // Syntax highlighting rules for Level 3 (functions)
     if (code.trim().startsWith('#include')) {
       textColor = Color(0xFFCE9178); // Preprocessor - orange
-    } else if (code.contains('int main') || code.contains('using namespace') || code.contains('return') || code.contains('int ') || code.contains('for') || code.contains('if') || code.contains('else')) {
+    } else if (code.contains('int ') || code.contains('void ') || code.contains('return') || code.contains('using namespace')) {
       textColor = Color(0xFF569CD6); // Keywords - blue
     } else if (code.trim().startsWith('//')) {
       textColor = Color(0xFF6A9955); // Comments - green
@@ -1138,6 +1184,8 @@ class _CppLevel3State extends State<CppLevel3> {
       textColor = Colors.white; // Braces - white
     } else if (code.contains('cin') || code.contains('cout')) {
       textColor = Color(0xFFDCDCAA); // I/O - yellow
+    } else if (code.contains('(') && code.contains(')') && !code.contains('main')) {
+      textColor = Color(0xFF4EC9B0); // Functions - teal
     }
 
     return Container(
@@ -1177,7 +1225,7 @@ class _CppLevel3State extends State<CppLevel3> {
       return Scaffold(
         appBar: AppBar(
           title: Text("⚡ C++ - Level 3", style: TextStyle(fontSize: 18)),
-          backgroundColor: Colors.blue,
+          backgroundColor: Colors.purple,
         ),
         body: Container(
           decoration: BoxDecoration(
@@ -1185,9 +1233,9 @@ class _CppLevel3State extends State<CppLevel3> {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Color(0xFF0D1B2A),
-                Color(0xFF1B263B),
-                Color(0xFF415A77),
+                Color(0xFF1A1A2E),
+                Color(0xFF16213E),
+                Color(0xFF0F3460),
               ],
             ),
           ),
@@ -1195,7 +1243,7 @@ class _CppLevel3State extends State<CppLevel3> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CircularProgressIndicator(color: Colors.blue),
+                CircularProgressIndicator(color: Colors.purple),
                 SizedBox(height: 20),
                 Text(
                   "Loading Game Configuration...",
@@ -1218,7 +1266,7 @@ class _CppLevel3State extends State<CppLevel3> {
       return Scaffold(
         appBar: AppBar(
           title: Text("⚡ C++ - Level 3", style: TextStyle(fontSize: 18)),
-          backgroundColor: Colors.blue,
+          backgroundColor: Colors.purple,
         ),
         body: Container(
           decoration: BoxDecoration(
@@ -1226,9 +1274,9 @@ class _CppLevel3State extends State<CppLevel3> {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Color(0xFF0D1B2A),
-                Color(0xFF1B263B),
-                Color(0xFF415A77),
+                Color(0xFF1A1A2E),
+                Color(0xFF16213E),
+                Color(0xFF0F3460),
               ],
             ),
           ),
@@ -1264,7 +1312,7 @@ class _CppLevel3State extends State<CppLevel3> {
                         'difficulty': 'Easy'
                       });
                     },
-                    child: Text("Back to Levels", style: TextStyle(color: Colors.blue)),
+                    child: Text("Back to Levels", style: TextStyle(color: Colors.purple)),
                   ),
                 ],
               ),
@@ -1290,7 +1338,7 @@ class _CppLevel3State extends State<CppLevel3> {
     return Scaffold(
       appBar: AppBar(
         title: Text("⚡ C++ - Level 3", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.blue,
+        backgroundColor: Colors.purple,
         actions: gameStarted
             ? [
           Padding(
@@ -1315,9 +1363,9 @@ class _CppLevel3State extends State<CppLevel3> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF0D1B2A),
-              Color(0xFF1B263B),
-              Color(0xFF415A77),
+              Color(0xFF1A1A2E),
+              Color(0xFF16213E),
+              Color(0xFF0F3460),
             ],
           ),
         ),
@@ -1352,7 +1400,7 @@ class _CppLevel3State extends State<CppLevel3> {
               label: Text(gameConfig != null ? "Start" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: gameConfig != null ? Colors.blue : Colors.grey,
+                backgroundColor: gameConfig != null ? Colors.purple : Colors.grey,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
@@ -1403,7 +1451,7 @@ class _CppLevel3State extends State<CppLevel3> {
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
                       "You've mastered C++ Basics!",
-                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1416,12 +1464,12 @@ class _CppLevel3State extends State<CppLevel3> {
                   children: [
                     Text(
                       "📊 Your previous score: $previousScore/3",
-                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
+                      style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score and complete Level 3!",
+                      "Try again to get a perfect score and complete C++!",
                       style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -1453,30 +1501,30 @@ class _CppLevel3State extends State<CppLevel3> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.blue[50]!.withOpacity(0.9),
+                color: Colors.purple[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.blue[200]!),
+                border: Border.all(color: Colors.purple[200]!),
               ),
               child: Column(
                 children: [
                   Text(
                     gameConfig?['objective'] ?? "🎯 Level 3 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.blue[800]),
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.purple[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    gameConfig?['objective'] ?? "Complete the C++ Level 3 challenge",
+                    gameConfig?['objective'] ?? "Complete the C++ Level 3 challenge with functions",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.blue[700]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎁 Get a perfect score (3/3) to complete C++ Basics!",
+                    "🎁 Get a perfect score (3/3) to complete C++ Levels!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
-                        color: Colors.purple,
+                        color: Colors.deepPurple,
                         fontWeight: FontWeight.bold,
                         fontStyle: FontStyle.italic
                     ),
@@ -1518,14 +1566,14 @@ class _CppLevel3State extends State<CppLevel3> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Level 3 ng C++ programming! Malapit ka nang maging C++ expert.')
-                : (gameConfig?['story_english'] ?? 'This is C++ Level 3! You are becoming a C++ expert.'),
+                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Level 3 ng C++ programming! Master the functions and complete your journey.')
+                : (gameConfig?['story_english'] ?? 'This is C++ Level 3! Master functions and complete your programming journey.'),
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          // UPDATED: Use configurable instruction text from database
+          // Use configurable instruction text from database
           Text(_instructionText,
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
@@ -1540,7 +1588,7 @@ class _CppLevel3State extends State<CppLevel3> {
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.blue, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.purple, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -1570,10 +1618,10 @@ class _CppLevel3State extends State<CppLevel3> {
                         data: block,
                         feedback: Material(
                           color: Colors.transparent,
-                          child: puzzleBlock(block, Colors.greenAccent),
+                          child: puzzleBlock(block, Colors.purpleAccent),
                         ),
-                        childWhenDragging: puzzleBlock(block, Colors.greenAccent.withOpacity(0.5)),
-                        child: puzzleBlock(block, Colors.greenAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.purpleAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.purpleAccent),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
@@ -1609,7 +1657,7 @@ class _CppLevel3State extends State<CppLevel3> {
           ),
 
           SizedBox(height: 20 * _scaleFactor),
-          // UPDATED: Use configurable code preview title from database
+          // Use configurable code preview title from database
           Text(_codePreviewTitle, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
           SizedBox(height: 10 * _scaleFactor),
           getCodePreview(),
@@ -1637,13 +1685,13 @@ class _CppLevel3State extends State<CppLevel3> {
                   data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(block, Colors.blueAccent),
+                    child: puzzleBlock(block, Colors.deepPurpleAccent),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, Colors.blueAccent),
+                    child: puzzleBlock(block, Colors.deepPurpleAccent),
                   ),
-                  child: puzzleBlock(block, Colors.blueAccent),
+                  child: puzzleBlock(block, Colors.deepPurpleAccent),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
@@ -1684,7 +1732,7 @@ class _CppLevel3State extends State<CppLevel3> {
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
+              backgroundColor: Colors.purple,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,

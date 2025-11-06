@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'dart:convert';
 import '../../../services/api_service.dart';
 import '../../../services/user_preferences.dart';
 import '../../../services/music_service.dart';
@@ -15,15 +15,17 @@ class JavaLevel2Hard extends StatefulWidget {
 }
 
 class _JavaLevel2HardState extends State<JavaLevel2Hard> {
+  List<String> allBlocks = [];
+  List<String> droppedBlocks = [];
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level2Completed = false;
+  bool levelCompleted = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 300;
+  int remainingSeconds = 240; // Increased time for harder level
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
@@ -32,32 +34,313 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
+  Map<String, dynamic>? gameConfig;
+  bool isLoading = true;
+  String? errorMessage;
+
+  // HINT SYSTEM
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
   bool _isUsingHint = false;
 
-  // Track block instances with unique IDs
-  List<BlockItem> allBlockItems = [];
-  List<BlockItem> droppedBlockItems = [];
+  // Configurable elements from database
+  String _codePreviewTitle = '💻 Code Preview:';
+  String _instructionText = '🧩 Arrange the blocks to create a Java program with loops and arrays';
+  List<String> _codeStructure = [];
+  String _expectedOutput = 'Sum of array elements: 15';
 
   @override
   void initState() {
     super.initState();
-    resetBlocks();
+    _loadGameConfig();
     _loadUserData();
     _calculateScaleFactor();
     _startGameMusic();
     _loadHintCards();
   }
 
+  Future<void> _loadGameConfig() async {
+    try {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+
+      final response = await ApiService.getGameConfigWithDifficulty('Java', 'Hard', 2);
+
+      print('🔍 JAVA HARD LEVEL 2 GAME CONFIG RESPONSE:');
+      print('   Success: ${response['success']}');
+      print('   Message: ${response['message']}');
+
+      if (response['success'] == true && response['game'] != null) {
+        setState(() {
+          gameConfig = response['game'];
+          _initializeGameFromConfig();
+        });
+      } else {
+        setState(() {
+          errorMessage = response['message'] ?? 'Failed to load hard level 2 game configuration';
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading hard level 2 game config: $e');
+      setState(() {
+        errorMessage = 'Connection error: $e';
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  void _initializeGameFromConfig() {
+    if (gameConfig == null) return;
+
+    try {
+      print('🔄 INITIALIZING JAVA HARD LEVEL 2 GAME FROM CONFIG');
+
+      // Load timer duration from database
+      if (gameConfig!['timer_duration'] != null) {
+        int timerDuration = int.tryParse(gameConfig!['timer_duration'].toString()) ?? 240;
+        setState(() {
+          remainingSeconds = timerDuration;
+        });
+        print('⏰ Timer duration loaded: $timerDuration seconds');
+      }
+
+      // Load instruction text from database
+      if (gameConfig!['instruction_text'] != null) {
+        setState(() {
+          _instructionText = gameConfig!['instruction_text'].toString();
+        });
+        print('📝 Instruction text loaded: $_instructionText');
+      }
+
+      // Load code preview title from database
+      if (gameConfig!['code_preview_title'] != null) {
+        setState(() {
+          _codePreviewTitle = gameConfig!['code_preview_title'].toString();
+        });
+        print('💻 Code preview title loaded: $_codePreviewTitle');
+      }
+
+      // Load code structure from database
+      if (gameConfig!['code_structure'] != null) {
+        if (gameConfig!['code_structure'] is List) {
+          setState(() {
+            _codeStructure = List<String>.from(gameConfig!['code_structure']);
+          });
+        } else {
+          String codeStructureStr = gameConfig!['code_structure']?.toString() ?? '[]';
+          try {
+            List<dynamic> codeStructureJson = json.decode(codeStructureStr);
+            setState(() {
+              _codeStructure = List<String>.from(codeStructureJson);
+            });
+          } catch (e) {
+            print('❌ Error parsing code structure: $e');
+            setState(() {
+              _codeStructure = _getDefaultCodeStructure();
+            });
+          }
+        }
+        print('📝 Code structure loaded: $_codeStructure');
+      } else {
+        setState(() {
+          _codeStructure = _getDefaultCodeStructure();
+        });
+      }
+
+      // Load expected output from database
+      if (gameConfig!['expected_output'] != null) {
+        setState(() {
+          _expectedOutput = gameConfig!['expected_output'].toString();
+        });
+        print('🎯 Expected output loaded: $_expectedOutput');
+      }
+
+      // Load hint from database
+      if (gameConfig!['hint_text'] != null) {
+        setState(() {
+          _currentHint = gameConfig!['hint_text'].toString();
+        });
+        print('💡 Hint loaded from database: $_currentHint');
+      } else {
+        setState(() {
+          _currentHint = _getDefaultHint();
+        });
+        print('💡 Using default hint');
+      }
+
+      // ✅ FIXED: Improved blocks parsing
+      List<String> correctBlocks = _parseBlocksImproved(gameConfig!['correct_blocks'], 'correct');
+      List<String> incorrectBlocks = _parseBlocksImproved(gameConfig!['incorrect_blocks'], 'incorrect');
+
+      print('✅ Correct Blocks: $correctBlocks');
+      print('✅ Incorrect Blocks: $incorrectBlocks');
+
+      // Combine and shuffle blocks
+      allBlocks = [
+        ...correctBlocks,
+        ...incorrectBlocks,
+      ]..shuffle();
+
+      print('🎮 All Blocks Final: $allBlocks');
+
+    } catch (e) {
+      print('❌ Error parsing hard level 2 game config: $e');
+      _initializeDefaultBlocks();
+    }
+  }
+
+  // ✅ FIXED: Improved blocks parsing method
+  List<String> _parseBlocksImproved(dynamic blocksData, String type) {
+    List<String> blocks = [];
+
+    if (blocksData == null) {
+      print('⚠️ $type blocks are NULL in database, using defaults');
+      return _getDefaultBlocks(type);
+    }
+
+    try {
+      if (blocksData is List) {
+        // Direct list from database
+        blocks = List<String>.from(blocksData);
+        print('✅ $type blocks parsed as direct List: $blocks');
+      } else if (blocksData is String) {
+        String blocksStr = blocksData.trim();
+        print('🔍 Raw $type blocks string: "$blocksStr"');
+
+        // Try JSON parsing first
+        if (blocksStr.startsWith('[') && blocksStr.endsWith(']')) {
+          try {
+            List<dynamic> parsedJson = json.decode(blocksStr);
+            blocks = parsedJson.map((item) => item.toString()).toList();
+            print('✅ $type blocks parsed as JSON: $blocks');
+          } catch (e) {
+            print('❌ JSON parsing failed, trying manual parsing: $e');
+            blocks = _parseManual(blocksStr);
+          }
+        } else {
+          // Manual parsing for non-JSON strings
+          blocks = _parseManual(blocksStr);
+        }
+      }
+    } catch (e) {
+      print('❌ Error parsing $type blocks: $e');
+      blocks = _getDefaultBlocks(type);
+    }
+
+    // Remove any empty strings and trim
+    blocks = blocks.map((block) => block.trim()).where((block) => block.isNotEmpty).toList();
+
+    print('🎯 Final $type blocks: $blocks');
+    return blocks;
+  }
+
+  // ✅ FIXED: Manual parsing for various formats
+  List<String> _parseManual(String input) {
+    // Remove brackets if present
+    String cleaned = input.replaceAll('[', '').replaceAll(']', '').trim();
+
+    // Handle different separators
+    List<String> items = [];
+
+    if (cleaned.contains('","')) {
+      // JSON-like format: "item1","item2","item3"
+      items = cleaned.split('","').map((item) => item.replaceAll('"', '').trim()).toList();
+    } else if (cleaned.contains(',')) {
+      // Comma-separated format
+      items = cleaned.split(',').map((item) => item.trim()).toList();
+    } else {
+      // Single item or other format
+      items = [cleaned];
+    }
+
+    // Clean up quotes
+    items = items.map((item) {
+      String cleanedItem = item;
+      if (cleanedItem.startsWith('"') && cleanedItem.endsWith('"')) {
+        cleanedItem = cleanedItem.substring(1, cleanedItem.length - 1);
+      }
+      return cleanedItem.trim();
+    }).where((item) => item.isNotEmpty).toList();
+
+    print('✅ Manual parsing result: $items');
+    return items;
+  }
+
+  List<String> _getDefaultCodeStructure() {
+    return [
+      "public class ArraySum {",
+      "    public static void main(String[] args) {",
+      "        int[] numbers = {1, 2, 3, 4, 5};",
+      "        // Your code here",
+      "    }",
+      "}"
+    ];
+  }
+
+  List<String> _getDefaultBlocks(String type) {
+    if (type == 'correct') {
+      return [
+        'int sum = 0;',
+        'for (int i = 0; i < numbers.length; i++) {',
+        '    sum += numbers[i];',
+        '}',
+        'System.out.println(\"Sum of array elements: \" + sum);'
+      ];
+    } else {
+      return [
+        'float sum = 0;',
+        'for (int i = 0; i <= numbers.length; i++) {',
+        '    sum = numbers[i];',
+        '}',
+        'while (sum > 0) {',
+        '    System.out.println(sum);',
+        '}',
+        'System.out.print(\"Total: \" + sum);',
+        'if (sum > 10) {',
+        '    System.out.println(\"Large sum\");',
+        '}'
+      ];
+    }
+  }
+
+  String _getDefaultHint() {
+    return "💡 Hint: Use a for loop to iterate through the array. Initialize sum to 0 before the loop and add each element inside the loop.";
+  }
+
+  void _initializeDefaultBlocks() {
+    allBlocks = [
+      'int sum = 0;',
+      'for (int i = 0; i < numbers.length; i++) {',
+      '    sum += numbers[i];',
+      '}',
+      'System.out.println(\"Sum of array elements: \" + sum);',
+      'float sum = 0;',
+      'for (int i = 0; i <= numbers.length; i++) {',
+      '    sum = numbers[i];',
+      '}',
+      'while (sum > 0) {',
+      '    System.out.println(sum);',
+      '}',
+      'System.out.print(\"Total: \" + sum);',
+      'if (sum > 10) {',
+      '    System.out.println(\"Large sum\");',
+      '}'
+    ]..shuffle();
+  }
+
   void _startGameMusic() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final musicService = Provider.of<MusicService>(context, listen: false);
       await musicService.stopBackgroundMusic();
-      await musicService.playSoundEffect('game_start_hard.mp3');
+      await musicService.playSoundEffect('game_start.mp3');
       await Future.delayed(Duration(milliseconds: 500));
-      await musicService.playSoundEffect('game_music_hard2.mp3');
+      await musicService.playSoundEffect('game_music.mp3');
     });
   }
 
@@ -89,12 +372,11 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
   void _useHintCard() async {
     if (_availableHintCards > 0 && !_isUsingHint) {
       final musicService = Provider.of<MusicService>(context, listen: false);
-      musicService.playSoundEffect('hint_use_hard.mp3');
+      musicService.playSoundEffect('hint_use.mp3');
 
       setState(() {
         _isUsingHint = true;
         _showHint = true;
-        _currentHint = _getLevelHint();
         _availableHintCards--;
       });
 
@@ -103,73 +385,25 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
         await DailyChallengeService.useHintCard(user['id']);
       }
 
-      _autoDragCorrectBlocks();
-    } else if (_availableHintCards <= 0) {
-      final musicService = Provider.of<MusicService>(context, listen: false);
-      musicService.playSoundEffect('error_hard.mp3');
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No hint cards! Complete challenges to earn more.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  void _autoDragCorrectBlocks() {
-    List<String> correctBlocks = [
-      'import java.util.Scanner;',
-      'public class Calculator',
-      '{',
-      'public static int add(int a, int b)',
-      '{',
-      'return a + b;',
-      '}',
-      'public static void main(String[] args)',
-      '{',
-      'int result = add(5, 3);',
-      'System.out.println("Result: " + result);',
-      '}',
-      '}'
-    ];
-
-    setState(() {
-      droppedBlockItems.clear();
-    });
-
-    int delay = 0;
-    for (String block in correctBlocks) {
-      Future.delayed(Duration(milliseconds: delay), () {
+      Future.delayed(Duration(seconds: 5), () {
         if (mounted) {
           setState(() {
-            var blockItem = allBlockItems.firstWhere(
-                  (item) => item.text == block && !droppedBlockItems.contains(item),
-              orElse: () => BlockItem(block, UniqueKey()),
-            );
-
-            if (!droppedBlockItems.contains(blockItem)) {
-              droppedBlockItems.add(blockItem);
-            }
-            allBlockItems.remove(blockItem);
+            _showHint = false;
+            _isUsingHint = false;
           });
         }
       });
-      delay += 350;
+    } else if (_availableHintCards <= 0) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('error.mp3');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No hint cards available! Complete daily challenges to earn more.'),
+          backgroundColor: Colors.purple,
+        ),
+      );
     }
-
-    Future.delayed(Duration(milliseconds: delay + 1000), () {
-      if (mounted) {
-        setState(() {
-          _showHint = false;
-          _isUsingHint = false;
-        });
-      }
-    });
-  }
-
-  String _getLevelHint() {
-    return "HARD LEVEL 2: Create a Calculator with a method that returns a value!\n\nFeatures needed:\n• One custom method: add() that returns int\n• Method parameters and return value\n• Variable to store method result\n• System.out.println for output\n• Proper class structure with main method";
   }
 
   void _loadUserData() async {
@@ -182,79 +416,47 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
   }
 
   void resetBlocks() {
-    List<String> correctBlocks = [
-      'import java.util.Scanner;',
-      'public class Calculator',
-      '{',
-      'public static int add(int a, int b)',
-      '{',
-      'return a + b;',
-      '}',
-      'public static void main(String[] args)',
-      '{',
-      'int result = add(5, 3);',
-      'System.out.println("Result: " + result);',
-      '}',
-      '}'
-    ];
-
-    List<String> incorrectBlocks = [
-      'import java.util.*;',
-      'class Calculator',
-      'public class calculator',
-      'public static void add(int a, int b)',
-      'public int add(int a, int b)',
-      'static int add(int a, int b)',
-      'return a + b',
-      'public static int multiply(int a, int b) { return a * b; }',
-      'Scanner input = new Scanner(System.in);',
-      'System.out.println("Enter numbers: ");',
-      'int num1 = scanner.next();',
-      'String num1 = scanner.nextInt();',
-      'num1 = scanner.nextInt();',
-      'System.out.print("Result: " + result)',
-      'scanner.close',
-      'public static void main()',
-      'int result = 5 + 3;',
-      'System.out.println(result);',
-      'return result;',
-      'void main(String[] args)',
-      'Scanner scanner = new Scanner();',
-      'int num1, num2;',
-      'var scanner = new Scanner(System.in);',
-      'final int num1 = scanner.nextInt();',
-      'System.out.println("Sum: " + result);'
-    ];
-
-    incorrectBlocks.shuffle();
-    List<String> selectedIncorrectBlocks = incorrectBlocks.take(5).toList();
-
-    // Create block items with unique keys
-    allBlockItems.clear();
-    droppedBlockItems.clear();
-
-    // Add all blocks with unique identifiers
-    for (String block in [...correctBlocks, ...selectedIncorrectBlocks]) {
-      allBlockItems.add(BlockItem(block, UniqueKey()));
+    if (gameConfig != null) {
+      _initializeGameFromConfig();
+    } else {
+      _initializeDefaultBlocks();
     }
-
-    allBlockItems.shuffle();
+    setState(() {});
   }
 
   void startGame() {
+    if (gameConfig == null) {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      musicService.playSoundEffect('error.mp3');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Game configuration not loaded. Please retry.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final musicService = Provider.of<MusicService>(context, listen: false);
-    musicService.playSoundEffect('level_start_hard.mp3');
+    musicService.playSoundEffect('level_start.mp3');
+
+    int timerDuration = gameConfig!['timer_duration'] != null
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 240
+        : 240;
 
     setState(() {
       gameStarted = true;
       score = 3;
-      remainingSeconds = 300;
-      droppedBlockItems.clear();
+      remainingSeconds = timerDuration;
+      droppedBlocks.clear();
       isAnsweredCorrectly = false;
       _showHint = false;
       _isUsingHint = false;
       resetBlocks();
     });
+
+    print('🎮 JAVA HARD LEVEL 2 GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
     startTimers();
   }
 
@@ -274,7 +476,7 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
           saveScoreToDatabase(score);
 
           final musicService = Provider.of<MusicService>(context, listen: false);
-          musicService.playSoundEffect('time_up_hard.mp3');
+          musicService.playSoundEffect('time_up.mp3');
 
           showDialog(
             context: context,
@@ -298,7 +500,7 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 180), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 25), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -307,10 +509,12 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
       setState(() {
         score--;
         final musicService = Provider.of<MusicService>(context, listen: false);
-        musicService.playSoundEffect('penalty_hard.mp3');
+        musicService.playSoundEffect('penalty.mp3');
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("⏰ Time penalty! -1 point. Current score: $score")),
+          SnackBar(
+            content: Text("⏰ Time penalty! -1 point. Current score: $score"),
+          ),
         );
       });
     });
@@ -320,14 +524,18 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
     final musicService = Provider.of<MusicService>(context, listen: false);
     musicService.playSoundEffect('reset.mp3');
 
+    int timerDuration = gameConfig!['timer_duration'] != null
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 240
+        : 240;
+
     setState(() {
       score = 3;
-      remainingSeconds = 300;
+      remainingSeconds = timerDuration;
       gameStarted = false;
       isAnsweredCorrectly = false;
       _showHint = false;
       _isUsingHint = false;
-      droppedBlockItems.clear();
+      droppedBlocks.clear();
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
       resetBlocks();
@@ -335,9 +543,20 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
   }
 
   Future<void> saveScoreToDatabase(int score) async {
-    if (currentUser?['id'] == null) return;
+    if (currentUser?['id'] == null) {
+      print('❌ Cannot save score: No user ID');
+      return;
+    }
 
     try {
+      print('💾 SAVING JAVA HARD LEVEL 2 SCORE:');
+      print('   User ID: ${currentUser!['id']}');
+      print('   Language: Java');
+      print('   Level: 2');
+      print('   Difficulty: Hard');
+      print('   Score: $score/3');
+      print('   Completed: ${score == 3}');
+
       final response = await ApiService.saveScoreWithDifficulty(
         currentUser!['id'],
         'Java',
@@ -347,19 +566,21 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
         score == 3,
       );
 
+      print('📡 SERVER RESPONSE: $response');
+
       if (response['success'] == true) {
         setState(() {
-          level2Completed = score == 3;
+          levelCompleted = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
 
-        print('Score saved successfully: $score for Java Hard Level 2');
+        print('✅ JAVA HARD LEVEL 2 SCORE SAVED SUCCESSFULLY TO DATABASE');
       } else {
-        print('Failed to save score: ${response['message']}');
+        print('❌ FAILED TO SAVE SCORE: ${response['message']}');
       }
     } catch (e) {
-      print('Error saving score: $e');
+      print('❌ ERROR SAVING JAVA HARD LEVEL 2 SCORE: $e');
     }
   }
 
@@ -367,11 +588,7 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScoresWithDifficulty(
-          currentUser!['id'],
-          'Java',
-          'Hard'
-      );
+      final response = await ApiService.getScoresWithDifficulty(currentUser!['id'], 'Java', 'Hard');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
@@ -380,61 +597,64 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
         if (level2Data != null) {
           setState(() {
             previousScore = level2Data['score'] ?? 0;
-            level2Completed = level2Data['completed'] ?? false;
+            levelCompleted = level2Data['completed'] ?? false;
             hasPreviousScore = true;
-            score = previousScore;
           });
-          print('Loaded previous score: $previousScore for Java Hard Level 2');
         }
       }
     } catch (e) {
-      print('Error loading score: $e');
+      print('Error loading Java hard level 2 score: $e');
     }
   }
 
   bool isIncorrectBlock(String block) {
+    if (gameConfig != null) {
+      try {
+        List<String> incorrectBlocks = _parseBlocksImproved(gameConfig!['incorrect_blocks'], 'incorrect');
+        bool isIncorrect = incorrectBlocks.contains(block);
+        if (isIncorrect) {
+          print('❌ Block "$block" is in incorrect blocks list');
+        }
+        return isIncorrect;
+      } catch (e) {
+        print('Error checking incorrect block: $e');
+      }
+    }
+
+    // Default incorrect blocks for Java Hard Level 2
     List<String> incorrectBlocks = [
-      'import java.util.*;',
-      'class Calculator',
-      'public class calculator',
-      'public static void add(int a, int b)',
-      'public int add(int a, int b)',
-      'static int add(int a, int b)',
-      'return a + b',
-      'public static int multiply(int a, int b) { return a * b; }',
-      'Scanner input = new Scanner(System.in);',
-      'System.out.println("Enter numbers: ");',
-      'int num1 = scanner.next();',
-      'String num1 = scanner.nextInt();',
-      'num1 = scanner.nextInt();',
-      'System.out.print("Result: " + result)',
-      'scanner.close',
-      'public static void main()',
-      'int result = 5 + 3;',
-      'System.out.println(result);',
-      'return result;',
-      'void main(String[] args)',
-      'Scanner scanner = new Scanner();',
-      'int num1, num2;',
-      'var scanner = new Scanner(System.in);',
-      'final int num1 = scanner.nextInt();',
-      'System.out.println("Sum: " + result);'
+      'float sum = 0;',
+      'for (int i = 0; i <= numbers.length; i++) {',
+      '    sum = numbers[i];',
+      '}',
+      'while (sum > 0) {',
+      '    System.out.println(sum);',
+      '}',
+      'System.out.print(\"Total: \" + sum);',
+      'if (sum > 10) {',
+      '    System.out.println(\"Large sum\");',
+      '}'
     ];
     return incorrectBlocks.contains(block);
   }
 
+  // ✅ FIXED: Improved answer checking logic
   void checkAnswer() async {
-    if (isAnsweredCorrectly || droppedBlockItems.isEmpty) return;
+    if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
-    // Convert to text for checking
-    List<String> droppedBlocksText = droppedBlockItems.map((item) => item.text).toList();
+    // DEBUG: Print what we're checking
+    print('🔍 CHECKING JAVA HARD LEVEL 2 ANSWER:');
+    print('   Dropped blocks: $droppedBlocks');
+    print('   All blocks: $allBlocks');
 
-    bool hasIncorrectBlock = droppedBlocksText.any((block) => isIncorrectBlock(block));
+    // Check if any incorrect blocks are used
+    bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
-      musicService.playSoundEffect('error_hard.mp3');
+      print('❌ HAS INCORRECT BLOCK');
+      musicService.playSoundEffect('error.mp3');
 
       if (score > 1) {
         setState(() {
@@ -442,7 +662,7 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ You used incorrect Java code! -1 point. Current score: $score"),
+            content: Text("❌ You used incorrect code! -1 point. Current score: $score"),
             backgroundColor: Colors.red,
           ),
         );
@@ -454,13 +674,13 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
 
-        musicService.playSoundEffect('game_over_hard.mp3');
+        musicService.playSoundEffect('game_over.mp3');
 
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("You used incorrect Java code and lost all points!"),
+            content: Text("You used incorrect code and lost all points!"),
             actions: [
               TextButton(
                 onPressed: () {
@@ -477,19 +697,59 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
       return;
     }
 
-    String answer = droppedBlocksText.join(' ');
-    String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+    // ✅ FIXED: IMPROVED ANSWER CHECKING LOGIC
+    bool isCorrect = false;
 
-    // Check for all required components
-    bool hasImport = normalizedAnswer.contains('importjava.util.scanner;');
-    bool hasClass = normalizedAnswer.contains('publicclasscalculator');
-    bool hasAddMethod = normalizedAnswer.contains('publicstaticintadd(inta,intb)');
-    bool hasAddReturn = normalizedAnswer.contains('returna+b;');
-    bool hasMain = normalizedAnswer.contains('publicstaticvoidmain(string[]args)');
-    bool hasResult = normalizedAnswer.contains('intresult=add(5,3);');
-    bool hasOutput = normalizedAnswer.contains('system.out.println("result:"+result);');
+    if (gameConfig != null) {
+      // Get expected correct blocks from database
+      List<String> expectedCorrectBlocks = _parseBlocksImproved(gameConfig!['correct_blocks'], 'correct');
 
-    if (hasImport && hasClass && hasAddMethod && hasAddReturn && hasMain && hasResult && hasOutput) {
+      print('🎯 EXPECTED CORRECT BLOCKS: $expectedCorrectBlocks');
+      print('🎯 USER DROPPED BLOCKS: $droppedBlocks');
+
+      // METHOD 1: Check if user has all correct blocks and no extra correct blocks
+      bool hasAllCorrectBlocks = expectedCorrectBlocks.every((block) => droppedBlocks.contains(block));
+      bool noExtraCorrectBlocks = droppedBlocks.every((block) => expectedCorrectBlocks.contains(block));
+
+      // METHOD 2: Check string comparison (normalized)
+      String userAnswer = droppedBlocks.join(' ');
+      String normalizedUserAnswer = userAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+
+      if (gameConfig!['correct_answer'] != null) {
+        String expectedAnswer = gameConfig!['correct_answer'].toString();
+        String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+
+        print('📝 USER ANSWER: $userAnswer');
+        print('📝 NORMALIZED USER: $normalizedUserAnswer');
+        print('🎯 EXPECTED ANSWER: $expectedAnswer');
+        print('🎯 NORMALIZED EXPECTED: $normalizedExpected');
+
+        bool stringMatch = normalizedUserAnswer == normalizedExpected;
+
+        // Use both methods for verification
+        isCorrect = (hasAllCorrectBlocks && noExtraCorrectBlocks) || stringMatch;
+
+        print('✅ BLOCK CHECK: hasAllCorrectBlocks=$hasAllCorrectBlocks, noExtraCorrectBlocks=$noExtraCorrectBlocks');
+        print('✅ STRING CHECK: stringMatch=$stringMatch');
+        print('✅ FINAL RESULT: $isCorrect');
+      } else {
+        // Fallback: only use block comparison
+        isCorrect = hasAllCorrectBlocks && noExtraCorrectBlocks;
+        print('⚠️ No correct_answer in DB, using block comparison only: $isCorrect');
+      }
+    } else {
+      // Fallback check for basic requirements
+      print('⚠️ No game config, using fallback check');
+      bool hasSumInitialization = droppedBlocks.any((block) => block.toLowerCase().contains('int sum = 0'));
+      bool hasForLoop = droppedBlocks.any((block) => block.toLowerCase().contains('for (int i = 0; i < numbers.length; i++)'));
+      bool hasSumCalculation = droppedBlocks.any((block) => block.toLowerCase().contains('sum += numbers[i]'));
+      bool hasPrintStatement = droppedBlocks.any((block) => block.toLowerCase().contains('system.out.println("sum of array elements: " + sum)'));
+
+      isCorrect = hasSumInitialization && hasForLoop && hasSumCalculation && hasPrintStatement;
+      print('✅ FALLBACK CHECK: $isCorrect');
+    }
+
+    if (isCorrect) {
       countdownTimer?.cancel();
       scoreReductionTimer?.cancel();
 
@@ -500,13 +760,10 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
       saveScoreToDatabase(score);
 
       if (score == 3) {
-        musicService.playSoundEffect('perfect_hard.mp3');
+        musicService.playSoundEffect('perfect.mp3');
       } else {
-        musicService.playSoundEffect('success_hard.mp3');
+        musicService.playSoundEffect('success.mp3');
       }
-
-      final gameScore = score;
-      final leaderboardPoints = score * 30;
 
       showDialog(
         context: context,
@@ -516,56 +773,33 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent! You built a Calculator with return methods!"),
+              Text("Excellent work Java Master!"),
               SizedBox(height: 10),
-              Text("Game Score: $gameScore/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-              Text("Leaderboard Points: $leaderboardPoints/90", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+              Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've mastered Java Hard Level 2!",
-                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                  "🏆 Legendary! You've conquered Hard Level 2!",
+                  style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) for full completion!",
+                  "⚡ Get a perfect score (3/3) to prove your mastery!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
-              Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red),
-                ),
-                child: Text(
-                  "🎯 Hard Difficulty: 30× Points Multiplier!",
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              SizedBox(height: 10),
-              Text("Program Output:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
                 child: Text(
-                  "Result: 8",
+                  _expectedOutput,
                   style: TextStyle(
                     color: Colors.white,
                     fontFamily: 'monospace',
                     fontSize: 16,
                   ),
                 ),
-              ),
-              SizedBox(height: 10),
-              Text(
-                "💎 Advanced Feature: You created a method that returns a value!",
-                style: TextStyle(color: Colors.cyan, fontSize: 12),
               ),
             ],
           ),
@@ -574,28 +808,28 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
               onPressed: () {
                 musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
-                if (score == 3) {
-                  musicService.playSoundEffect('level_complete.mp3');
-                  Navigator.pushReplacementNamed(context, '/java_level3_hard');
-                } else {
-                  Navigator.pushReplacementNamed(context, '/levels',
-                      arguments: {'language': 'Java', 'difficulty': 'hard'});
-                }
+                Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                  'language': 'Java',
+                  'difficulty': 'Hard'
+                });
               },
-              child: Text(score == 3 ? "Next Level" : "Go Back"),
+              child: Text("Back to Levels"),
             )
           ],
         ),
       );
     } else {
-      musicService.playSoundEffect('wrong_hard.mp3');
+      print('❌ ANSWER INCORRECT');
+      musicService.playSoundEffect('wrong.mp3');
 
       if (score > 1) {
         setState(() {
           score--;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Incomplete Java program. -1 point. Current score: $score")),
+          SnackBar(
+            content: Text("❌ Incorrect arrangement. -1 point. Current score: $score"),
+          ),
         );
       } else {
         setState(() {
@@ -605,13 +839,13 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
         scoreReductionTimer?.cancel();
         saveScoreToDatabase(score);
 
-        musicService.playSoundEffect('game_over_hard.mp3');
+        musicService.playSoundEffect('game_over.mp3');
 
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("Remember to build the complete Java program with class, method, return value, and all necessary parts."),
+            content: Text("You lost all your points."),
             actions: [
               TextButton(
                 onPressed: () {
@@ -644,9 +878,9 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
       child: Container(
         padding: EdgeInsets.all(16 * _scaleFactor),
         decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.95),
+          color: Colors.purple.withOpacity(0.95),
           borderRadius: BorderRadius.circular(12 * _scaleFactor),
-          border: Border.all(color: Colors.redAccent, width: 2 * _scaleFactor),
+          border: Border.all(color: Colors.purpleAccent, width: 2 * _scaleFactor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.3),
@@ -677,12 +911,13 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 14 * _scaleFactor,
+                height: 1.4,
               ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Correct blocks are being placed automatically...',
+              'Hint will disappear in 5 seconds...',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 12 * _scaleFactor,
@@ -695,6 +930,50 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
     );
   }
 
+  Widget _buildHintButton() {
+    return Positioned(
+      bottom: 20 * _scaleFactor,
+      right: 20 * _scaleFactor,
+      child: GestureDetector(
+        onTap: _useHintCard,
+        child: Container(
+          padding: EdgeInsets.all(12 * _scaleFactor),
+          decoration: BoxDecoration(
+            color: _availableHintCards > 0 ? Colors.purple : Colors.grey,
+            borderRadius: BorderRadius.circular(20 * _scaleFactor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 4 * _scaleFactor,
+                offset: Offset(0, 2 * _scaleFactor),
+              )
+            ],
+            border: Border.all(
+              color: _availableHintCards > 0 ? Colors.purpleAccent : Colors.grey,
+              width: 2 * _scaleFactor,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lightbulb_outline, color: Colors.white, size: 20 * _scaleFactor),
+              SizedBox(width: 6 * _scaleFactor),
+              Text(
+                '$_availableHintCards',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18 * _scaleFactor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Code Preview Widget
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -720,7 +999,7 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'Calculator.java',
+                  'ArraySum.java',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -732,87 +1011,93 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
           ),
           Container(
             padding: EdgeInsets.all(12 * _scaleFactor),
-            child: _buildCodeContent(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _buildOrganizedCodePreview(),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCodeContent() {
-    if (droppedBlockItems.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '// Drag blocks to build your advanced Java program',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 12 * _scaleFactor,
-              fontFamily: 'monospace',
-            ),
+  List<Widget> _buildOrganizedCodePreview() {
+    List<Widget> codeLines = [];
+
+    for (int i = 0; i < _codeStructure.length; i++) {
+      String line = _codeStructure[i];
+
+      if (line.contains('// Your code here')) {
+        // Add user's dragged code in the correct position
+        codeLines.add(_buildUserCodeSection());
+      } else if (line.trim().isEmpty) {
+        codeLines.add(SizedBox(height: 16 * _scaleFactor));
+      } else {
+        codeLines.add(_buildSyntaxHighlightedLine(line, i + 1));
+      }
+    }
+
+    return codeLines;
+  }
+
+  Widget _buildUserCodeSection() {
+    if (droppedBlocks.isEmpty) {
+      return Container(
+        padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
+        child: Text(
+          '        // Your code here',
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 12 * _scaleFactor,
+            fontFamily: 'monospace',
+            fontStyle: FontStyle.italic,
           ),
-        ],
+        ),
       );
     }
 
-    List<Widget> codeLines = [];
-    int lineNumber = 1;
-
-    for (BlockItem blockItem in droppedBlockItems) {
-      String block = blockItem.text;
-      bool isImport = block.contains('import');
-      bool isKeyword = block.contains('public class') ||
-          block.contains('public static void') ||
-          block.contains('public static int') ||
-          block.contains('String') ||
-          block.contains('System.out.println') ||
-          block.contains('return');
-      bool isIncorrect = isIncorrectBlock(block);
-
-      Color textColor = Colors.white;
-      if (isImport) {
-        textColor = Color(0xFFCE9178);
-      } else if (isKeyword && !isIncorrect) {
-        textColor = Color(0xFF569CD6);
-      } else if (isIncorrect) {
-        textColor = Colors.red;
-      }
-
-      String displayCode = block;
-
-      if (block != 'import java.util.Scanner;' &&
-          block != 'public class Calculator' &&
-          block != '{' &&
-          block != '}') {
-        displayCode = '    $block';
-      }
-
-      codeLines.add(_buildCodeLineWithNumber(lineNumber++, displayCode,
-          textColor: textColor,
-          isIncorrect: isIncorrect
-      ));
-
-      if (block == 'import java.util.Scanner;' || block == '}') {
-        codeLines.add(SizedBox(height: 8 * _scaleFactor));
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: codeLines,
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (String block in droppedBlocks)
+            Container(
+              margin: EdgeInsets.only(bottom: 4 * _scaleFactor),
+              child: Text(
+                '        $block',
+                style: TextStyle(
+                  color: Colors.greenAccent[400],
+                  fontSize: 12 * _scaleFactor,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
-  Widget _buildCodeLineWithNumber(int lineNumber, String code, {Color? textColor, bool isIncorrect = false}) {
-    Color finalTextColor = textColor ?? Colors.white;
+  Widget _buildSyntaxHighlightedLine(String code, int lineNumber) {
+    Color textColor = Colors.white;
+    String displayCode = code;
 
-    if (isIncorrect) {
-      finalTextColor = Colors.red;
+    // Java syntax highlighting rules
+    if (code.trim().startsWith('public class') || code.contains('public static void main')) {
+      textColor = Color(0xFF569CD6); // Keywords - blue
+    } else if (code.trim().startsWith('//')) {
+      textColor = Color(0xFF6A9955); // Comments - green
+    } else if (code.contains('"') || code.contains("'")) {
+      textColor = Color(0xFFCE9178); // Strings - orange
+    } else if (code.contains('{') || code.contains('}')) {
+      textColor = Colors.white; // Braces - white
+    } else if (code.contains('int[]')) {
+      textColor = Color(0xFF4EC9B0); // Types - teal
     }
 
     return Container(
-      height: 20 * _scaleFactor,
+      padding: EdgeInsets.symmetric(vertical: 2 * _scaleFactor),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -830,12 +1115,11 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
           SizedBox(width: 16 * _scaleFactor),
           Expanded(
             child: Text(
-              code,
+              displayCode,
               style: TextStyle(
-                color: finalTextColor,
+                color: textColor,
                 fontSize: 12 * _scaleFactor,
                 fontFamily: 'monospace',
-                fontWeight: isIncorrect ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           ),
@@ -859,9 +1143,111 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("☕ Java - Level 2 Hard", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.purple,
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0D1B2A),
+                Color(0xFF1B263B),
+                Color(0xFF415A77),
+              ],
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.purple),
+                SizedBox(height: 20),
+                Text(
+                  "Loading Java Hard Level 2 Configuration...",
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "From Database",
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (errorMessage != null && !gameStarted) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text("☕ Java - Level 2 Hard", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.purple,
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0D1B2A),
+                Color(0xFF1B263B),
+                Color(0xFF415A77),
+              ],
+            ),
+          ),
+          child: Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.warning_amber, color: Colors.purple, size: 50),
+                  SizedBox(height: 20),
+                  Text(
+                    "Configuration Warning",
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _loadGameConfig,
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
+                    child: Text("Retry Loading"),
+                  ),
+                  SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                        'language': 'Java',
+                        'difficulty': 'Hard'
+                      });
+                    },
+                    child: Text("Back to Levels", style: TextStyle(color: Colors.purple)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newScreenWidth = MediaQuery.of(context).size.width;
-      final newScaleFactor = newScreenWidth < _baseScreenWidth ? newScreenWidth / _baseScreenWidth : 1.0;
+      final newScaleFactor = newScreenWidth < _baseScreenWidth
+          ? newScreenWidth / _baseScreenWidth
+          : 1.0;
 
       if (newScaleFactor != _scaleFactor) {
         setState(() {
@@ -872,9 +1258,10 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("⚡ Java - Level 2 (Hard)", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.red,
-        actions: gameStarted ? [
+        title: Text("☕ Java - Level 2 Hard", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.purple,
+        actions: gameStarted
+            ? [
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor),
             child: Row(
@@ -888,7 +1275,8 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
               ],
             ),
           ),
-        ] : [],
+        ]
+            : [],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -896,9 +1284,9 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF2D1B2A),
-              Color(0xFF3B263B),
-              Color(0xFF5A2A44),
+              Color(0xFF0D1B2A),
+              Color(0xFF1B263B),
+              Color(0xFF415A77),
             ],
           ),
         ),
@@ -907,46 +1295,7 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
             gameStarted ? buildGameUI() : buildStartScreen(),
             if (gameStarted && !isAnsweredCorrectly) ...[
               _buildHintDisplay(),
-              Positioned(
-                bottom: 20 * _scaleFactor,
-                right: 20 * _scaleFactor,
-                child: GestureDetector(
-                  onTap: _useHintCard,
-                  child: Container(
-                    padding: EdgeInsets.all(12 * _scaleFactor),
-                    decoration: BoxDecoration(
-                      color: _availableHintCards > 0 ? Colors.red : Colors.grey,
-                      borderRadius: BorderRadius.circular(20 * _scaleFactor),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 4 * _scaleFactor,
-                          offset: Offset(0, 2 * _scaleFactor),
-                        )
-                      ],
-                      border: Border.all(
-                        color: _availableHintCards > 0 ? Colors.redAccent : Colors.grey,
-                        width: 2 * _scaleFactor,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.lightbulb_outline, color: Colors.white, size: 20 * _scaleFactor),
-                        SizedBox(width: 6 * _scaleFactor),
-                        Text(
-                          '$_availableHintCards',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18 * _scaleFactor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+              _buildHintButton(),
             ],
           ],
         ),
@@ -955,11 +1304,6 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
   }
 
   Widget buildStartScreen() {
-    final displayGameScore = previousScore;
-    final displayLeaderboardPoints = previousScore * 30;
-    final maxGameScore = 3;
-    final maxLeaderboardPoints = 90;
-
     return Center(
       child: SingleChildScrollView(
         padding: EdgeInsets.all(16 * _scaleFactor),
@@ -967,36 +1311,37 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              onPressed: () {
+              onPressed: gameConfig != null ? () {
                 final musicService = Provider.of<MusicService>(context, listen: false);
                 musicService.playSoundEffect('button_click.mp3');
                 startGame();
-              },
+              } : null,
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text("Start Hard", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text(gameConfig != null ? "Start Hard Level 2" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: Colors.red,
+                backgroundColor: gameConfig != null ? Colors.purple : Colors.grey,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
 
+            // Display available hint cards in start screen
             Container(
               padding: EdgeInsets.all(12 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.2),
+                color: Colors.purple.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.red),
+                border: Border.all(color: Colors.purple),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.lightbulb_outline, color: Colors.red, size: 20 * _scaleFactor),
+                  Icon(Icons.lightbulb_outline, color: Colors.purple, size: 20 * _scaleFactor),
                   SizedBox(width: 8 * _scaleFactor),
                   Text(
                     'Hint Cards: $_availableHintCards',
                     style: TextStyle(
-                      color: Colors.red,
+                      color: Colors.purple,
                       fontSize: 16 * _scaleFactor,
                       fontWeight: FontWeight.bold,
                     ),
@@ -1013,25 +1358,20 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
               ),
             ),
 
-            if (level2Completed)
+            if (levelCompleted)
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Hard Level 2 completed with perfect score!",
+                      "🏆 Hard Level 2 completed with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "🎮 Game Score: $displayGameScore/$maxGameScore",
-                      style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                    Text(
-                      "🏆 Leaderboard Points: $displayLeaderboardPoints/$maxLeaderboardPoints",
-                      style: TextStyle(color: Colors.blue, fontSize: 14 * _scaleFactor, fontWeight: FontWeight.bold),
+                      "You are a Java Array Master!",
+                      style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1043,25 +1383,14 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
                 child: Column(
                   children: [
                     Text(
-                      "📊 Your previous hard score:",
-                      style: TextStyle(color: Colors.blue, fontSize: 16 * _scaleFactor),
+                      "📊 Your previous score: $previousScore/3",
+                      style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Game: $displayGameScore/$maxGameScore",
-                      style: TextStyle(color: Colors.white, fontSize: 14 * _scaleFactor),
-                      textAlign: TextAlign.center,
-                    ),
-                    Text(
-                      "Leaderboard: $displayLeaderboardPoints/$maxLeaderboardPoints",
-                      style: TextStyle(color: Colors.blue, fontSize: 14 * _scaleFactor, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 5 * _scaleFactor),
-                    Text(
-                      "Try again to get a perfect score!",
-                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                      "Try again to conquer hard level 2!",
+                      style: TextStyle(color: Colors.purple, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1073,14 +1402,14 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
                   child: Column(
                     children: [
                       Text(
-                        "😅 Your previous score: $displayGameScore/$maxGameScore",
-                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
+                        "💀 Your previous score: $previousScore/3",
+                        style: TextStyle(color: Colors.purple, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
-                        "Don't give up! You can do better this time!",
-                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
+                        "Array manipulation challenge! Give it your best shot!",
+                        style: TextStyle(color: Colors.purple, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1092,59 +1421,31 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.red[50]!.withOpacity(0.9),
+                color: Colors.purple[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.red[200]!),
+                border: Border.all(color: Colors.purple[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    "🎯 Hard Level 2 Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.red[800]),
+                    gameConfig?['objective'] ?? "🎯 Java Level 2 Hard Objective",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.purple[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "Build a Calculator program with return methods using all 13 blocks",
+                    gameConfig?['objective'] ?? "Create a Java program that calculates the sum of array elements using loops",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.red[700]),
-                  ),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Container(
-                    padding: EdgeInsets.all(8 * _scaleFactor),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(8 * _scaleFactor),
-                      border: Border.all(color: Colors.red),
-                    ),
-                    child: Text(
-                      "🎁 Hard Difficulty: 30× Points Multiplier!",
-                      style: TextStyle(
-                        fontSize: 14 * _scaleFactor,
-                        color: Colors.red[800],
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.purple[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎮 Perfect Score (3/3) = 90 Leaderboard Points",
+                    "💀 Hard Difficulty: Array manipulation, loop logic, and faster penalties!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
-                        color: Colors.purple,
+                        color: Colors.red,
                         fontWeight: FontWeight.bold,
-                        fontStyle: FontStyle.italic
-                    ),
-                  ),
-                  SizedBox(height: 5 * _scaleFactor),
-                  Text(
-                    "(Easy: 30 points, Medium: 60 points, Hard: 90 points)",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 11 * _scaleFactor,
-                        color: Colors.purple,
                         fontStyle: FontStyle.italic
                     ),
                   ),
@@ -1167,8 +1468,7 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Short Story',
-                    style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text('📖 Short Story', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
                 onPressed: () {
@@ -1179,22 +1479,21 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
                   });
                 },
                 icon: Icon(Icons.translate, size: 16 * _scaleFactor, color: Colors.white),
-                label: Text(isTagalog ? 'English' : 'Tagalog',
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+                label: Text(isTagalog ? 'English' : 'Tagalog', style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
               ),
             ],
           ),
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? 'Ngayon, si Maria ay gumagawa ng Calculator program! Kailangan niyang gumawa ng method na may return value para makapag-compute ng mathematical operations. Tulungan siyang buuin ang program na may method na nagre-return ng result!'
-                : 'Now, Maria is creating a Calculator program! She needs to create a method with return value to compute mathematical operations. Help her build a program with a method that returns a result!',
+                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Hard Level 2 ng Java programming! Gamit ang loops at arrays, kalkulahin ang kabuuang sum ng mga elemento sa array.')
+                : (gameConfig?['story_english'] ?? 'This is Java Hard Level 2! Using loops and arrays, calculate the total sum of array elements.'),
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          Text('🧩 Build the Calculator program with return methods using all 13 blocks',
+          Text(_instructionText,
               style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
@@ -1202,53 +1501,52 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 280 * _scaleFactor,
-              maxHeight: 400 * _scaleFactor,
+              minHeight: 140 * _scaleFactor,
+              maxHeight: 200 * _scaleFactor,
             ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.red, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.purple, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
-            child: DragTarget<BlockItem>(
+            child: DragTarget<String>(
               onWillAccept: (data) {
-                return true;
+                return !droppedBlocks.contains(data);
               },
-              onAccept: (BlockItem data) {
+              onAccept: (data) {
                 if (!isAnsweredCorrectly) {
                   final musicService = Provider.of<MusicService>(context, listen: false);
                   musicService.playSoundEffect('block_drop.mp3');
 
                   setState(() {
-                    if (!droppedBlockItems.contains(data)) {
-                      droppedBlockItems.add(data);
-                    }
-                    allBlockItems.remove(data);
+                    droppedBlocks.add(data);
+                    allBlocks.remove(data);
                   });
                 }
               },
               builder: (context, candidateData, rejectedData) {
                 return SingleChildScrollView(
                   child: Wrap(
-                    spacing: 6 * _scaleFactor,
-                    runSpacing: 6 * _scaleFactor,
+                    spacing: 8 * _scaleFactor,
+                    runSpacing: 8 * _scaleFactor,
                     alignment: WrapAlignment.center,
                     crossAxisAlignment: WrapCrossAlignment.center,
-                    children: droppedBlockItems.map((blockItem) {
-                      return Draggable<BlockItem>(
-                        data: blockItem,
+                    children: droppedBlocks.map((block) {
+                      return Draggable<String>(
+                        data: block,
                         feedback: Material(
                           color: Colors.transparent,
-                          child: puzzleBlock(blockItem.text, Colors.redAccent),
+                          child: puzzleBlock(block, Colors.purpleAccent),
                         ),
-                        childWhenDragging: puzzleBlock(blockItem.text, Colors.redAccent.withOpacity(0.5)),
-                        child: puzzleBlock(blockItem.text, Colors.redAccent),
+                        childWhenDragging: puzzleBlock(block, Colors.purpleAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.purpleAccent),
                         onDragStarted: () {
                           final musicService = Provider.of<MusicService>(context, listen: false);
                           musicService.playSoundEffect('block_pickup.mp3');
+
                           setState(() {
-                            currentlyDraggedBlock = blockItem.text;
+                            currentlyDraggedBlock = block;
                           });
                         },
                         onDragEnd: (details) {
@@ -1260,10 +1558,10 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
                             Future.delayed(Duration(milliseconds: 50), () {
                               if (mounted) {
                                 setState(() {
-                                  if (!allBlockItems.contains(blockItem)) {
-                                    allBlockItems.add(blockItem);
+                                  if (!allBlocks.contains(block)) {
+                                    allBlocks.add(block);
                                   }
-                                  droppedBlockItems.remove(blockItem);
+                                  droppedBlocks.remove(block);
                                 });
                               }
                             });
@@ -1278,7 +1576,7 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
           ),
 
           SizedBox(height: 20 * _scaleFactor),
-          Text('💻 Code Preview:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          Text(_codePreviewTitle, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
           SizedBox(height: 10 * _scaleFactor),
           getCodePreview(),
           SizedBox(height: 20 * _scaleFactor),
@@ -1286,7 +1584,7 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 180 * _scaleFactor,
+              minHeight: 100 * _scaleFactor,
             ),
             padding: EdgeInsets.all(12 * _scaleFactor),
             decoration: BoxDecoration(
@@ -1294,29 +1592,30 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
               borderRadius: BorderRadius.circular(12 * _scaleFactor),
             ),
             child: Wrap(
-              spacing: 6 * _scaleFactor,
-              runSpacing: 8 * _scaleFactor,
+              spacing: 8 * _scaleFactor,
+              runSpacing: 10 * _scaleFactor,
               alignment: WrapAlignment.center,
               crossAxisAlignment: WrapCrossAlignment.center,
-              children: allBlockItems.map((blockItem) {
+              children: allBlocks.map((block) {
                 return isAnsweredCorrectly
-                    ? puzzleBlock(blockItem.text, Colors.grey)
-                    : Draggable<BlockItem>(
-                  data: blockItem,
+                    ? puzzleBlock(block, Colors.grey)
+                    : Draggable<String>(
+                  data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(blockItem.text, Colors.deepPurple),
+                    child: puzzleBlock(block, Colors.purple),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(blockItem.text, Colors.deepPurple),
+                    child: puzzleBlock(block, Colors.purple),
                   ),
-                  child: puzzleBlock(blockItem.text, Colors.deepPurple),
+                  child: puzzleBlock(block, Colors.purple),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
+
                     setState(() {
-                      currentlyDraggedBlock = blockItem.text;
+                      currentlyDraggedBlock = block;
                     });
                   },
                   onDragEnd: (details) {
@@ -1328,8 +1627,8 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
                       Future.delayed(Duration(milliseconds: 50), () {
                         if (mounted) {
                           setState(() {
-                            if (!allBlockItems.contains(blockItem)) {
-                              allBlockItems.add(blockItem);
+                            if (!allBlocks.contains(block)) {
+                              allBlocks.add(block);
                             }
                           });
                         }
@@ -1345,13 +1644,13 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
           ElevatedButton.icon(
             onPressed: isAnsweredCorrectly ? null : () {
               final musicService = Provider.of<MusicService>(context, listen: false);
-              musicService.playSoundEffect('compile_hard.mp3');
+              musicService.playSoundEffect('compile.mp3');
               checkAnswer();
             },
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: Colors.purple,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -1360,6 +1659,7 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
           ),
 
           SizedBox(height: 10 * _scaleFactor),
+
           TextButton(
             onPressed: () {
               final musicService = Provider.of<MusicService>(context, listen: false);
@@ -1374,28 +1674,46 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
   }
 
   Widget puzzleBlock(String text, Color color) {
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontFamily: 'monospace',
+          fontSize: 12 * _scaleFactor,
+          color: Colors.black,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )
+      ..layout();
+
+    final textWidth = textPainter.width;
+    final minWidth = 80 * _scaleFactor;
+    final maxWidth = 240 * _scaleFactor;
+
     return Container(
       constraints: BoxConstraints(
-        minWidth: 70 * _scaleFactor,
-        maxWidth: 160 * _scaleFactor,
+        minWidth: minWidth,
+        maxWidth: maxWidth,
       ),
-      margin: EdgeInsets.symmetric(horizontal: 2 * _scaleFactor),
+      margin: EdgeInsets.symmetric(horizontal: 3 * _scaleFactor),
       padding: EdgeInsets.symmetric(
-        horizontal: 10 * _scaleFactor,
-        vertical: 8 * _scaleFactor,
+        horizontal: 12 * _scaleFactor,
+        vertical: 10 * _scaleFactor,
       ),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(15 * _scaleFactor),
-          bottomRight: Radius.circular(15 * _scaleFactor),
+          topLeft: Radius.circular(20 * _scaleFactor),
+          bottomRight: Radius.circular(20 * _scaleFactor),
         ),
-        border: Border.all(color: Colors.black87, width: 1.5 * _scaleFactor),
+        border: Border.all(color: Colors.black87, width: 2.0 * _scaleFactor),
         boxShadow: [
           BoxShadow(
             color: Colors.black45,
-            blurRadius: 4 * _scaleFactor,
-            offset: Offset(2 * _scaleFactor, 2 * _scaleFactor),
+            blurRadius: 6 * _scaleFactor,
+            offset: Offset(3 * _scaleFactor, 3 * _scaleFactor),
           )
         ],
       ),
@@ -1404,8 +1722,15 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 10 * _scaleFactor,
+          fontSize: 12 * _scaleFactor,
           color: Colors.black,
+          shadows: [
+            Shadow(
+              offset: Offset(1 * _scaleFactor, 1 * _scaleFactor),
+              blurRadius: 2 * _scaleFactor,
+              color: Colors.white.withOpacity(0.8),
+            ),
+          ],
         ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.visible,
@@ -1413,21 +1738,4 @@ class _JavaLevel2HardState extends State<JavaLevel2Hard> {
       ),
     );
   }
-}
-
-class BlockItem {
-  final String text;
-  final Key key;
-
-  BlockItem(this.text, this.key);
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-          other is BlockItem &&
-              runtimeType == other.runtimeType &&
-              key == other.key;
-
-  @override
-  int get hashCode => key.hashCode;
 }

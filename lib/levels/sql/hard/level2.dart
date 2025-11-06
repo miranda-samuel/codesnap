@@ -7,14 +7,14 @@ import '../../../../services/user_preferences.dart';
 import '../../../../services/music_service.dart';
 import '../../../../services/daily_challenge_service.dart';
 
-class CppLevel3Hard extends StatefulWidget {
-  const CppLevel3Hard({super.key});
+class SqlLevel2Hard extends StatefulWidget {
+  const SqlLevel2Hard({super.key});
 
   @override
-  State<CppLevel3Hard> createState() => _CppLevel3HardState();
+  State<SqlLevel2Hard> createState() => _SqlLevel2HardState();
 }
 
-class _CppLevel3HardState extends State<CppLevel3Hard> {
+class _SqlLevel2HardState extends State<SqlLevel2Hard> {
   List<String> allBlocks = [];
   List<String> droppedBlocks = [];
   bool gameStarted = false;
@@ -25,34 +25,39 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 360; // Hard Level 3: 6 minutes
+  int remainingSeconds = 300; // 5 minutes for advanced level
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
-  // Track currently dragged block
   String? currentlyDraggedBlock;
-
-  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // Game configuration from database
   Map<String, dynamic>? gameConfig;
   bool isLoading = true;
   String? errorMessage;
 
-  // HINT SYSTEM
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
   bool _isUsingHint = false;
 
-  // Configurable elements from database
-  String _codePreviewTitle = '💻 Code Preview:';
-  String _instructionText = '🧩 Implement AVL Tree with rotation operations';
+  String _codePreviewTitle = '💻 Expert SQL Query Preview:';
+  String _instructionText = '🧩 Arrange the blocks to form a complex SQL query with multiple JOINs, subqueries, and window functions';
   List<String> _codeStructure = [];
   String _expectedOutput = '';
+
+  // Database tables preview for Expert level
+  List<Map<String, dynamic>> _employeesTable = [];
+  List<Map<String, dynamic>> _departmentsTable = [];
+  List<Map<String, dynamic>> _projectsTable = [];
+  List<Map<String, dynamic>> _salariesTable = [];
+
+  String _employeesTableName = 'employees';
+  String _departmentsTableName = 'departments';
+  String _projectsTableName = 'projects';
+  String _salariesTableName = 'salaries';
 
   @override
   void initState() {
@@ -71,9 +76,9 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
         errorMessage = null;
       });
 
-      final response = await ApiService.getGameConfigWithDifficulty('C++', 'Hard', 3);
+      final response = await ApiService.getGameConfigWithDifficulty('SQL', 'Hard', 2);
 
-      print('🔍 HARD LEVEL 3 GAME CONFIG RESPONSE:');
+      print('🔍 SQL HARD LEVEL 2 GAME CONFIG RESPONSE:');
       print('   Success: ${response['success']}');
       print('   Message: ${response['message']}');
 
@@ -84,11 +89,11 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
         });
       } else {
         setState(() {
-          errorMessage = response['message'] ?? 'Failed to load game configuration from database';
+          errorMessage = response['message'] ?? 'Failed to load SQL Hard Level 2 game configuration from database';
         });
       }
     } catch (e) {
-      print('❌ Error loading game config: $e');
+      print('❌ Error loading SQL Hard Level 2 game config: $e');
       setState(() {
         errorMessage = 'Connection error: $e';
       });
@@ -103,11 +108,11 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
     if (gameConfig == null) return;
 
     try {
-      print('🔄 INITIALIZING HARD LEVEL 3 FROM CONFIG');
+      print('🔄 INITIALIZING SQL HARD LEVEL 2 GAME FROM CONFIG');
 
       // Load timer duration from database
       if (gameConfig!['timer_duration'] != null) {
-        int timerDuration = int.tryParse(gameConfig!['timer_duration'].toString()) ?? 360;
+        int timerDuration = int.tryParse(gameConfig!['timer_duration'].toString()) ?? 300;
         setState(() {
           remainingSeconds = timerDuration;
         });
@@ -144,13 +149,13 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
               _codeStructure = List<String>.from(codeStructureJson);
             });
           } catch (e) {
-            print('❌ Error parsing code structure: $e');
+            print('❌ Error parsing SQL Hard Level 2 code structure: $e');
             setState(() {
               _codeStructure = _getDefaultCodeStructure();
             });
           }
         }
-        print('📝 Code structure loaded: $_codeStructure');
+        print('📝 SQL Hard Level 2 code structure loaded: $_codeStructure');
       } else {
         setState(() {
           _codeStructure = _getDefaultCodeStructure();
@@ -165,25 +170,28 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
         print('🎯 Expected output loaded: $_expectedOutput');
       }
 
+      // Load table data from database
+      _initializeTableData();
+
       // Load hint from database
       if (gameConfig!['hint_text'] != null) {
         setState(() {
           _currentHint = gameConfig!['hint_text'].toString();
         });
-        print('💡 Hint loaded from database: $_currentHint');
+        print('💡 SQL Hard Level 2 hint loaded from database: $_currentHint');
       } else {
         setState(() {
           _currentHint = _getDefaultHint();
         });
-        print('💡 Using default hint');
+        print('💡 Using default SQL Hard Level 2 hint');
       }
 
       // Parse blocks with better error handling
       List<String> correctBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
       List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
 
-      print('✅ Correct Blocks: $correctBlocks');
-      print('✅ Incorrect Blocks: $incorrectBlocks');
+      print('✅ SQL Hard Level 2 Correct Blocks from DB: $correctBlocks');
+      print('✅ SQL Hard Level 2 Incorrect Blocks from DB: $incorrectBlocks');
 
       // Combine and shuffle blocks
       allBlocks = [
@@ -191,41 +199,195 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
         ...incorrectBlocks,
       ]..shuffle();
 
-      print('🎮 All Blocks Final: $allBlocks');
+      print('🎮 SQL Hard Level 2 All Blocks Final: $allBlocks');
+
+      // DEBUG: Print the expected correct answer from database
+      if (gameConfig!['correct_answer'] != null) {
+        print('🎯 SQL Hard Level 2 Expected Correct Answer from DB: ${gameConfig!['correct_answer']}');
+      }
 
     } catch (e) {
-      print('❌ Error parsing game config: $e');
+      print('❌ Error parsing SQL Hard Level 2 game config: $e');
       _initializeDefaultBlocks();
+    }
+  }
+
+  void _initializeTableData() {
+    // Load employees table data
+    if (gameConfig!['employees_table_data'] != null) {
+      try {
+        String tableDataStr = gameConfig!['employees_table_data'].toString();
+        List<dynamic> tableDataJson = json.decode(tableDataStr);
+        setState(() {
+          _employeesTable = List<Map<String, dynamic>>.from(tableDataJson);
+        });
+        print('📊 Employees table data loaded: ${_employeesTable.length} rows');
+      } catch (e) {
+        print('❌ Error parsing employees table data: $e');
+        setState(() {
+          _employeesTable = _getDefaultEmployeesTable();
+        });
+      }
+    } else {
+      setState(() {
+        _employeesTable = _getDefaultEmployeesTable();
+      });
+    }
+
+    // Load departments table data
+    if (gameConfig!['departments_table_data'] != null) {
+      try {
+        String tableDataStr = gameConfig!['departments_table_data'].toString();
+        List<dynamic> tableDataJson = json.decode(tableDataStr);
+        setState(() {
+          _departmentsTable = List<Map<String, dynamic>>.from(tableDataJson);
+        });
+        print('📊 Departments table data loaded: ${_departmentsTable.length} rows');
+      } catch (e) {
+        print('❌ Error parsing departments table data: $e');
+        setState(() {
+          _departmentsTable = _getDefaultDepartmentsTable();
+        });
+      }
+    } else {
+      setState(() {
+        _departmentsTable = _getDefaultDepartmentsTable();
+      });
+    }
+
+    // Load projects table data
+    if (gameConfig!['projects_table_data'] != null) {
+      try {
+        String tableDataStr = gameConfig!['projects_table_data'].toString();
+        List<dynamic> tableDataJson = json.decode(tableDataStr);
+        setState(() {
+          _projectsTable = List<Map<String, dynamic>>.from(tableDataJson);
+        });
+        print('📊 Projects table data loaded: ${_projectsTable.length} rows');
+      } catch (e) {
+        print('❌ Error parsing projects table data: $e');
+        setState(() {
+          _projectsTable = _getDefaultProjectsTable();
+        });
+      }
+    } else {
+      setState(() {
+        _projectsTable = _getDefaultProjectsTable();
+      });
+    }
+
+    // Load salaries table data
+    if (gameConfig!['salaries_table_data'] != null) {
+      try {
+        String tableDataStr = gameConfig!['salaries_table_data'].toString();
+        List<dynamic> tableDataJson = json.decode(tableDataStr);
+        setState(() {
+          _salariesTable = List<Map<String, dynamic>>.from(tableDataJson);
+        });
+        print('📊 Salaries table data loaded: ${_salariesTable.length} rows');
+      } catch (e) {
+        print('❌ Error parsing salaries table data: $e');
+        setState(() {
+          _salariesTable = _getDefaultSalariesTable();
+        });
+      }
+    } else {
+      setState(() {
+        _salariesTable = _getDefaultSalariesTable();
+      });
+    }
+
+    // Load table names
+    if (gameConfig!['employees_table_name'] != null) {
+      setState(() {
+        _employeesTableName = gameConfig!['employees_table_name'].toString();
+      });
+    }
+    if (gameConfig!['departments_table_name'] != null) {
+      setState(() {
+        _departmentsTableName = gameConfig!['departments_table_name'].toString();
+      });
+    }
+    if (gameConfig!['projects_table_name'] != null) {
+      setState(() {
+        _projectsTableName = gameConfig!['projects_table_name'].toString();
+      });
+    }
+    if (gameConfig!['salaries_table_name'] != null) {
+      setState(() {
+        _salariesTableName = gameConfig!['salaries_table_name'].toString();
+      });
     }
   }
 
   List<String> _getDefaultCodeStructure() {
     return [
-      "#include <iostream>",
-      "#include <algorithm>",
-      "using namespace std;",
+      "-- Expert SQL Query: Employee Performance Analysis",
+      "-- Complete the query below to get department-wise performance metrics",
       "",
-      "class AVLNode {",
-      "public:",
-      "    int key;",
-      "    AVLNode *left;",
-      "    AVLNode *right;",
-      "    int height;",
-      "    AVLNode(int k) : key(k), left(nullptr), right(nullptr), height(1) {}",
-      "};",
-      "",
-      "class AVLTree {",
-      "private:",
-      "    AVLNode* root;",
-      "    // Your code here",
-      "public:",
-      "    AVLTree() : root(nullptr) {}",
-      "    // Your code here",
-      "};",
-      "",
-      "int main() {",
-      "    return 0;",
-      "}"
+      "WITH DepartmentStats AS (",
+      "  SELECT d.department_name,",
+      "         COUNT(DISTINCT e.employee_id) as total_employees,",
+      "         AVG(s.salary_amount) as avg_salary,",
+      "         COUNT(p.project_id) as total_projects",
+      "  FROM employees e",
+      "  JOIN departments d ON e.department_id = d.department_id",
+      "  LEFT JOIN salaries s ON e.employee_id = s.employee_id",
+      "  LEFT JOIN projects p ON e.department_id = p.department_id",
+      "  GROUP BY d.department_name",
+      ")",
+      "SELECT department_name,",
+      "       total_employees,",
+      "       ROUND(avg_salary, 2) as avg_salary,",
+      "       total_projects,",
+      "       RANK() OVER (ORDER BY avg_salary DESC) as salary_rank",
+      "FROM DepartmentStats",
+      "WHERE total_projects > 0",
+      "ORDER BY salary_rank;"
+    ];
+  }
+
+  List<Map<String, dynamic>> _getDefaultEmployeesTable() {
+    return [
+      {'employee_id': 1, 'name': 'Juan Dela Cruz', 'department_id': 1, 'position': 'Manager'},
+      {'employee_id': 2, 'name': 'Maria Santos', 'department_id': 2, 'position': 'HR Specialist'},
+      {'employee_id': 3, 'name': 'Pedro Reyes', 'department_id': 1, 'position': 'Sales Executive'},
+      {'employee_id': 4, 'name': 'Ana Lopez', 'department_id': 3, 'position': 'Developer'},
+      {'employee_id': 5, 'name': 'Luis Garcia', 'department_id': 1, 'position': 'Sales Associate'},
+      {'employee_id': 6, 'name': 'Sofia Martinez', 'department_id': 2, 'position': 'Recruiter'},
+      {'employee_id': 7, 'name': 'Carlos Lim', 'department_id': 3, 'position': 'Senior Developer'},
+      {'employee_id': 8, 'name': 'Elena Torres', 'department_id': 3, 'position': 'Project Manager'},
+    ];
+  }
+
+  List<Map<String, dynamic>> _getDefaultDepartmentsTable() {
+    return [
+      {'department_id': 1, 'department_name': 'Sales'},
+      {'department_id': 2, 'department_name': 'HR'},
+      {'department_id': 3, 'department_name': 'IT'},
+    ];
+  }
+
+  List<Map<String, dynamic>> _getDefaultProjectsTable() {
+    return [
+      {'project_id': 1, 'project_name': 'Website Redesign', 'department_id': 3, 'budget': 500000},
+      {'project_id': 2, 'project_name': 'Mobile App', 'department_id': 3, 'budget': 750000},
+      {'project_id': 3, 'project_name': 'Sales Training', 'department_id': 1, 'budget': 150000},
+      {'project_id': 4, 'project_name': 'Recruitment Drive', 'department_id': 2, 'budget': 200000},
+      {'project_id': 5, 'project_name': 'System Upgrade', 'department_id': 3, 'budget': 300000},
+    ];
+  }
+
+  List<Map<String, dynamic>> _getDefaultSalariesTable() {
+    return [
+      {'salary_id': 1, 'employee_id': 1, 'salary_amount': 80000},
+      {'salary_id': 2, 'employee_id': 2, 'salary_amount': 45000},
+      {'salary_id': 3, 'employee_id': 3, 'salary_amount': 55000},
+      {'salary_id': 4, 'employee_id': 4, 'salary_amount': 60000},
+      {'salary_id': 5, 'employee_id': 5, 'salary_amount': 40000},
+      {'salary_id': 6, 'employee_id': 6, 'salary_amount': 42000},
+      {'salary_id': 7, 'employee_id': 7, 'salary_amount': 75000},
+      {'salary_id': 8, 'employee_id': 8, 'salary_amount': 85000},
     ];
   }
 
@@ -233,188 +395,174 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
     List<String> blocks = [];
 
     if (blocksData == null) {
+      print('⚠️ SQL Hard Level 2 $type blocks are NULL in database');
       return _getDefaultBlocks(type);
     }
 
     try {
       if (blocksData is List) {
         blocks = List<String>.from(blocksData);
+        print('✅ SQL Hard Level 2 $type blocks parsed as List: $blocks');
       } else if (blocksData is String) {
         String blocksStr = blocksData.trim();
+        print('🔍 Raw SQL Hard Level 2 $type blocks string: $blocksStr');
 
         if (blocksStr.startsWith('[') && blocksStr.endsWith(']')) {
           // Parse as JSON array
-          List<dynamic> blocksJson = json.decode(blocksStr);
-          blocks = List<String>.from(blocksJson);
+          try {
+            List<dynamic> blocksJson = json.decode(blocksStr);
+            blocks = List<String>.from(blocksJson);
+            print('✅ SQL Hard Level 2 $type blocks parsed as JSON: $blocks');
+          } catch (e) {
+            print('❌ JSON parsing failed for SQL Hard Level 2 $type blocks: $e');
+            blocks = _parseCommaSeparated(blocksStr);
+          }
         } else {
           // Parse as comma-separated string
-          blocks = blocksStr.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+          blocks = _parseCommaSeparated(blocksStr);
         }
       }
     } catch (e) {
-      print('❌ Error parsing $type blocks: $e');
+      print('❌ Error parsing SQL Hard Level 2 $type blocks: $e');
       blocks = _getDefaultBlocks(type);
     }
 
+    // Remove any empty strings
+    blocks = blocks.where((block) => block.trim().isNotEmpty).toList();
+
+    print('🎯 Final SQL Hard Level 2 $type blocks: $blocks');
     return blocks;
+  }
+
+  List<String> _parseCommaSeparated(String input) {
+    try {
+      String cleaned = input.replaceAll('[', '').replaceAll(']', '').trim();
+      List<String> items = [];
+      StringBuffer current = StringBuffer();
+      bool inQuotes = false;
+
+      for (int i = 0; i < cleaned.length; i++) {
+        String char = cleaned[i];
+
+        if (char == '"') {
+          inQuotes = !inQuotes;
+          current.write(char);
+        } else if (char == ',' && !inQuotes) {
+          String item = current.toString().trim();
+          if (item.isNotEmpty) {
+            if (item.startsWith('"') && item.endsWith('"')) {
+              item = item.substring(1, item.length - 1);
+            }
+            items.add(item);
+          }
+          current.clear();
+        } else {
+          current.write(char);
+        }
+      }
+
+      String lastItem = current.toString().trim();
+      if (lastItem.isNotEmpty) {
+        if (lastItem.startsWith('"') && lastItem.endsWith('"')) {
+          lastItem = lastItem.substring(1, lastItem.length - 1);
+        }
+        items.add(lastItem);
+      }
+
+      print('✅ SQL Hard Level 2 Comma-separated parsing result: $items');
+      return items;
+    } catch (e) {
+      print('❌ SQL Hard Level 2 Comma-separated parsing failed: $e');
+      List<String> fallback = input.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+      print('🔄 Using simple split fallback: $fallback');
+      return fallback;
+    }
   }
 
   List<String> _getDefaultBlocks(String type) {
     if (type == 'correct') {
       return [
-        'int getHeight(AVLNode* node) { return node ? node->height : 0; }',
-        'int getBalance(AVLNode* node) { return node ? getHeight(node->left) - getHeight(node->right) : 0; }',
-        'AVLNode* rightRotate(AVLNode* y) {',
-        'AVLNode* x = y->left;',
-        'AVLNode* T2 = x->right;',
-        'x->right = y;',
-        'y->left = T2;',
-        'y->height = max(getHeight(y->left), getHeight(y->right)) + 1;',
-        'x->height = max(getHeight(x->left), getHeight(x->right)) + 1;',
-        'return x;',
-        '}',
-        'AVLNode* leftRotate(AVLNode* x) {',
-        'AVLNode* y = x->right;',
-        'AVLNode* T2 = y->left;',
-        'y->left = x;',
-        'x->right = T2;',
-        'x->height = max(getHeight(x->left), getHeight(x->right)) + 1;',
-        'y->height = max(getHeight(y->left), getHeight(y->right)) + 1;',
-        'return y;',
-        '}',
-        'AVLNode* insert(AVLNode* node, int key) {',
-        'if (!node) return new AVLNode(key);',
-        'if (key < node->key) node->left = insert(node->left, key);',
-        'else if (key > node->key) node->right = insert(node->right, key);',
-        'else return node;',
-        'node->height = 1 + max(getHeight(node->left), getHeight(node->right));',
-        'int balance = getBalance(node);',
-        'if (balance > 1 && key < node->left->key) return rightRotate(node);',
-        'if (balance < -1 && key > node->right->key) return leftRotate(node);',
-        'if (balance > 1 && key > node->left->key) {',
-        'node->left = leftRotate(node->left);',
-        'return rightRotate(node);',
-        '}',
-        'if (balance < -1 && key < node->right->key) {',
-        'node->right = rightRotate(node->right);',
-        'return leftRotate(node);',
-        '}',
-        'return node;',
-        '}',
-        'void insert(int key) { root = insert(root, key); }',
-        'void preOrder(AVLNode* node) {',
-        'if (!node) return;',
-        'cout << node->key << " ";',
-        'preOrder(node->left);',
-        'preOrder(node->right);',
-        '}',
-        'void display() { preOrder(root); cout << endl; }',
-        'AVLTree tree;',
-        'tree.insert(10);',
-        'tree.insert(20);',
-        'tree.insert(30);',
-        'tree.insert(40);',
-        'tree.insert(50);',
-        'tree.insert(25);',
-        'tree.display();'
+        'WITH DepartmentStats AS (',
+        'SELECT d.department_name,',
+        'COUNT(DISTINCT e.employee_id) as total_employees,',
+        'AVG(s.salary_amount) as avg_salary,',
+        'COUNT(p.project_id) as total_projects',
+        'FROM employees e',
+        'JOIN departments d ON e.department_id = d.department_id',
+        'LEFT JOIN salaries s ON e.employee_id = s.employee_id',
+        'LEFT JOIN projects p ON e.department_id = p.department_id',
+        'GROUP BY d.department_name',
+        ')',
+        'SELECT department_name,',
+        'total_employees,',
+        'ROUND(avg_salary, 2) as avg_salary,',
+        'total_projects,',
+        'RANK() OVER (ORDER BY avg_salary DESC) as salary_rank',
+        'FROM DepartmentStats',
+        'WHERE total_projects > 0',
+        'ORDER BY salary_rank;'
       ];
     } else {
       return [
-        'int height(AVLNode* n) { return 0; }',
-        'int balance(AVLNode* n) { return 1; }',
-        'AVLNode* rotateRight(AVLNode* n) { return n; }',
-        'AVLNode* rotateLeft(AVLNode* n) { return n; }',
-        'if (key == node->key) node->left = insert(node->left, key);',
-        'node->height = getHeight(node);',
-        'if (balance > 0) return node;',
-        'void printTree() { cout << "AVL"; }',
-        'for (int i = 0; i < 10; i++) tree.add(i);',
-        'tree.print();',
-        'AVLNode node(key);',
-        'return nullptr;',
-        'node->key = key;',
-        'while (node != null) { cout << node->key; }',
-        'node->left = rightRotate(node);'
+        'WITH EmployeeStats AS (',
+        'SELECT employee_name, department',
+        'FROM employees_table',
+        'INNER JOIN departments_table',
+        'SUM(salary_amount) as total_salary',
+        'MAX(salary_amount) as max_salary',
+        'MIN(salary_amount) as min_salary',
+        'COUNT(project_id) as project_count',
+        'WHERE e.department_id = d.id',
+        'GROUP BY employee_id',
+        'HAVING AVG(salary) > 50000',
+        'ORDER BY total_salary DESC',
+        'LIMIT 10',
+        'UNION ALL',
+        'SELECT * FROM projects'
       ];
     }
   }
 
   String _getDefaultHint() {
-    return "💡 Hint: AVL trees maintain balance factor (-1, 0, 1). Use rotations (left, right, left-right, right-left) to balance after insertion. Remember to update heights after each operation.";
+    return "💡 SQL Expert Hint: Use CTE (WITH clause) for complex queries, multiple JOINs for related tables, window functions (RANK()) for rankings, and aggregate functions with GROUP BY.";
   }
 
   void _initializeDefaultBlocks() {
     allBlocks = [
-      'int getHeight(AVLNode* node) { return node ? node->height : 0; }',
-      'int getBalance(AVLNode* node) { return node ? getHeight(node->left) - getHeight(node->right) : 0; }',
-      'AVLNode* rightRotate(AVLNode* y) {',
-      'AVLNode* x = y->left;',
-      'AVLNode* T2 = x->right;',
-      'x->right = y;',
-      'y->left = T2;',
-      'y->height = max(getHeight(y->left), getHeight(y->right)) + 1;',
-      'x->height = max(getHeight(x->left), getHeight(x->right)) + 1;',
-      'return x;',
-      '}',
-      'AVLNode* leftRotate(AVLNode* x) {',
-      'AVLNode* y = x->right;',
-      'AVLNode* T2 = y->left;',
-      'y->left = x;',
-      'x->right = T2;',
-      'x->height = max(getHeight(x->left), getHeight(x->right)) + 1;',
-      'y->height = max(getHeight(y->left), getHeight(y->right)) + 1;',
-      'return y;',
-      '}',
-      'AVLNode* insert(AVLNode* node, int key) {',
-      'if (!node) return new AVLNode(key);',
-      'if (key < node->key) node->left = insert(node->left, key);',
-      'else if (key > node->key) node->right = insert(node->right, key);',
-      'else return node;',
-      'node->height = 1 + max(getHeight(node->left), getHeight(node->right));',
-      'int balance = getBalance(node);',
-      'if (balance > 1 && key < node->left->key) return rightRotate(node);',
-      'if (balance < -1 && key > node->right->key) return leftRotate(node);',
-      'if (balance > 1 && key > node->left->key) {',
-      'node->left = leftRotate(node->left);',
-      'return rightRotate(node);',
-      '}',
-      'if (balance < -1 && key < node->right->key) {',
-      'node->right = rightRotate(node->right);',
-      'return leftRotate(node);',
-      '}',
-      'return node;',
-      '}',
-      'void insert(int key) { root = insert(root, key); }',
-      'void preOrder(AVLNode* node) {',
-      'if (!node) return;',
-      'cout << node->key << " ";',
-      'preOrder(node->left);',
-      'preOrder(node->right);',
-      '}',
-      'void display() { preOrder(root); cout << endl; }',
-      'AVLTree tree;',
-      'tree.insert(10);',
-      'tree.insert(20);',
-      'tree.insert(30);',
-      'tree.insert(40);',
-      'tree.insert(50);',
-      'tree.insert(25);',
-      'tree.display();',
-      'int height(AVLNode* n) { return 0; }',
-      'int balance(AVLNode* n) { return 1; }',
-      'AVLNode* rotateRight(AVLNode* n) { return n; }',
-      'AVLNode* rotateLeft(AVLNode* n) { return n; }',
-      'if (key == node->key) node->left = insert(node->left, key);',
-      'node->height = getHeight(node);',
-      'if (balance > 0) return node;',
-      'void printTree() { cout << "AVL"; }',
-      'for (int i = 0; i < 10; i++) tree.add(i);',
-      'tree.print();',
-      'AVLNode node(key);',
-      'return nullptr;',
-      'node->key = key;',
-      'while (node != null) { cout << node->key; }',
-      'node->left = rightRotate(node);'
+      'WITH DepartmentStats AS (',
+      'SELECT d.department_name,',
+      'COUNT(DISTINCT e.employee_id) as total_employees,',
+      'AVG(s.salary_amount) as avg_salary,',
+      'COUNT(p.project_id) as total_projects',
+      'FROM employees e',
+      'JOIN departments d ON e.department_id = d.department_id',
+      'LEFT JOIN salaries s ON e.employee_id = s.employee_id',
+      'LEFT JOIN projects p ON e.department_id = p.department_id',
+      'GROUP BY d.department_name',
+      ')',
+      'SELECT department_name,',
+      'total_employees,',
+      'ROUND(avg_salary, 2) as avg_salary,',
+      'total_projects,',
+      'RANK() OVER (ORDER BY avg_salary DESC) as salary_rank',
+      'FROM DepartmentStats',
+      'WHERE total_projects > 0',
+      'ORDER BY salary_rank;',
+      'WITH EmployeeStats AS (',
+      'SELECT employee_name, department',
+      'FROM employees_table',
+      'INNER JOIN departments_table',
+      'SUM(salary_amount) as total_salary',
+      'MAX(salary_amount) as max_salary',
+      'MIN(salary_amount) as min_salary',
+      'COUNT(project_id) as project_count',
+      'WHERE e.department_id = d.id',
+      'GROUP BY employee_id',
+      'HAVING AVG(salary) > 50000',
+      'ORDER BY total_salary DESC',
+      'LIMIT 10',
+      'UNION ALL',
+      'SELECT * FROM projects'
     ]..shuffle();
   }
 
@@ -484,7 +632,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('No hint cards available! Complete daily challenges to earn more.'),
-          backgroundColor: Colors.orange,
+          backgroundColor: Colors.red,
         ),
       );
     }
@@ -515,7 +663,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Game configuration not loaded. Please retry.'),
+          content: Text('SQL Hard Level 2 game configuration not loaded. Please retry.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -526,8 +674,8 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
     musicService.playSoundEffect('level_start.mp3');
 
     int timerDuration = gameConfig!['timer_duration'] != null
-        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 360
-        : 360;
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 300
+        : 300;
 
     setState(() {
       gameStarted = true;
@@ -540,7 +688,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
       resetBlocks();
     });
 
-    print('🎮 HARD LEVEL 3 GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
+    print('🎮 SQL HARD LEVEL 2 GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
     startTimers();
   }
 
@@ -584,7 +732,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 60), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 45), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -609,8 +757,8 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
     musicService.playSoundEffect('reset.mp3');
 
     int timerDuration = gameConfig!['timer_duration'] != null
-        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 360
-        : 360;
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 300
+        : 300;
 
     setState(() {
       score = 3;
@@ -628,27 +776,27 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
 
   Future<void> saveScoreToDatabase(int score) async {
     if (currentUser?['id'] == null) {
-      print('❌ Cannot save score: No user ID');
+      print('❌ Cannot save SQL Hard Level 2 score: No user ID');
       return;
     }
 
     try {
-      print('💾 SAVING HARD LEVEL 3 SCORE:');
+      print('💾 SAVING SQL HARD LEVEL 2 SCORE:');
       print('   User ID: ${currentUser!['id']}');
-      print('   Language: C++_Hard');
-      print('   Level: 3');
+      print('   Language: SQL_Hard');
+      print('   Level: 2');
       print('   Score: $score/3');
 
       final response = await ApiService.saveScoreWithDifficulty(
         currentUser!['id'],
-        'C++',
+        'SQL',
         'Hard',
-        3,
+        2,
         score,
         score == 3,
       );
 
-      print('📡 SERVER RESPONSE: $response');
+      print('📡 SQL HARD LEVEL 2 SERVER RESPONSE: $response');
 
       if (response['success'] == true) {
         setState(() {
@@ -657,12 +805,12 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
           hasPreviousScore = true;
         });
 
-        print('✅ HARD LEVEL 3 SCORE SAVED SUCCESSFULLY');
+        print('✅ SQL HARD LEVEL 2 SCORE SAVED SUCCESSFULLY');
       } else {
-        print('❌ FAILED TO SAVE SCORE: ${response['message']}');
+        print('❌ FAILED TO SAVE SQL HARD LEVEL 2 SCORE: ${response['message']}');
       }
     } catch (e) {
-      print('❌ ERROR SAVING HARD LEVEL 3 SCORE: $e');
+      print('❌ ERROR SAVING SQL HARD LEVEL 2 SCORE: $e');
     }
   }
 
@@ -670,22 +818,22 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScoresWithDifficulty(currentUser!['id'], 'C++', 'Hard');
+      final response = await ApiService.getScoresWithDifficulty(currentUser!['id'], 'SQL', 'Hard');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level3Data = scoresData['3'];
+        final level2Data = scoresData['2'];
 
-        if (level3Data != null) {
+        if (level2Data != null) {
           setState(() {
-            previousScore = level3Data['score'] ?? 0;
-            levelCompleted = level3Data['completed'] ?? false;
+            previousScore = level2Data['score'] ?? 0;
+            levelCompleted = level2Data['completed'] ?? false;
             hasPreviousScore = true;
           });
         }
       }
     } catch (e) {
-      print('Error loading hard level 3 score: $e');
+      print('Error loading SQL Hard Level 2 score: $e');
     }
   }
 
@@ -693,29 +841,33 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
     if (gameConfig != null) {
       try {
         List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
-        return incorrectBlocks.contains(block);
+        bool isIncorrect = incorrectBlocks.contains(block);
+        if (isIncorrect) {
+          print('❌ SQL Hard Level 2 Block "$block" is in incorrect blocks list');
+        }
+        return isIncorrect;
       } catch (e) {
-        print('Error checking incorrect block: $e');
+        print('Error checking SQL Hard Level 2 incorrect block: $e');
       }
     }
 
-    // Default incorrect blocks
+    // Default incorrect blocks for SQL Hard Level 2
     List<String> incorrectBlocks = [
-      'int height(AVLNode* n) { return 0; }',
-      'int balance(AVLNode* n) { return 1; }',
-      'AVLNode* rotateRight(AVLNode* n) { return n; }',
-      'AVLNode* rotateLeft(AVLNode* n) { return n; }',
-      'if (key == node->key) node->left = insert(node->left, key);',
-      'node->height = getHeight(node);',
-      'if (balance > 0) return node;',
-      'void printTree() { cout << "AVL"; }',
-      'for (int i = 0; i < 10; i++) tree.add(i);',
-      'tree.print();',
-      'AVLNode node(key);',
-      'return nullptr;',
-      'node->key = key;',
-      'while (node != null) { cout << node->key; }',
-      'node->left = rightRotate(node);'
+      'WITH EmployeeStats AS (',
+      'SELECT employee_name, department',
+      'FROM employees_table',
+      'INNER JOIN departments_table',
+      'SUM(salary_amount) as total_salary',
+      'MAX(salary_amount) as max_salary',
+      'MIN(salary_amount) as min_salary',
+      'COUNT(project_id) as project_count',
+      'WHERE e.department_id = d.id',
+      'GROUP BY employee_id',
+      'HAVING AVG(salary) > 50000',
+      'ORDER BY total_salary DESC',
+      'LIMIT 10',
+      'UNION ALL',
+      'SELECT * FROM projects'
     ];
     return incorrectBlocks.contains(block);
   }
@@ -726,14 +878,14 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
     final musicService = Provider.of<MusicService>(context, listen: false);
 
     // DEBUG: Print what we're checking
-    print('🔍 CHECKING HARD LEVEL 3 ANSWER:');
+    print('🔍 CHECKING SQL HARD LEVEL 2 ANSWER:');
     print('   Dropped blocks: $droppedBlocks');
 
     // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
-      print('❌ HAS INCORRECT BLOCK');
+      print('❌ SQL HARD LEVEL 2 HAS INCORRECT BLOCK');
       musicService.playSoundEffect('error.mp3');
 
       if (score > 1) {
@@ -742,7 +894,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ You used incorrect code! -1 point. Current score: $score"),
+            content: Text("❌ You used incorrect SQL syntax! -1 point. Current score: $score"),
             backgroundColor: Colors.red,
           ),
         );
@@ -760,7 +912,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
           context: context,
           builder: (_) => AlertDialog(
             title: Text("💀 Game Over"),
-            content: Text("You used incorrect code and lost all points!"),
+            content: Text("You used incorrect SQL syntax and lost all points!"),
             actions: [
               TextButton(
                 onPressed: () {
@@ -777,67 +929,65 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
       return;
     }
 
-    // IMPROVED ANSWER CHECKING
+    // EXPERT SQL ANSWER CHECKING LOGIC
     bool isCorrect = false;
 
     if (gameConfig != null) {
       // Get expected correct blocks from database
       List<String> expectedCorrectBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
 
-      print('🎯 EXPECTED CORRECT BLOCKS: $expectedCorrectBlocks');
-      print('🎯 USER DROPPED BLOCKS: $droppedBlocks');
+      print('🎯 SQL HARD LEVEL 2 EXPECTED CORRECT BLOCKS: $expectedCorrectBlocks');
+      print('🎯 SQL HARD LEVEL 2 USER DROPPED BLOCKS: $droppedBlocks');
 
       // METHOD 1: Check if user has all correct blocks and no extra correct blocks
       bool hasAllCorrectBlocks = expectedCorrectBlocks.every((block) => droppedBlocks.contains(block));
       bool noExtraCorrectBlocks = droppedBlocks.every((block) => expectedCorrectBlocks.contains(block));
 
-      // METHOD 2: Check string comparison (normalized)
+      // METHOD 2: Check string comparison (normalized for SQL)
       String userAnswer = droppedBlocks.join(' ');
-      String normalizedUserAnswer = userAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+      String normalizedUserAnswer = userAnswer
+          .replaceAll(' ', '')
+          .replaceAll('\n', '')
+          .replaceAll('"', "'")
+          .toLowerCase();
 
       if (gameConfig!['correct_answer'] != null) {
         String expectedAnswer = gameConfig!['correct_answer'].toString();
-        String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+        String normalizedExpected = expectedAnswer
+            .replaceAll(' ', '')
+            .replaceAll('\n', '')
+            .replaceAll('"', "'")
+            .toLowerCase();
 
-        print('📝 USER ANSWER: $userAnswer');
-        print('📝 NORMALIZED USER: $normalizedUserAnswer');
-        print('🎯 EXPECTED ANSWER: $expectedAnswer');
-        print('🎯 NORMALIZED EXPECTED: $normalizedExpected');
+        print('📝 SQL HARD LEVEL 2 USER ANSWER: $userAnswer');
+        print('📝 SQL HARD LEVEL 2 NORMALIZED USER: $normalizedUserAnswer');
+        print('🎯 SQL HARD LEVEL 2 EXPECTED ANSWER: $expectedAnswer');
+        print('🎯 SQL HARD LEVEL 2 NORMALIZED EXPECTED: $normalizedExpected');
 
         bool stringMatch = normalizedUserAnswer == normalizedExpected;
 
         // Use both methods for verification
         isCorrect = (hasAllCorrectBlocks && noExtraCorrectBlocks) || stringMatch;
 
-        print('✅ BLOCK CHECK: hasAllCorrectBlocks=$hasAllCorrectBlocks, noExtraCorrectBlocks=$noExtraCorrectBlocks');
-        print('✅ STRING CHECK: stringMatch=$stringMatch');
-        print('✅ FINAL RESULT: $isCorrect');
+        print('✅ SQL HARD LEVEL 2 BLOCK CHECK: hasAllCorrectBlocks=$hasAllCorrectBlocks, noExtraCorrectBlocks=$noExtraCorrectBlocks');
+        print('✅ SQL HARD LEVEL 2 STRING CHECK: stringMatch=$stringMatch');
+        print('✅ SQL HARD LEVEL 2 FINAL RESULT: $isCorrect');
       } else {
         // Fallback: only use block comparison
         isCorrect = hasAllCorrectBlocks && noExtraCorrectBlocks;
         print('⚠️ No correct_answer in DB, using block comparison only: $isCorrect');
       }
     } else {
-      // Fallback check for essential components in Hard Level 3
-      bool hasHeightFunction = droppedBlocks.any((block) => block.contains('getHeight'));
-      bool hasBalanceFunction = droppedBlocks.any((block) => block.contains('getBalance'));
-      bool hasRightRotate = droppedBlocks.any((block) => block.contains('rightRotate'));
-      bool hasLeftRotate = droppedBlocks.any((block) => block.contains('leftRotate'));
-      bool hasInsertFunction = droppedBlocks.any((block) => block.contains('AVLNode* insert'));
-      bool hasBalanceCases = droppedBlocks.any((block) => block.contains('balance > 1') || block.contains('balance < -1'));
-      bool hasAVLUsage = droppedBlocks.any((block) => block.contains('tree.insert'));
+      // Fallback check for expert SQL requirements
+      print('⚠️ No SQL Hard Level 2 game config, using fallback check');
+      bool hasCTE = droppedBlocks.any((block) => block.toLowerCase().contains('with'));
+      bool hasMultipleJoins = droppedBlocks.where((block) => block.toLowerCase().contains('join')).length >= 2;
+      bool hasWindowFunction = droppedBlocks.any((block) => block.toLowerCase().contains('rank()'));
+      bool hasAggregate = droppedBlocks.any((block) => block.toLowerCase().contains('count(') || block.toLowerCase().contains('avg('));
+      bool hasGroupBy = droppedBlocks.any((block) => block.toLowerCase().contains('group by'));
 
-      isCorrect = hasHeightFunction && hasBalanceFunction && hasRightRotate &&
-          hasLeftRotate && hasInsertFunction && hasBalanceCases && hasAVLUsage;
-
-      print('✅ FALLBACK CHECK: $isCorrect');
-      print('   hasHeightFunction: $hasHeightFunction');
-      print('   hasBalanceFunction: $hasBalanceFunction');
-      print('   hasRightRotate: $hasRightRotate');
-      print('   hasLeftRotate: $hasLeftRotate');
-      print('   hasInsertFunction: $hasInsertFunction');
-      print('   hasBalanceCases: $hasBalanceCases');
-      print('   hasAVLUsage: $hasAVLUsage');
+      isCorrect = hasCTE && hasMultipleJoins && hasWindowFunction && hasAggregate && hasGroupBy;
+      print('✅ SQL HARD LEVEL 2 FALLBACK CHECK: $isCorrect');
     }
 
     if (isCorrect) {
@@ -859,43 +1009,31 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text("✅ Correct!"),
+          title: Text("✅ Correct Expert SQL Query!"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Outstanding work C++ Master!"),
+              Text("Outstanding work SQL Master!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🏆 PERFECT! You've mastered C++ Hard Mode!",
-                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                  "🎉 Perfect! You've mastered SQL Level 2 Hard!",
+                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) to complete Hard Mode!",
+                  "⚠️ Get a perfect score (3/3) to complete this expert challenge!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
-              Text("Code Output:", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text("Query Result:", style: TextStyle(fontWeight: FontWeight.bold)),
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
-                child: Text(
-                  _expectedOutput.isNotEmpty ? _expectedOutput : '30 20 10 25 40 50',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'monospace',
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-              SizedBox(height: 10),
-              Text(
-                "🎯 Balanced AVL Tree after rotations",
-                style: TextStyle(fontStyle: FontStyle.italic, color: Colors.green),
+                child: _buildQueryResultPreview(),
               ),
             ],
           ),
@@ -907,12 +1045,13 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
                 if (score == 3) {
                   musicService.playSoundEffect('level_complete.mp3');
                   Navigator.pushReplacementNamed(context, '/levels', arguments: {
-                    'language': 'C++',
-                    'difficulty': 'Hard'
+                    'language': 'SQL',
+                    'difficulty': 'Hard',
+                    'completed': true
                   });
                 } else {
                   Navigator.pushReplacementNamed(context, '/levels', arguments: {
-                    'language': 'C++',
+                    'language': 'SQL',
                     'difficulty': 'Hard'
                   });
                 }
@@ -923,7 +1062,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
         ),
       );
     } else {
-      print('❌ ANSWER INCORRECT');
+      print('❌ SQL HARD LEVEL 2 ANSWER INCORRECT');
       musicService.playSoundEffect('wrong.mp3');
 
       if (score > 1) {
@@ -932,7 +1071,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ Incorrect arrangement. -1 point. Current score: $score"),
+            content: Text("❌ Incorrect SQL arrangement. -1 point. Current score: $score"),
           ),
         );
       } else {
@@ -966,6 +1105,81 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
     }
   }
 
+  Widget _buildQueryResultPreview() {
+    // Simulate the complex CTE query result
+    Map<String, dynamic> departmentStats = {};
+
+    for (var department in _departmentsTable) {
+      String deptId = department['department_id'].toString();
+      String deptName = department['department_name'].toString();
+
+      // Count employees in department
+      int employeeCount = _employeesTable.where((emp) => emp['department_id'].toString() == deptId).length;
+
+      // Calculate average salary
+      double totalSalary = 0;
+      int salaryCount = 0;
+      for (var emp in _employeesTable.where((emp) => emp['department_id'].toString() == deptId)) {
+        var salary = _salariesTable.firstWhere((s) => s['employee_id'] == emp['employee_id'], orElse: () => {'salary_amount': 0});
+        totalSalary += (salary['salary_amount'] as int).toDouble();
+        salaryCount++;
+      }
+      double avgSalary = salaryCount > 0 ? totalSalary / salaryCount : 0;
+
+      // Count projects in department
+      int projectCount = _projectsTable.where((proj) => proj['department_id'].toString() == deptId).length;
+
+      departmentStats[deptName] = {
+        'total_employees': employeeCount,
+        'avg_salary': avgSalary,
+        'total_projects': projectCount,
+      };
+    }
+
+    // Calculate rankings
+    List<Map<String, dynamic>> rankedResults = [];
+    departmentStats.forEach((deptName, stats) {
+      if (stats['total_projects'] > 0) {
+        rankedResults.add({
+          'department_name': deptName,
+          'total_employees': stats['total_employees'],
+          'avg_salary': stats['avg_salary'],
+          'total_projects': stats['total_projects'],
+        });
+      }
+    });
+
+    // Sort by average salary for ranking
+    rankedResults.sort((a, b) => b['avg_salary'].compareTo(a['avg_salary']));
+
+    // Add rank
+    for (int i = 0; i < rankedResults.length; i++) {
+      rankedResults[i]['salary_rank'] = i + 1;
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columns: [
+          DataColumn(label: Text('Department', style: TextStyle(color: Colors.white))),
+          DataColumn(label: Text('Employees', style: TextStyle(color: Colors.white))),
+          DataColumn(label: Text('Avg Salary', style: TextStyle(color: Colors.white))),
+          DataColumn(label: Text('Projects', style: TextStyle(color: Colors.white))),
+          DataColumn(label: Text('Rank', style: TextStyle(color: Colors.white))),
+        ],
+        rows: rankedResults.map((row) {
+          return DataRow(cells: [
+            DataCell(Text(row['department_name'].toString(), style: TextStyle(color: Colors.white))),
+            DataCell(Text(row['total_employees'].toString(), style: TextStyle(color: Colors.white))),
+            DataCell(Text('₱${row['avg_salary'].toStringAsFixed(2)}', style: TextStyle(color: Colors.greenAccent))),
+            DataCell(Text(row['total_projects'].toString(), style: TextStyle(color: Colors.white))),
+            DataCell(Text(row['salary_rank'].toString(), style: TextStyle(color: Colors.yellowAccent, fontWeight: FontWeight.bold))),
+          ]);
+        }).toList(),
+      ),
+    );
+  }
+
   String formatTime(int seconds) {
     final m = (seconds ~/ 60).toString().padLeft(2, '0');
     final s = (seconds % 60).toString().padLeft(2, '0');
@@ -982,9 +1196,9 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
       child: Container(
         padding: EdgeInsets.all(16 * _scaleFactor),
         decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.95),
+          color: Colors.red.withOpacity(0.95),
           borderRadius: BorderRadius.circular(12 * _scaleFactor),
-          border: Border.all(color: Colors.orangeAccent, width: 2 * _scaleFactor),
+          border: Border.all(color: Colors.redAccent, width: 2 * _scaleFactor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.3),
@@ -1000,7 +1214,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
                 Icon(Icons.lightbulb, color: Colors.white, size: 20 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  '💡 Hint Activated!',
+                  '💡 SQL Master Hint Activated!',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16 * _scaleFactor,
@@ -1043,7 +1257,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
         child: Container(
           padding: EdgeInsets.all(12 * _scaleFactor),
           decoration: BoxDecoration(
-            color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
+            color: _availableHintCards > 0 ? Colors.red : Colors.grey,
             borderRadius: BorderRadius.circular(20 * _scaleFactor),
             boxShadow: [
               BoxShadow(
@@ -1053,7 +1267,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
               )
             ],
             border: Border.all(
-              color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
+              color: _availableHintCards > 0 ? Colors.redAccent : Colors.grey,
               width: 2 * _scaleFactor,
             ),
           ),
@@ -1077,6 +1291,270 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
     );
   }
 
+  // Database Tables Preview Widget
+  Widget getDatabasePreview() {
+    return Column(
+      children: [
+        // Employees Table
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(8 * _scaleFactor),
+            border: Border.all(color: Colors.grey[700]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
+                decoration: BoxDecoration(
+                  color: Color(0xFF2D2D2D),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(8 * _scaleFactor),
+                    topRight: Radius.circular(8 * _scaleFactor),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.storage, color: Colors.grey[400], size: 16 * _scaleFactor),
+                    SizedBox(width: 8 * _scaleFactor),
+                    Text(
+                      'Table: $_employeesTableName',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 12 * _scaleFactor,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.all(12 * _scaleFactor),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columnSpacing: 20 * _scaleFactor,
+                    dataRowHeight: 32 * _scaleFactor,
+                    headingRowHeight: 40 * _scaleFactor,
+                    columns: [
+                      DataColumn(label: Text('employee_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('name', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('department_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('position', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                    ],
+                    rows: _employeesTable.map((row) {
+                      return DataRow(cells: [
+                        DataCell(Text(row['employee_id'].toString(), style: TextStyle(color: Colors.white))),
+                        DataCell(Text(row['name'].toString(), style: TextStyle(color: Colors.white))),
+                        DataCell(Text(row['department_id'].toString(), style: TextStyle(color: Colors.white))),
+                        DataCell(Text(row['position'].toString(), style: TextStyle(color: Colors.white))),
+                      ]);
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        SizedBox(height: 16 * _scaleFactor),
+
+        // Departments Table
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(8 * _scaleFactor),
+            border: Border.all(color: Colors.grey[700]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
+                decoration: BoxDecoration(
+                  color: Color(0xFF2D2D2D),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(8 * _scaleFactor),
+                    topRight: Radius.circular(8 * _scaleFactor),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.storage, color: Colors.grey[400], size: 16 * _scaleFactor),
+                    SizedBox(width: 8 * _scaleFactor),
+                    Text(
+                      'Table: $_departmentsTableName',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 12 * _scaleFactor,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.all(12 * _scaleFactor),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columnSpacing: 20 * _scaleFactor,
+                    dataRowHeight: 32 * _scaleFactor,
+                    headingRowHeight: 40 * _scaleFactor,
+                    columns: [
+                      DataColumn(label: Text('department_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('department_name', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                    ],
+                    rows: _departmentsTable.map((row) {
+                      return DataRow(cells: [
+                        DataCell(Text(row['department_id'].toString(), style: TextStyle(color: Colors.white))),
+                        DataCell(Text(row['department_name'].toString(), style: TextStyle(color: Colors.white))),
+                      ]);
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        SizedBox(height: 16 * _scaleFactor),
+
+        // Projects Table
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(8 * _scaleFactor),
+            border: Border.all(color: Colors.grey[700]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
+                decoration: BoxDecoration(
+                  color: Color(0xFF2D2D2D),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(8 * _scaleFactor),
+                    topRight: Radius.circular(8 * _scaleFactor),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.storage, color: Colors.grey[400], size: 16 * _scaleFactor),
+                    SizedBox(width: 8 * _scaleFactor),
+                    Text(
+                      'Table: $_projectsTableName',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 12 * _scaleFactor,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.all(12 * _scaleFactor),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columnSpacing: 20 * _scaleFactor,
+                    dataRowHeight: 32 * _scaleFactor,
+                    headingRowHeight: 40 * _scaleFactor,
+                    columns: [
+                      DataColumn(label: Text('project_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('project_name', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('department_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('budget', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                    ],
+                    rows: _projectsTable.map((row) {
+                      return DataRow(cells: [
+                        DataCell(Text(row['project_id'].toString(), style: TextStyle(color: Colors.white))),
+                        DataCell(Text(row['project_name'].toString(), style: TextStyle(color: Colors.white))),
+                        DataCell(Text(row['department_id'].toString(), style: TextStyle(color: Colors.white))),
+                        DataCell(Text('₱${row['budget']}', style: TextStyle(color: Colors.greenAccent))),
+                      ]);
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        SizedBox(height: 16 * _scaleFactor),
+
+        // Salaries Table
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(8 * _scaleFactor),
+            border: Border.all(color: Colors.grey[700]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
+                decoration: BoxDecoration(
+                  color: Color(0xFF2D2D2D),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(8 * _scaleFactor),
+                    topRight: Radius.circular(8 * _scaleFactor),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.storage, color: Colors.grey[400], size: 16 * _scaleFactor),
+                    SizedBox(width: 8 * _scaleFactor),
+                    Text(
+                      'Table: $_salariesTableName',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 12 * _scaleFactor,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.all(12 * _scaleFactor),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columnSpacing: 20 * _scaleFactor,
+                    dataRowHeight: 32 * _scaleFactor,
+                    headingRowHeight: 40 * _scaleFactor,
+                    columns: [
+                      DataColumn(label: Text('salary_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('employee_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('salary_amount', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))),
+                    ],
+                    rows: _salariesTable.map((row) {
+                      return DataRow(cells: [
+                        DataCell(Text(row['salary_id'].toString(), style: TextStyle(color: Colors.white))),
+                        DataCell(Text(row['employee_id'].toString(), style: TextStyle(color: Colors.white))),
+                        DataCell(Text('₱${row['salary_amount']}', style: TextStyle(color: Colors.greenAccent))),
+                      ]);
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Organized SQL code preview
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -1102,7 +1580,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'main.cpp',
+                  'expert_query.sql',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -1116,7 +1594,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
             padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: _buildOrganizedCodePreview(),
+              children: _buildOrganizedSQLPreview(),
             ),
           ),
         ],
@@ -1124,31 +1602,31 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
     );
   }
 
-  List<Widget> _buildOrganizedCodePreview() {
+  List<Widget> _buildOrganizedSQLPreview() {
     List<Widget> codeLines = [];
 
     for (int i = 0; i < _codeStructure.length; i++) {
       String line = _codeStructure[i];
 
-      if (line.contains('// Your code here')) {
-        // Add user's dragged code in the correct position
-        codeLines.add(_buildUserCodeSection());
+      if (line.contains('-- Complete the query below')) {
+        // Add user's dragged SQL code in the correct position
+        codeLines.add(_buildUserSQLSection());
       } else if (line.trim().isEmpty) {
         codeLines.add(SizedBox(height: 16 * _scaleFactor));
       } else {
-        codeLines.add(_buildSyntaxHighlightedLine(line, i + 1));
+        codeLines.add(_buildSQLSyntaxHighlightedLine(line, i + 1));
       }
     }
 
     return codeLines;
   }
 
-  Widget _buildUserCodeSection() {
+  Widget _buildUserSQLSection() {
     if (droppedBlocks.isEmpty) {
       return Container(
         padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
         child: Text(
-          '    // Drag blocks here...',
+          '-- Drag SQL blocks here to build your expert query...',
           style: TextStyle(
             color: Colors.grey[600],
             fontSize: 12 * _scaleFactor,
@@ -1168,7 +1646,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
             Container(
               margin: EdgeInsets.only(bottom: 4 * _scaleFactor),
               child: Text(
-                '    $block',
+                block,
                 style: TextStyle(
                   color: Colors.greenAccent[400],
                   fontSize: 12 * _scaleFactor,
@@ -1182,23 +1660,35 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
     );
   }
 
-  Widget _buildSyntaxHighlightedLine(String code, int lineNumber) {
+  Widget _buildSQLSyntaxHighlightedLine(String code, int lineNumber) {
     Color textColor = Colors.white;
     String displayCode = code;
 
-    // Syntax highlighting rules
-    if (code.trim().startsWith('#include')) {
-      textColor = Color(0xFFCE9178); // Preprocessor - orange
-    } else if (code.contains('class AVLNode') || code.contains('class AVLTree') ||
-        code.contains('public:') || code.contains('private:') || code.contains('return') ||
-        code.contains('void') || code.contains('int') || code.contains('AVLNode*')) {
-      textColor = Color(0xFF569CD6); // Keywords and types - blue
-    } else if (code.trim().startsWith('//')) {
+    // SQL Syntax highlighting rules
+    if (code.trim().startsWith('--')) {
       textColor = Color(0xFF6A9955); // Comments - green
+    } else if (code.toUpperCase().contains('WITH') ||
+        code.toUpperCase().contains('SELECT') ||
+        code.toUpperCase().contains('FROM') ||
+        code.toUpperCase().contains('JOIN') ||
+        code.toUpperCase().contains('ON') ||
+        code.toUpperCase().contains('GROUP BY') ||
+        code.toUpperCase().contains('ORDER BY') ||
+        code.toUpperCase().contains('DESC') ||
+        code.toUpperCase().contains('AVG') ||
+        code.toUpperCase().contains('COUNT') ||
+        code.toUpperCase().contains('DISTINCT') ||
+        code.toUpperCase().contains('RANK') ||
+        code.toUpperCase().contains('OVER') ||
+        code.toUpperCase().contains('WHERE') ||
+        code.toUpperCase().contains('ROUND')) {
+      textColor = Color(0xFF569CD6); // SQL Keywords - blue
     } else if (code.contains('"') || code.contains("'")) {
       textColor = Color(0xFFCE9178); // Strings - orange
-    } else if (code.contains('{') || code.contains('}') || code.contains('(') || code.contains(')') || code.contains(';')) {
-      textColor = Colors.white; // Braces and parentheses - white
+    } else if (code.contains('.')) {
+      textColor = Color(0xFFDCDCAA); // Table aliases - yellow
+    } else if (code.contains('(') && code.contains(')')) {
+      textColor = Color(0xFFDCDCAA); // Functions - yellow
     }
 
     return Container(
@@ -1251,7 +1741,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
     if (isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: Text("⚡ C++ Hard - Level 3", style: TextStyle(fontSize: 18)),
+          title: Text("🔥 SQL Hard - Level 2", style: TextStyle(fontSize: 18)),
           backgroundColor: Colors.red,
         ),
         body: Container(
@@ -1273,7 +1763,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
                 CircularProgressIndicator(color: Colors.red),
                 SizedBox(height: 20),
                 Text(
-                  "Loading Hard Level 3 Configuration...",
+                  "Loading SQL Hard Level 2 Game Configuration...",
                   style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
                 SizedBox(height: 10),
@@ -1291,7 +1781,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
     if (errorMessage != null && !gameStarted) {
       return Scaffold(
         appBar: AppBar(
-          title: Text("⚡ C++ Hard - Level 3", style: TextStyle(fontSize: 18)),
+          title: Text("🔥 SQL Hard - Level 2", style: TextStyle(fontSize: 18)),
           backgroundColor: Colors.red,
         ),
         body: Container(
@@ -1315,7 +1805,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
                   Icon(Icons.warning_amber, color: Colors.red, size: 50),
                   SizedBox(height: 20),
                   Text(
-                    "Configuration Warning",
+                    "SQL Hard Level 2 Configuration Warning",
                     style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10),
@@ -1334,7 +1824,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
                   TextButton(
                     onPressed: () {
                       Navigator.pushReplacementNamed(context, '/levels', arguments: {
-                        'language': 'C++',
+                        'language': 'SQL',
                         'difficulty': 'Hard'
                       });
                     },
@@ -1363,7 +1853,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("⚡ C++ Hard - Level 3", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        title: Text("🔥 SQL Hard - Level 2", style: TextStyle(fontSize: 18 * _scaleFactor)),
         backgroundColor: Colors.red,
         actions: gameStarted
             ? [
@@ -1422,7 +1912,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
                 startGame();
               } : null,
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text(gameConfig != null ? "Start" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text(gameConfig != null ? "Start Expert Challenge" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
                 backgroundColor: gameConfig != null ? Colors.red : Colors.grey,
@@ -1455,7 +1945,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Use hint cards during the game for help!',
+              'Use hint cards for expert SQL help!',
               style: TextStyle(
                 color: Colors.white70,
                 fontSize: 12 * _scaleFactor,
@@ -1468,13 +1958,13 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
                 child: Column(
                   children: [
                     Text(
-                      "🏆 Level 3 Hard completed with perfect score!",
+                      "✅ SQL Level 2 Hard mastered with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "You've mastered C++ Hard Mode!",
+                      "You've completed SQL Hard difficulty!",
                       style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -1487,13 +1977,13 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
                 child: Column(
                   children: [
                     Text(
-                      "📊 Your previous score: $previousScore/3",
+                      "📊 Your previous SQL Hard Level 2 score: $previousScore/3",
                       style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score and master Hard Mode!",
+                      "Try again to master this expert challenge!",
                       style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -1506,13 +1996,13 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
                   child: Column(
                     children: [
                       Text(
-                        "😅 Your previous score: $previousScore/3",
+                        "😅 Your previous SQL Hard Level 2 score: $previousScore/3",
                         style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
-                        "Don't give up! You can master AVL Trees!",
+                        "This is master level! Study CTEs, window functions, and complex JOINs.",
                         style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
@@ -1532,19 +2022,19 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
               child: Column(
                 children: [
                   Text(
-                    gameConfig?['objective'] ?? "🏆 Hard Level 3 Objective",
+                    gameConfig?['objective'] ?? "🎯 SQL Hard Level 2 Objective",
                     style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.red[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    gameConfig?['objective'] ?? "Implement a complete AVL Tree with rotation operations and self-balancing",
+                    gameConfig?['objective'] ?? "Master advanced SQL concepts including CTEs (Common Table Expressions), multiple JOIN operations, window functions (RANK), and complex data aggregation across multiple tables",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.red[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎯 Master AVL rotations: Left, Right, Left-Right, Right-Left",
+                    "🎁 Get a perfect score (3/3) to complete SQL Hard difficulty!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
@@ -1560,6 +2050,16 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
                     style: TextStyle(
                         fontSize: 14 * _scaleFactor,
                         color: Colors.red,
+                        fontWeight: FontWeight.bold
+                    ),
+                  ),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Text(
+                    "⏱️ 300 seconds | ⚡ 45s penalties",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 12 * _scaleFactor,
+                        color: Colors.blue,
                         fontWeight: FontWeight.bold
                     ),
                   ),
@@ -1582,7 +2082,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 Short Story', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text('📖 SQL Master Challenge', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
                 onPressed: () {
@@ -1600,8 +2100,8 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Hard Level 3 ng C++ programming! Ultimate challenge sa data structures - AVL Tree with rotations.')
-                : (gameConfig?['story_english'] ?? 'This is C++ Hard Level 3! Ultimate challenge with advanced data structures - AVL Tree with rotation operations.'),
+                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Hard Level 2 ng SQL database query! Master level sa CTEs, multiple JOIN operations, window functions, at complex data analysis.')
+                : (gameConfig?['story_english'] ?? 'This is SQL Hard Level 2! Master challenge with CTEs, multiple JOINs, window functions, and complex data analysis across multiple tables.'),
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
@@ -1612,11 +2112,17 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
               textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
+          // Database Tables Preview
+          Text("📊 Database Tables Preview", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          SizedBox(height: 10 * _scaleFactor),
+          getDatabasePreview(),
+          SizedBox(height: 20 * _scaleFactor),
+
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 140 * _scaleFactor,
-              maxHeight: 200 * _scaleFactor,
+              minHeight: 160 * _scaleFactor,
+              maxHeight: 220 * _scaleFactor,
             ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
@@ -1698,7 +2204,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 100 * _scaleFactor,
+              minHeight: 120 * _scaleFactor,
             ),
             padding: EdgeInsets.all(12 * _scaleFactor),
             decoration: BoxDecoration(
@@ -1762,7 +2268,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
               checkAnswer();
             },
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
-            label: Text("Run", style: TextStyle(fontSize: 16 * _scaleFactor)),
+            label: Text("Execute Expert Query", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               padding: EdgeInsets.symmetric(
@@ -1780,7 +2286,7 @@ class _CppLevel3HardState extends State<CppLevel3Hard> {
               musicService.playSoundEffect('button_click.mp3');
               resetGame();
             },
-            child: Text("🔁 Retry", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
+            child: Text("🔁 Retry Challenge", style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.white)),
           ),
         ],
       ),

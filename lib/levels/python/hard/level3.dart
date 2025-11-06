@@ -7,37 +7,33 @@ import '../../../services/user_preferences.dart';
 import '../../../services/music_service.dart';
 import '../../../services/daily_challenge_service.dart';
 
-class PythonLevel2 extends StatefulWidget {
-  const PythonLevel2({super.key});
+class PythonLevel3Hard extends StatefulWidget {
+  const PythonLevel3Hard({super.key});
 
   @override
-  State<PythonLevel2> createState() => _PythonLevel2State();
+  State<PythonLevel3Hard> createState() => _PythonLevel3HardState();
 }
 
-class _PythonLevel2State extends State<PythonLevel2> {
+class _PythonLevel3HardState extends State<PythonLevel3Hard> {
   List<String> allBlocks = [];
   List<String> droppedBlocks = [];
   bool gameStarted = false;
   bool isTagalog = false;
   bool isAnsweredCorrectly = false;
-  bool level2Completed = false;
+  bool levelCompleted = false;
   bool hasPreviousScore = false;
   int previousScore = 0;
 
   int score = 3;
-  int remainingSeconds = 180;
+  int remainingSeconds = 300; // 5 minutes for advanced level
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
-  // Track currently dragged block
   String? currentlyDraggedBlock;
-
-  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // Game configuration from database
   Map<String, dynamic>? gameConfig;
   bool isLoading = true;
   String? errorMessage;
@@ -49,10 +45,10 @@ class _PythonLevel2State extends State<PythonLevel2> {
   bool _isUsingHint = false;
 
   // Configurable elements from database
-  String _codePreviewTitle = '💻 Code Preview:';
-  String _instructionText = '🧩 Arrange the blocks to create a Python program that calculates the area of a rectangle';
+  String _codePreviewTitle = '💻 Advanced Code Preview:';
+  String _instructionText = '🧩 Arrange the blocks to create an advanced Python program with classes and file handling';
   List<String> _codeStructure = [];
-  String _expectedOutput = 'Area: 50';
+  String _expectedOutput = 'Student Data:\nJohn Doe - Grade: A\nJane Smith - Grade: B\n\nData saved to students.json';
 
   @override
   void initState() {
@@ -71,9 +67,9 @@ class _PythonLevel2State extends State<PythonLevel2> {
         errorMessage = null;
       });
 
-      final response = await ApiService.getGameConfig('Python', 2);
+      final response = await ApiService.getGameConfigWithDifficulty('Python', 'Hard', 3);
 
-      print('🔍 PYTHON LEVEL 2 GAME CONFIG RESPONSE:');
+      print('🔍 PYTHON HARD LEVEL 3 GAME CONFIG RESPONSE:');
       print('   Success: ${response['success']}');
       print('   Message: ${response['message']}');
 
@@ -84,11 +80,11 @@ class _PythonLevel2State extends State<PythonLevel2> {
         });
       } else {
         setState(() {
-          errorMessage = response['message'] ?? 'Failed to load game configuration from database';
+          errorMessage = response['message'] ?? 'Failed to load hard level 3 game configuration';
         });
       }
     } catch (e) {
-      print('❌ Error loading game config: $e');
+      print('❌ Error loading hard level 3 game config: $e');
       setState(() {
         errorMessage = 'Connection error: $e';
       });
@@ -103,11 +99,11 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (gameConfig == null) return;
 
     try {
-      print('🔄 INITIALIZING PYTHON LEVEL 2 GAME FROM CONFIG');
+      print('🔄 INITIALIZING PYTHON HARD LEVEL 3 GAME FROM CONFIG');
 
       // Load timer duration from database
       if (gameConfig!['timer_duration'] != null) {
-        int timerDuration = int.tryParse(gameConfig!['timer_duration'].toString()) ?? 180;
+        int timerDuration = int.tryParse(gameConfig!['timer_duration'].toString()) ?? 300;
         setState(() {
           remainingSeconds = timerDuration;
         });
@@ -178,9 +174,9 @@ class _PythonLevel2State extends State<PythonLevel2> {
         print('💡 Using default hint');
       }
 
-      // Parse blocks with better error handling
-      List<String> correctBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
-      List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
+      // ✅ FIXED: Improved blocks parsing
+      List<String> correctBlocks = _parseBlocksImproved(gameConfig!['correct_blocks'], 'correct');
+      List<String> incorrectBlocks = _parseBlocksImproved(gameConfig!['incorrect_blocks'], 'incorrect');
 
       print('✅ Correct Blocks: $correctBlocks');
       print('✅ Incorrect Blocks: $incorrectBlocks');
@@ -194,49 +190,42 @@ class _PythonLevel2State extends State<PythonLevel2> {
       print('🎮 All Blocks Final: $allBlocks');
 
     } catch (e) {
-      print('❌ Error parsing game config: $e');
+      print('❌ Error parsing hard level 3 game config: $e');
       _initializeDefaultBlocks();
     }
   }
 
-  List<String> _getDefaultCodeStructure() {
-    return [
-      "# Python Rectangle Area Calculator",
-      "",
-      "# Define variables",
-      "length = 10",
-      "width = 5",
-      "",
-      "# Calculate area",
-      "area = length * width",
-      "",
-      "# Display result",
-      "print(f\"Area: {area}\")",
-      "",
-      "# Program ends here"
-    ];
-  }
-
-  List<String> _parseBlocks(dynamic blocksData, String type) {
+  // ✅ FIXED: Improved blocks parsing method
+  List<String> _parseBlocksImproved(dynamic blocksData, String type) {
     List<String> blocks = [];
 
     if (blocksData == null) {
+      print('⚠️ $type blocks are NULL in database, using defaults');
       return _getDefaultBlocks(type);
     }
 
     try {
       if (blocksData is List) {
+        // Direct list from database
         blocks = List<String>.from(blocksData);
+        print('✅ $type blocks parsed as direct List: $blocks');
       } else if (blocksData is String) {
         String blocksStr = blocksData.trim();
+        print('🔍 Raw $type blocks string: "$blocksStr"');
 
+        // Try JSON parsing first
         if (blocksStr.startsWith('[') && blocksStr.endsWith(']')) {
-          // Parse as JSON array
-          List<dynamic> blocksJson = json.decode(blocksStr);
-          blocks = List<String>.from(blocksJson);
+          try {
+            List<dynamic> parsedJson = json.decode(blocksStr);
+            blocks = parsedJson.map((item) => item.toString()).toList();
+            print('✅ $type blocks parsed as JSON: $blocks');
+          } catch (e) {
+            print('❌ JSON parsing failed, trying manual parsing: $e');
+            blocks = _parseManual(blocksStr);
+          }
         } else {
-          // Parse as comma-separated string
-          blocks = blocksStr.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+          // Manual parsing for non-JSON strings
+          blocks = _parseManual(blocksStr);
         }
       }
     } catch (e) {
@@ -244,45 +233,141 @@ class _PythonLevel2State extends State<PythonLevel2> {
       blocks = _getDefaultBlocks(type);
     }
 
+    // Remove any empty strings and trim
+    blocks = blocks.map((block) => block.trim()).where((block) => block.isNotEmpty).toList();
+
+    print('🎯 Final $type blocks: $blocks');
     return blocks;
+  }
+
+  // ✅ FIXED: Manual parsing for various formats
+  List<String> _parseManual(String input) {
+    // Remove brackets if present
+    String cleaned = input.replaceAll('[', '').replaceAll(']', '').trim();
+
+    // Handle different separators
+    List<String> items = [];
+
+    if (cleaned.contains('","')) {
+      // JSON-like format: "item1","item2","item3"
+      items = cleaned.split('","').map((item) => item.replaceAll('"', '').trim()).toList();
+    } else if (cleaned.contains(',')) {
+      // Comma-separated format
+      items = cleaned.split(',').map((item) => item.trim()).toList();
+    } else {
+      // Single item or other format
+      items = [cleaned];
+    }
+
+    // Clean up quotes
+    items = items.map((item) {
+      String cleanedItem = item;
+      if (cleanedItem.startsWith('"') && cleanedItem.endsWith('"')) {
+        cleanedItem = cleanedItem.substring(1, cleanedItem.length - 1);
+      }
+      return cleanedItem.trim();
+    }).where((item) => item.isNotEmpty).toList();
+
+    print('✅ Manual parsing result: $items');
+    return items;
+  }
+
+  List<String> _getDefaultCodeStructure() {
+    return [
+      "# Advanced Python - Student Management System",
+      "",
+      "# Define Student class with methods",
+      "# Add students to list",
+      "# Save data to JSON file",
+      "",
+      "# Program ends here"
+    ];
   }
 
   List<String> _getDefaultBlocks(String type) {
     if (type == 'correct') {
       return [
-        'length = 10',
-        'width = 5',
-        'area = length * width',
-        'print(f"Area: {area}")'
+        'class Student:',
+        '    def __init__(self, name, grade):',
+        '        self.name = name',
+        '        self.grade = grade',
+        '    def display_info(self):',
+        '        return f"{self.name} - Grade: {self.grade}"',
+        'students = []',
+        'students.append(Student("John Doe", "A"))',
+        'students.append(Student("Jane Smith", "B"))',
+        'print("Student Data:")',
+        'for student in students:',
+        '    print(student.display_info())',
+        'import json',
+        'student_data = [{"name": s.name, "grade": s.grade} for s in students]',
+        'with open("students.json", "w") as f:',
+        '    json.dump(student_data, f, indent=2)',
+        'print("\\nData saved to students.json")'
       ];
     } else {
       return [
-        'int length = 10;',
-        'var width = 5;',
-        'area = length x width',
-        'printf("Area: %d", area);',
-        'cout << "Area: " << area;',
-        'System.out.println("Area: " + area);'
+        'def calculate_average(grades):',
+        '    return sum(grades) / len(grades)',
+        'while True:',
+        '    user_input = input("Enter name: ")',
+        '    if user_input == "quit":',
+        '        break',
+        'import random',
+        'random_number = random.randint(1, 100)',
+        'try:',
+        '    number = int(input("Enter number: "))',
+        'except ValueError:',
+        '    print("Invalid input")',
+        'def factorial(n):',
+        '    if n == 0:',
+        '        return 1',
+        '    else:',
+        '        return n * factorial(n-1)'
       ];
     }
   }
 
   String _getDefaultHint() {
-    return "💡 Hint: Python uses variables without type declarations. Use f-strings for formatted output!";
+    return "💡 Hint: Create a Student class with __init__ and display_info methods. Use a list to store student objects, then convert to JSON format for file saving.";
   }
 
   void _initializeDefaultBlocks() {
     allBlocks = [
-      'length = 10',
-      'width = 5',
-      'area = length * width',
-      'print(f"Area: {area}")',
-      'int length = 10;',
-      'var width = 5;',
-      'area = length x width',
-      'printf("Area: %d", area);',
-      'cout << "Area: " << area;',
-      'System.out.println("Area: " + area);'
+      'class Student:',
+      '    def __init__(self, name, grade):',
+      '        self.name = name',
+      '        self.grade = grade',
+      '    def display_info(self):',
+      '        return f"{self.name} - Grade: {self.grade}"',
+      'students = []',
+      'students.append(Student("John Doe", "A"))',
+      'students.append(Student("Jane Smith", "B"))',
+      'print("Student Data:")',
+      'for student in students:',
+      '    print(student.display_info())',
+      'import json',
+      'student_data = [{"name": s.name, "grade": s.grade} for s in students]',
+      'with open("students.json", "w") as f:',
+      '    json.dump(student_data, f, indent=2)',
+      'print("\\nData saved to students.json")',
+      'def calculate_average(grades):',
+      '    return sum(grades) / len(grades)',
+      'while True:',
+      '    user_input = input("Enter name: ")',
+      '    if user_input == "quit":',
+      '        break',
+      'import random',
+      'random_number = random.randint(1, 100)',
+      'try:',
+      '    number = int(input("Enter number: "))',
+      'except ValueError:',
+      '    print("Invalid input")',
+      'def factorial(n):',
+      '    if n == 0:',
+      '        return 1',
+      '    else:',
+      '        return n * factorial(n-1)'
     ]..shuffle();
   }
 
@@ -394,8 +479,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
     musicService.playSoundEffect('level_start.mp3');
 
     int timerDuration = gameConfig!['timer_duration'] != null
-        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 180
-        : 180;
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 300
+        : 300;
 
     setState(() {
       gameStarted = true;
@@ -408,7 +493,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
       resetBlocks();
     });
 
-    print('🎮 PYTHON LEVEL 2 GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
+    print('🎮 PYTHON HARD LEVEL 3 GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
     startTimers();
   }
 
@@ -452,7 +537,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
       });
     });
 
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 60), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 25), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -477,8 +562,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
     musicService.playSoundEffect('reset.mp3');
 
     int timerDuration = gameConfig!['timer_duration'] != null
-        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 180
-        : 180;
+        ? int.tryParse(gameConfig!['timer_duration'].toString()) ?? 300
+        : 300;
 
     setState(() {
       score = 3;
@@ -501,17 +586,19 @@ class _PythonLevel2State extends State<PythonLevel2> {
     }
 
     try {
-      print('💾 SAVING PYTHON LEVEL 2 SCORE:');
+      print('💾 SAVING PYTHON HARD LEVEL 3 SCORE:');
       print('   User ID: ${currentUser!['id']}');
       print('   Language: Python');
-      print('   Level: 2');
+      print('   Level: 3');
+      print('   Difficulty: Hard');
       print('   Score: $score/3');
       print('   Completed: ${score == 3}');
 
-      final response = await ApiService.saveScore(
+      final response = await ApiService.saveScoreWithDifficulty(
         currentUser!['id'],
         'Python',
-        2,
+        'Hard',
+        3,
         score,
         score == 3,
       );
@@ -520,17 +607,17 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
       if (response['success'] == true) {
         setState(() {
-          level2Completed = score == 3;
+          levelCompleted = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
 
-        print('✅ PYTHON LEVEL 2 SCORE SAVED SUCCESSFULLY TO DATABASE');
+        print('✅ PYTHON HARD LEVEL 3 SCORE SAVED SUCCESSFULLY TO DATABASE');
       } else {
         print('❌ FAILED TO SAVE SCORE: ${response['message']}');
       }
     } catch (e) {
-      print('❌ ERROR SAVING PYTHON LEVEL 2 SCORE: $e');
+      print('❌ ERROR SAVING PYTHON HARD LEVEL 3 SCORE: $e');
     }
   }
 
@@ -538,56 +625,78 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScores(currentUser!['id'], 'Python');
+      final response = await ApiService.getScoresWithDifficulty(currentUser!['id'], 'Python', 'Hard');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level2Data = scoresData['2'];
+        final level3Data = scoresData['3'];
 
-        if (level2Data != null) {
+        if (level3Data != null) {
           setState(() {
-            previousScore = level2Data['score'] ?? 0;
-            level2Completed = level2Data['completed'] ?? false;
+            previousScore = level3Data['score'] ?? 0;
+            levelCompleted = level3Data['completed'] ?? false;
             hasPreviousScore = true;
           });
         }
       }
     } catch (e) {
-      print('Error loading Python Level 2 score: $e');
+      print('Error loading Python hard level 3 score: $e');
     }
   }
 
   bool isIncorrectBlock(String block) {
     if (gameConfig != null) {
       try {
-        List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
-        return incorrectBlocks.contains(block);
+        List<String> incorrectBlocks = _parseBlocksImproved(gameConfig!['incorrect_blocks'], 'incorrect');
+        bool isIncorrect = incorrectBlocks.contains(block);
+        if (isIncorrect) {
+          print('❌ Block "$block" is in incorrect blocks list');
+        }
+        return isIncorrect;
       } catch (e) {
         print('Error checking incorrect block: $e');
       }
     }
 
-    // Default incorrect blocks for Python Level 2
+    // Default incorrect blocks for Python Hard Level 3
     List<String> incorrectBlocks = [
-      'int length = 10;',
-      'var width = 5;',
-      'area = length x width',
-      'printf("Area: %d", area);',
-      'cout << "Area: " << area;',
-      'System.out.println("Area: " + area);'
+      'def calculate_average(grades):',
+      '    return sum(grades) / len(grades)',
+      'while True:',
+      '    user_input = input("Enter name: ")',
+      '    if user_input == "quit":',
+      '        break',
+      'import random',
+      'random_number = random.randint(1, 100)',
+      'try:',
+      '    number = int(input("Enter number: "))',
+      'except ValueError:',
+      '    print("Invalid input")',
+      'def factorial(n):',
+      '    if n == 0:',
+      '        return 1',
+      '    else:',
+      '        return n * factorial(n-1)'
     ];
     return incorrectBlocks.contains(block);
   }
 
+  // ✅ FIXED: IMPROVED ANSWER CHECKING LOGIC FOR PYTHON LEVEL 3
   void checkAnswer() async {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
+    // DEBUG: Print what we're checking
+    print('🔍 CHECKING PYTHON HARD LEVEL 3 ANSWER:');
+    print('   Dropped blocks: $droppedBlocks');
+    print('   All blocks: $allBlocks');
+
     // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
+      print('❌ HAS INCORRECT BLOCK');
       musicService.playSoundEffect('error.mp3');
 
       if (score > 1) {
@@ -631,43 +740,62 @@ class _PythonLevel2State extends State<PythonLevel2> {
       return;
     }
 
-    // Check correct answer - for Python Level 2, we need to check the logical order
-    String answer = droppedBlocks.join(' ');
-    String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
-
+    // ✅ FIXED: IMPROVED ANSWER CHECKING LOGIC
     bool isCorrect = false;
 
     if (gameConfig != null) {
-      // Use configured correct answer
-      String expectedAnswer = gameConfig!['correct_answer'] ?? '';
-      String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
-      isCorrect = normalizedAnswer == normalizedExpected;
+      // Get expected correct blocks from database
+      List<String> expectedCorrectBlocks = _parseBlocksImproved(gameConfig!['correct_blocks'], 'correct');
+
+      print('🎯 EXPECTED CORRECT BLOCKS: $expectedCorrectBlocks');
+      print('🎯 USER DROPPED BLOCKS: $droppedBlocks');
+
+      // METHOD 1: Check if user has all correct blocks and no extra correct blocks
+      bool hasAllCorrectBlocks = expectedCorrectBlocks.every((block) => droppedBlocks.contains(block));
+      bool noExtraCorrectBlocks = droppedBlocks.every((block) => expectedCorrectBlocks.contains(block));
+
+      // METHOD 2: Check string comparison (normalized)
+      String userAnswer = droppedBlocks.join(' ');
+      String normalizedUserAnswer = userAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+
+      if (gameConfig!['correct_answer'] != null) {
+        String expectedAnswer = gameConfig!['correct_answer'].toString();
+        String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
+
+        print('📝 USER ANSWER: $userAnswer');
+        print('📝 NORMALIZED USER: $normalizedUserAnswer');
+        print('🎯 EXPECTED ANSWER: $expectedAnswer');
+        print('🎯 NORMALIZED EXPECTED: $normalizedExpected');
+
+        bool stringMatch = normalizedUserAnswer == normalizedExpected;
+
+        // Use both methods for verification
+        isCorrect = (hasAllCorrectBlocks && noExtraCorrectBlocks) || stringMatch;
+
+        print('✅ BLOCK CHECK: hasAllCorrectBlocks=$hasAllCorrectBlocks, noExtraCorrectBlocks=$noExtraCorrectBlocks');
+        print('✅ STRING CHECK: stringMatch=$stringMatch');
+        print('✅ FINAL RESULT: $isCorrect');
+      } else {
+        // Fallback: only use block comparison
+        isCorrect = hasAllCorrectBlocks && noExtraCorrectBlocks;
+        print('⚠️ No correct_answer in DB, using block comparison only: $isCorrect');
+      }
     } else {
-      // Fallback check for Python Level 2 - check if all required blocks are present in logical order
-      List<String> requiredBlocks = [
-        'length=10',
-        'width=5',
-        'area=length*width',
-        'print(f"area:{area}")'
-      ];
+      // Fallback check for basic requirements
+      print('⚠️ No game config, using fallback check');
+      bool hasClass = droppedBlocks.any((block) => block.toLowerCase().contains('class student:'));
+      bool hasInit = droppedBlocks.any((block) => block.toLowerCase().contains('def __init__'));
+      bool hasDisplayMethod = droppedBlocks.any((block) => block.toLowerCase().contains('def display_info'));
+      bool hasStudentsList = droppedBlocks.any((block) => block.toLowerCase().contains('students = []'));
+      bool hasAppend = droppedBlocks.any((block) => block.toLowerCase().contains('students.append'));
+      bool hasPrint = droppedBlocks.any((block) => block.toLowerCase().contains('print("student data:")'));
+      bool hasLoop = droppedBlocks.any((block) => block.toLowerCase().contains('for student in students:'));
+      bool hasJsonImport = droppedBlocks.any((block) => block.toLowerCase().contains('import json'));
+      bool hasJsonDump = droppedBlocks.any((block) => block.toLowerCase().contains('json.dump'));
 
-      String userAnswer = droppedBlocks.join('').toLowerCase().replaceAll(' ', '');
-      bool hasAllBlocks = requiredBlocks.every((block) => userAnswer.contains(block));
-
-      // Check basic logical order (variables before calculation, calculation before output)
-      int lengthIndex = droppedBlocks.indexWhere((block) => block.toLowerCase().contains('length=10'));
-      int widthIndex = droppedBlocks.indexWhere((block) => block.toLowerCase().contains('width=5'));
-      int areaIndex = droppedBlocks.indexWhere((block) => block.toLowerCase().contains('area=length*width'));
-      int printIndex = droppedBlocks.indexWhere((block) => block.toLowerCase().contains('print(f"area:{area}")'));
-
-      isCorrect = hasAllBlocks &&
-          lengthIndex >= 0 &&
-          widthIndex >= 0 &&
-          areaIndex >= 0 &&
-          printIndex >= 0 &&
-          areaIndex > lengthIndex &&
-          areaIndex > widthIndex &&
-          printIndex > areaIndex;
+      isCorrect = hasClass && hasInit && hasDisplayMethod && hasStudentsList &&
+          hasAppend && hasPrint && hasLoop && hasJsonImport && hasJsonDump;
+      print('✅ FALLBACK CHECK: $isCorrect');
     }
 
     if (isCorrect) {
@@ -680,7 +808,6 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
       saveScoreToDatabase(score);
 
-      // PLAY SUCCESS SOUND BASED ON SCORE
       if (score == 3) {
         musicService.playSoundEffect('perfect.mp3');
       } else {
@@ -695,18 +822,18 @@ class _PythonLevel2State extends State<PythonLevel2> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent work Python Programmer!"),
+              Text("Outstanding work Python Expert!"),
               SizedBox(height: 10),
               Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
               if (score == 3)
                 Text(
-                  "🎉 Perfect! You've mastered Level 2!",
-                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                  "🏆 Legendary! You've mastered Python Hard Level 3!",
+                  style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (3/3) to complete this level!",
+                  "⚡ Get a perfect score (3/3) to prove your expertise!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
@@ -730,25 +857,18 @@ class _PythonLevel2State extends State<PythonLevel2> {
               onPressed: () {
                 musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
-                if (score == 3) {
-                  musicService.playSoundEffect('level_complete.mp3');
-                  Navigator.pushReplacementNamed(context, '/levels', arguments: {
-                    'language': 'Python',
-                    'difficulty': 'Easy'
-                  });
-                } else {
-                  Navigator.pushReplacementNamed(context, '/levels', arguments: {
-                    'language': 'Python',
-                    'difficulty': 'Easy'
-                  });
-                }
+                Navigator.pushReplacementNamed(context, '/levels', arguments: {
+                  'language': 'Python',
+                  'difficulty': 'Hard'
+                });
               },
-              child: Text(score == 3 ? "Back to Levels" : "Try Again"),
+              child: Text("Back to Levels"),
             )
           ],
         ),
       );
     } else {
+      print('❌ ANSWER INCORRECT');
       musicService.playSoundEffect('wrong.mp3');
 
       if (score > 1) {
@@ -905,48 +1025,48 @@ class _PythonLevel2State extends State<PythonLevel2> {
   // Code Preview Widget
   Widget getCodePreview() {
     return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(8 * _scaleFactor),
-        border: Border.all(color: Colors.grey[700]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
-            decoration: BoxDecoration(
-              color: Color(0xFF2D2D2D),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(8 * _scaleFactor),
-                topRight: Radius.circular(8 * _scaleFactor),
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(8 * _scaleFactor),
+          border: Border.all(color: Colors.grey[700]!),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 12 * _scaleFactor, vertical: 6 * _scaleFactor),
+              decoration: BoxDecoration(
+                color: Color(0xFF2D2D2D),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(8 * _scaleFactor),
+                  topRight: Radius.circular(8 * _scaleFactor),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
+                  SizedBox(width: 8 * _scaleFactor),
+                  Text(
+                    'student_manager.py',
+                    style: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 12 * _scaleFactor,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              children: [
-                Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
-                SizedBox(width: 8 * _scaleFactor),
-                Text(
-                  'rectangle_area.py',
-                  style: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: 12 * _scaleFactor,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-              ],
+            Container(
+              padding: EdgeInsets.all(12 * _scaleFactor),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _buildOrganizedCodePreview(),
+              ),
             ),
-          ),
-          Container(
-            padding: EdgeInsets.all(12 * _scaleFactor),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: _buildOrganizedCodePreview(),
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
     );
   }
 
@@ -956,9 +1076,9 @@ class _PythonLevel2State extends State<PythonLevel2> {
     for (int i = 0; i < _codeStructure.length; i++) {
       String line = _codeStructure[i];
 
-      if (line.contains('# Your code here')) {
+      if (line.contains('# Define Student class') || line.contains('# Add students') || line.contains('# Save data')) {
         // Add user's dragged code in the correct position
-        codeLines.add(_buildUserCodeSection());
+        codeLines.add(_buildUserCodeSection(line));
       } else if (line.trim().isEmpty) {
         codeLines.add(SizedBox(height: 16 * _scaleFactor));
       } else {
@@ -969,12 +1089,12 @@ class _PythonLevel2State extends State<PythonLevel2> {
     return codeLines;
   }
 
-  Widget _buildUserCodeSection() {
+  Widget _buildUserCodeSection(String commentLine) {
     if (droppedBlocks.isEmpty) {
       return Container(
         padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
         child: Text(
-          '# Drag blocks here...',
+          '$commentLine',
           style: TextStyle(
             color: Colors.grey[600],
             fontSize: 12 * _scaleFactor,
@@ -990,6 +1110,15 @@ class _PythonLevel2State extends State<PythonLevel2> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            commentLine,
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 12 * _scaleFactor,
+              fontFamily: 'monospace',
+              fontStyle: FontStyle.italic,
+            ),
+          ),
           for (String block in droppedBlocks)
             Container(
               margin: EdgeInsets.only(bottom: 4 * _scaleFactor),
@@ -1015,12 +1144,14 @@ class _PythonLevel2State extends State<PythonLevel2> {
     // Python syntax highlighting rules
     if (code.trim().startsWith('#')) {
       textColor = Color(0xFF6A9955); // Comments - green
-    } else if (code.contains('print(')) {
-      textColor = Color(0xFF569CD6); // Functions - blue
+    } else if (code.contains('class ') || code.contains('def ') || code.contains('import ') || code.contains('for ')) {
+      textColor = Color(0xFF569CD6); // Keywords - blue
     } else if (code.contains('"') || code.contains("'")) {
       textColor = Color(0xFFCE9178); // Strings - orange
-    } else if (code.contains('=')) {
-      textColor = Color(0xFF9CDCFE); // Variables - light blue
+    } else if (code.contains('=') || code.contains('(') || code.contains(')')) {
+      textColor = Color(0xFFDCDCAA); // Operators - yellow
+    } else if (code.contains('True') || code.contains('False')) {
+      textColor = Color(0xFF569CD6); // Boolean - blue
     }
 
     return Container(
@@ -1073,7 +1204,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: Text("🐍 Python - Level 2", style: TextStyle(fontSize: 18)),
+          title: Text("🐍 Python - Level 3 Hard", style: TextStyle(fontSize: 18)),
           backgroundColor: Colors.green,
         ),
         body: Container(
@@ -1095,7 +1226,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
                 CircularProgressIndicator(color: Colors.green),
                 SizedBox(height: 20),
                 Text(
-                  "Loading Python Level 2 Configuration...",
+                  "Loading Python Hard Level 3 Configuration...",
                   style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
                 SizedBox(height: 10),
@@ -1113,7 +1244,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
     if (errorMessage != null && !gameStarted) {
       return Scaffold(
         appBar: AppBar(
-          title: Text("🐍 Python - Level 2", style: TextStyle(fontSize: 18)),
+          title: Text("🐍 Python - Level 3 Hard", style: TextStyle(fontSize: 18)),
           backgroundColor: Colors.green,
         ),
         body: Container(
@@ -1157,7 +1288,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
                     onPressed: () {
                       Navigator.pushReplacementNamed(context, '/levels', arguments: {
                         'language': 'Python',
-                        'difficulty': 'Easy'
+                        'difficulty': 'Hard'
                       });
                     },
                     child: Text("Back to Levels", style: TextStyle(color: Colors.green)),
@@ -1185,7 +1316,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("🐍 Python - Level 2", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        title: Text("🐍 Python - Level 3 Hard", style: TextStyle(fontSize: 18 * _scaleFactor)),
         backgroundColor: Colors.green,
         actions: gameStarted
             ? [
@@ -1244,7 +1375,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
                 startGame();
               } : null,
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text(gameConfig != null ? "Start" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text(gameConfig != null ? "Start Hard Level 3" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
                 backgroundColor: gameConfig != null ? Colors.green : Colors.grey,
@@ -1285,19 +1416,19 @@ class _PythonLevel2State extends State<PythonLevel2> {
               ),
             ),
 
-            if (level2Completed)
+            if (levelCompleted)
               Padding(
                 padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Level 2 completed with perfect score!",
+                      "🏆 Hard Level 3 completed with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "You've mastered Python basics!",
+                      "You are a Python Expert!",
                       style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -1316,7 +1447,7 @@ class _PythonLevel2State extends State<PythonLevel2> {
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score!",
+                      "Try again to conquer hard level 3!",
                       style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
@@ -1329,13 +1460,13 @@ class _PythonLevel2State extends State<PythonLevel2> {
                   child: Column(
                     children: [
                       Text(
-                        "😅 Your previous score: $previousScore/3",
+                        "💀 Your previous score: $previousScore/3",
                         style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
-                        "Don't give up! You can do better this time!",
+                        "This is expert-level programming! Give it your best shot!",
                         style: TextStyle(color: Colors.green, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
@@ -1355,23 +1486,23 @@ class _PythonLevel2State extends State<PythonLevel2> {
               child: Column(
                 children: [
                   Text(
-                    gameConfig?['objective'] ?? "🎯 Python Level 2 Objective",
+                    gameConfig?['objective'] ?? "🎯 Python Level 3 Hard Objective",
                     style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.green[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    gameConfig?['objective'] ?? "Learn Python variables and basic calculations",
+                    gameConfig?['objective'] ?? "Create an advanced Python program with classes, objects, and JSON file handling",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.green[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "📝 Create a program that calculates rectangle area using variables",
+                    "💀 Expert Difficulty: Object-oriented programming, file I/O, and complex data structures!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
-                        color: Colors.purple,
+                        color: Colors.red,
                         fontWeight: FontWeight.bold,
                         fontStyle: FontStyle.italic
                     ),
@@ -1413,8 +1544,8 @@ class _PythonLevel2State extends State<PythonLevel2> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? (gameConfig?['story_tagalog'] ?? 'Ngayon ay Level 2 ng Python! Matuto ng variables at calculations.')
-                : (gameConfig?['story_english'] ?? 'This is Python Level 2! Learn about variables and basic calculations.'),
+                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Hard Level 3 ng Python programming! Gumawa ng advanced program na gumagamit ng classes at file handling para sa student management system.')
+                : (gameConfig?['story_english'] ?? 'This is Python Hard Level 3! Create an advanced program using classes and file handling for a student management system.'),
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),

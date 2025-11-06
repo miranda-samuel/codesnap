@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:convert';
-import '../../../services/api_service.dart';
-import '../../../services/user_preferences.dart';
-import '../../../services/music_service.dart';
-import '../../../services/daily_challenge_service.dart';
+import '../../../../services/api_service.dart';
+import '../../../../services/user_preferences.dart';
+import '../../../../services/music_service.dart';
+import '../../../../services/daily_challenge_service.dart';
 
 class SqlLevel1Medium extends StatefulWidget {
   const SqlLevel1Medium({super.key});
@@ -24,39 +24,33 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
   bool hasPreviousScore = false;
   int previousScore = 0;
 
-  int score = 5; // Increased from 3 to 5
-  int remainingSeconds = 180; // Increased from 120 to 180
+  int score = 3;
+  int remainingSeconds = 180;
   Timer? countdownTimer;
   Timer? scoreReductionTimer;
   Map<String, dynamic>? currentUser;
 
-  // Track currently dragged block
   String? currentlyDraggedBlock;
-
-  // Scaling factors
   double _scaleFactor = 1.0;
   final double _baseScreenWidth = 360.0;
 
-  // Game configuration from database
   Map<String, dynamic>? gameConfig;
   bool isLoading = true;
   String? errorMessage;
 
-  // HINT SYSTEM
   int _availableHintCards = 0;
   bool _showHint = false;
   String _currentHint = '';
   bool _isUsingHint = false;
 
-  // Configurable elements from database
-  String _codePreviewTitle = '💾 SQL Query Preview:';
-  String _instructionText = '🧩 Build a SQL query with WHERE clause and specific columns';
+  String _codePreviewTitle = '💻 SQL Query Preview:';
+  String _instructionText = '🧩 Arrange the blocks to form the correct SQL SELECT query';
   List<String> _codeStructure = [];
-  String _expectedOutput = 'ID | Name    | Department\n2  | Maria   | HR\n4  | Anna    | HR';
+  String _expectedOutput = '';
 
-  // Table data for visualization
+  // Database table preview for Medium level
   List<Map<String, dynamic>> _tableData = [];
-  List<Map<String, dynamic>> _filteredData = [];
+  String _tableName = 'employees';
 
   @override
   void initState() {
@@ -66,23 +60,6 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
     _calculateScaleFactor();
     _startGameMusic();
     _loadHintCards();
-    _initializeTableData();
-  }
-
-  void _initializeTableData() {
-    _tableData = [
-      {'id': 1, 'name': 'John', 'age': 25, 'department': 'IT', 'salary': 50000},
-      {'id': 2, 'name': 'Maria', 'age': 30, 'department': 'HR', 'salary': 45000},
-      {'id': 3, 'name': 'Carlos', 'age': 28, 'department': 'IT', 'salary': 52000},
-      {'id': 4, 'name': 'Anna', 'age': 22, 'department': 'HR', 'salary': 42000},
-      {'id': 5, 'name': 'Mike', 'age': 35, 'department': 'Finance', 'salary': 60000},
-      {'id': 6, 'name': 'Sarah', 'age': 29, 'department': 'IT', 'salary': 48000},
-    ];
-  }
-
-  void _updateFilteredData() {
-    // Simulate query result for HR department
-    _filteredData = _tableData.where((employee) => employee['department'] == 'HR').toList();
   }
 
   Future<void> _loadGameConfig() async {
@@ -92,7 +69,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
         errorMessage = null;
       });
 
-      final response = await ApiService.getGameConfig('SQL', 2); // Level 2 for medium
+      final response = await ApiService.getGameConfigWithDifficulty('SQL', 'Medium', 1);
 
       print('🔍 SQL MEDIUM GAME CONFIG RESPONSE:');
       print('   Success: ${response['success']}');
@@ -105,11 +82,11 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
         });
       } else {
         setState(() {
-          errorMessage = response['message'] ?? 'Failed to load game configuration from database';
+          errorMessage = response['message'] ?? 'Failed to load SQL game configuration from database';
         });
       }
     } catch (e) {
-      print('❌ Error loading game config: $e');
+      print('❌ Error loading SQL game config: $e');
       setState(() {
         errorMessage = 'Connection error: $e';
       });
@@ -165,13 +142,13 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
               _codeStructure = List<String>.from(codeStructureJson);
             });
           } catch (e) {
-            print('❌ Error parsing code structure: $e');
+            print('❌ Error parsing SQL code structure: $e');
             setState(() {
               _codeStructure = _getDefaultCodeStructure();
             });
           }
         }
-        print('📝 Code structure loaded: $_codeStructure');
+        print('📝 SQL code structure loaded: $_codeStructure');
       } else {
         setState(() {
           _codeStructure = _getDefaultCodeStructure();
@@ -186,25 +163,54 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
         print('🎯 Expected output loaded: $_expectedOutput');
       }
 
+      // Load table data from database
+      if (gameConfig!['table_data'] != null) {
+        try {
+          String tableDataStr = gameConfig!['table_data'].toString();
+          List<dynamic> tableDataJson = json.decode(tableDataStr);
+          setState(() {
+            _tableData = List<Map<String, dynamic>>.from(tableDataJson);
+          });
+          print('📊 Table data loaded: ${_tableData.length} rows');
+        } catch (e) {
+          print('❌ Error parsing table data: $e');
+          setState(() {
+            _tableData = _getDefaultTableData();
+          });
+        }
+      } else {
+        setState(() {
+          _tableData = _getDefaultTableData();
+        });
+      }
+
+      // Load table name from database
+      if (gameConfig!['table_name'] != null) {
+        setState(() {
+          _tableName = gameConfig!['table_name'].toString();
+        });
+        print('📋 Table name loaded: $_tableName');
+      }
+
       // Load hint from database
       if (gameConfig!['hint_text'] != null) {
         setState(() {
           _currentHint = gameConfig!['hint_text'].toString();
         });
-        print('💡 Hint loaded from database: $_currentHint');
+        print('💡 SQL hint loaded from database: $_currentHint');
       } else {
         setState(() {
           _currentHint = _getDefaultHint();
         });
-        print('💡 Using default hint');
+        print('💡 Using default SQL hint');
       }
 
       // Parse blocks with better error handling
       List<String> correctBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
       List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
 
-      print('✅ Correct Blocks: $correctBlocks');
-      print('✅ Incorrect Blocks: $incorrectBlocks');
+      print('✅ SQL Correct Blocks from DB: $correctBlocks');
+      print('✅ SQL Incorrect Blocks from DB: $incorrectBlocks');
 
       // Combine and shuffle blocks
       allBlocks = [
@@ -212,21 +218,38 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
         ...incorrectBlocks,
       ]..shuffle();
 
-      print('🎮 All Blocks Final: $allBlocks');
+      print('🎮 SQL All Blocks Final: $allBlocks');
+
+      // DEBUG: Print the expected correct answer from database
+      if (gameConfig!['correct_answer'] != null) {
+        print('🎯 SQL Expected Correct Answer from DB: ${gameConfig!['correct_answer']}');
+      }
 
     } catch (e) {
-      print('❌ Error parsing game config: $e');
+      print('❌ Error parsing SQL game config: $e');
       _initializeDefaultBlocks();
     }
   }
 
   List<String> _getDefaultCodeStructure() {
     return [
-      "-- SQL Query to select HR employees",
+      "-- SQL Query to retrieve employee data",
+      "-- Complete the SELECT statement below",
       "",
-      "SELECT id, name, department",
+      "SELECT employee_id, name, salary",
       "FROM employees",
-      "WHERE department = 'HR';"
+      "WHERE department = 'Sales'",
+      "ORDER BY salary DESC;"
+    ];
+  }
+
+  List<Map<String, dynamic>> _getDefaultTableData() {
+    return [
+      {'employee_id': 1, 'name': 'Juan Dela Cruz', 'department': 'Sales', 'salary': 55000},
+      {'employee_id': 2, 'name': 'Maria Santos', 'department': 'HR', 'salary': 45000},
+      {'employee_id': 3, 'name': 'Pedro Reyes', 'department': 'Sales', 'salary': 60000},
+      {'employee_id': 4, 'name': 'Ana Lopez', 'department': 'IT', 'salary': 52000},
+      {'employee_id': 5, 'name': 'Luis Garcia', 'department': 'Sales', 'salary': 48000},
     ];
   }
 
@@ -234,88 +257,135 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
     List<String> blocks = [];
 
     if (blocksData == null) {
+      print('⚠️ SQL $type blocks are NULL in database');
       return _getDefaultBlocks(type);
     }
 
     try {
       if (blocksData is List) {
         blocks = List<String>.from(blocksData);
+        print('✅ SQL $type blocks parsed as List: $blocks');
       } else if (blocksData is String) {
         String blocksStr = blocksData.trim();
+        print('🔍 Raw SQL $type blocks string: $blocksStr');
 
         if (blocksStr.startsWith('[') && blocksStr.endsWith(']')) {
           // Parse as JSON array
-          List<dynamic> blocksJson = json.decode(blocksStr);
-          blocks = List<String>.from(blocksJson);
+          try {
+            List<dynamic> blocksJson = json.decode(blocksStr);
+            blocks = List<String>.from(blocksJson);
+            print('✅ SQL $type blocks parsed as JSON: $blocks');
+          } catch (e) {
+            print('❌ JSON parsing failed for SQL $type blocks: $e');
+            // Fallback: try comma separation
+            blocks = _parseCommaSeparated(blocksStr);
+          }
         } else {
           // Parse as comma-separated string
-          blocks = blocksStr.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+          blocks = _parseCommaSeparated(blocksStr);
         }
       }
     } catch (e) {
-      print('❌ Error parsing $type blocks: $e');
+      print('❌ Error parsing SQL $type blocks: $e');
       blocks = _getDefaultBlocks(type);
     }
 
+    // Remove any empty strings
+    blocks = blocks.where((block) => block.trim().isNotEmpty).toList();
+
+    print('🎯 Final SQL $type blocks: $blocks');
     return blocks;
+  }
+
+  List<String> _parseCommaSeparated(String input) {
+    try {
+      // Remove brackets if present
+      String cleaned = input.replaceAll('[', '').replaceAll(']', '').trim();
+
+      // Split by comma but handle quoted strings
+      List<String> items = [];
+      StringBuffer current = StringBuffer();
+      bool inQuotes = false;
+
+      for (int i = 0; i < cleaned.length; i++) {
+        String char = cleaned[i];
+
+        if (char == '"') {
+          inQuotes = !inQuotes;
+          current.write(char);
+        } else if (char == ',' && !inQuotes) {
+          String item = current.toString().trim();
+          if (item.isNotEmpty) {
+            // Remove surrounding quotes if present
+            if (item.startsWith('"') && item.endsWith('"')) {
+              item = item.substring(1, item.length - 1);
+            }
+            items.add(item);
+          }
+          current.clear();
+        } else {
+          current.write(char);
+        }
+      }
+
+      // Add the last item
+      String lastItem = current.toString().trim();
+      if (lastItem.isNotEmpty) {
+        if (lastItem.startsWith('"') && lastItem.endsWith('"')) {
+          lastItem = lastItem.substring(1, lastItem.length - 1);
+        }
+        items.add(lastItem);
+      }
+
+      print('✅ SQL Comma-separated parsing result: $items');
+      return items;
+    } catch (e) {
+      print('❌ SQL Comma-separated parsing failed: $e');
+      // Ultimate fallback: simple split
+      List<String> fallback = input.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+      print('🔄 Using simple split fallback: $fallback');
+      return fallback;
+    }
   }
 
   List<String> _getDefaultBlocks(String type) {
     if (type == 'correct') {
       return [
-        'SELECT',
-        'id, name, department',
-        'FROM',
-        'employees',
-        'WHERE',
-        "department = 'HR'",
-        ';'
+        'SELECT employee_id, name, salary',
+        'FROM employees',
+        'WHERE department = "Sales"',
+        'ORDER BY salary DESC;'
       ];
     } else {
       return [
-        'SELECT *', // Too broad
-        'FROM users', // Wrong table
-        'GET', // Wrong keyword
-        'SHOW', // Wrong keyword
-        'FILTER', // Wrong keyword
-        'department HR', // Wrong syntax
-        "WHERE 'HR'", // Wrong condition format
-        'AND age > 25', // Unnecessary condition
-        'ORDER BY name', // Unnecessary clause
-        'id, name, age, department, salary', // Too many columns
-        "department == 'HR'", // Wrong operator
-        "dept = 'HR'", // Wrong column name
+        'SELECT *',
+        'FROM employee_table',
+        'WHERE dept = "Sales"',
+        'SORT BY salary;',
+        'GET employee_id, name',
+        'TABLE employees',
+        'FILTER department = "Sales"'
       ];
     }
   }
 
   String _getDefaultHint() {
-    return "💡 Hint: Specify columns after SELECT, use WHERE for filtering. String values need single quotes. Correct syntax: WHERE column = 'value'";
+    return "💡 SQL Hint: Use SELECT to choose specific columns, FROM to specify table, WHERE for filtering conditions, and ORDER BY for sorting results.";
   }
 
   void _initializeDefaultBlocks() {
     allBlocks = [
-      // Correct blocks
-      'SELECT',
-      'id, name, department',
-      'FROM',
-      'employees',
-      'WHERE',
-      "department = 'HR'",
-      ';',
-      // Incorrect blocks
+      'SELECT employee_id, name, salary',
+      'FROM employees',
+      'WHERE department = "Sales"',
+      'ORDER BY salary DESC;',
       'SELECT *',
-      'FROM users',
-      'GET',
-      'SHOW',
-      'FILTER',
-      'department HR',
-      "WHERE 'HR'",
-      'AND age > 25',
-      'ORDER BY name',
-      'id, name, age, department, salary',
-      "department == 'HR'",
-      "dept = 'HR'",
+      'FROM employee_table',
+      'WHERE dept = "Sales"',
+      'SORT BY salary;',
+      'GET employee_id, name',
+      'TABLE employees',
+      'FILTER department = "Sales"'
     ]..shuffle();
   }
 
@@ -325,7 +395,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
       await musicService.stopBackgroundMusic();
       await musicService.playSoundEffect('game_start.mp3');
       await Future.delayed(Duration(milliseconds: 500));
-      await musicService.playSoundEffect('database_music.mp3');
+      await musicService.playSoundEffect('game_music.mp3');
     });
   }
 
@@ -416,7 +486,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Game configuration not loaded. Please retry.'),
+          content: Text('SQL game configuration not loaded. Please retry.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -432,14 +502,13 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
 
     setState(() {
       gameStarted = true;
-      score = 5;
+      score = 3;
       remainingSeconds = timerDuration;
       droppedBlocks.clear();
       isAnsweredCorrectly = false;
       _showHint = false;
       _isUsingHint = false;
       resetBlocks();
-      _updateFilteredData();
     });
 
     print('🎮 SQL MEDIUM GAME STARTED - Initial Score: $score, Timer: $timerDuration seconds');
@@ -486,8 +555,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
       });
     });
 
-    // Score reduction every 45 seconds (faster than easy level)
-    scoreReductionTimer = Timer.periodic(Duration(seconds: 45), (timer) {
+    scoreReductionTimer = Timer.periodic(Duration(seconds: 60), (timer) {
       if (isAnsweredCorrectly || score <= 1) {
         timer.cancel();
         return;
@@ -516,7 +584,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
         : 180;
 
     setState(() {
-      score = 5;
+      score = 3;
       remainingSeconds = timerDuration;
       gameStarted = false;
       isAnsweredCorrectly = false;
@@ -531,38 +599,38 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
 
   Future<void> saveScoreToDatabase(int score) async {
     if (currentUser?['id'] == null) {
-      print('❌ Cannot save score: No user ID');
+      print('❌ Cannot save SQL score: No user ID');
       return;
     }
 
     try {
       print('💾 SAVING SQL MEDIUM SCORE:');
       print('   User ID: ${currentUser!['id']}');
-      print('   Language: SQL');
-      print('   Level: 2'); // Level 2 for medium
-      print('   Score: $score/5');
-      print('   Completed: ${score == 5}');
+      print('   Language: SQL_Medium');
+      print('   Level: 1');
+      print('   Score: $score/3');
 
-      final response = await ApiService.saveScore(
+      final response = await ApiService.saveScoreWithDifficulty(
         currentUser!['id'],
         'SQL',
-        2, // Level 2 for medium
+        'Medium',
+        1,
         score,
-        score == 5,
+        score == 3,
       );
 
-      print('📡 SERVER RESPONSE: $response');
+      print('📡 SQL SERVER RESPONSE: $response');
 
       if (response['success'] == true) {
         setState(() {
-          levelCompleted = score == 5;
+          levelCompleted = score == 3;
           previousScore = score;
           hasPreviousScore = true;
         });
 
-        print('✅ SQL MEDIUM SCORE SAVED SUCCESSFULLY TO DATABASE');
+        print('✅ SQL MEDIUM SCORE SAVED SUCCESSFULLY');
       } else {
-        print('❌ FAILED TO SAVE SCORE: ${response['message']}');
+        print('❌ FAILED TO SAVE SQL SCORE: ${response['message']}');
       }
     } catch (e) {
       print('❌ ERROR SAVING SQL MEDIUM SCORE: $e');
@@ -573,16 +641,16 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
     if (currentUser?['id'] == null) return;
 
     try {
-      final response = await ApiService.getScores(currentUser!['id'], 'SQL');
+      final response = await ApiService.getScoresWithDifficulty(currentUser!['id'], 'SQL', 'Medium');
 
       if (response['success'] == true && response['scores'] != null) {
         final scoresData = response['scores'];
-        final level2Data = scoresData['2']; // Level 2 for medium
+        final level1Data = scoresData['1'];
 
-        if (level2Data != null) {
+        if (level1Data != null) {
           setState(() {
-            previousScore = level2Data['score'] ?? 0;
-            levelCompleted = level2Data['completed'] ?? false;
+            previousScore = level1Data['score'] ?? 0;
+            levelCompleted = level1Data['completed'] ?? false;
             hasPreviousScore = true;
           });
         }
@@ -596,39 +664,45 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
     if (gameConfig != null) {
       try {
         List<String> incorrectBlocks = _parseBlocks(gameConfig!['incorrect_blocks'], 'incorrect');
-        return incorrectBlocks.contains(block);
+        bool isIncorrect = incorrectBlocks.contains(block);
+        if (isIncorrect) {
+          print('❌ SQL Block "$block" is in incorrect blocks list');
+        }
+        return isIncorrect;
       } catch (e) {
-        print('Error checking incorrect block: $e');
+        print('Error checking SQL incorrect block: $e');
       }
     }
 
     // Default incorrect blocks for SQL Medium
     List<String> incorrectBlocks = [
       'SELECT *',
-      'FROM users',
-      'GET',
-      'SHOW',
-      'FILTER',
-      'department HR',
-      "WHERE 'HR'",
-      'AND age > 25',
-      'ORDER BY name',
-      'id, name, age, department, salary',
-      "department == 'HR'",
-      "dept = 'HR'",
+      'FROM employee_table',
+      'WHERE dept = "Sales"',
+      'SORT BY salary;',
+      'GET employee_id, name',
+      'TABLE employees',
+      'FILTER department = "Sales"'
     ];
     return incorrectBlocks.contains(block);
   }
 
+  // IMPROVED: SQL answer checking logic
   void checkAnswer() async {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
     final musicService = Provider.of<MusicService>(context, listen: false);
 
+    // DEBUG: Print what we're checking
+    print('🔍 CHECKING SQL MEDIUM ANSWER:');
+    print('   Dropped blocks: $droppedBlocks');
+    print('   All blocks: $allBlocks');
+
     // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
+      print('❌ SQL HAS INCORRECT BLOCK');
       musicService.playSoundEffect('error.mp3');
 
       if (score > 1) {
@@ -672,33 +746,64 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
       return;
     }
 
-    // Check correct answer - more complex logic for medium level
-    String answer = droppedBlocks.join(' ');
-    String normalizedAnswer = answer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
-
+    // IMPROVED SQL ANSWER CHECKING LOGIC
     bool isCorrect = false;
 
     if (gameConfig != null) {
-      // Use configured correct answer
-      String expectedAnswer = gameConfig!['correct_answer'] ?? '';
-      String normalizedExpected = expectedAnswer.replaceAll(' ', '').replaceAll('\n', '').toLowerCase();
-      isCorrect = normalizedAnswer == normalizedExpected;
-    } else {
-      // Fallback check for SQL Medium Level
-      // Should contain SELECT, specific columns, FROM employees, WHERE condition
-      bool hasSelect = droppedBlocks.contains('SELECT');
-      bool hasSpecificColumns = droppedBlocks.any((block) =>
-      block.contains('id, name, department') ||
-          block.contains('id,name,department'));
-      bool hasFrom = droppedBlocks.contains('FROM');
-      bool hasEmployees = droppedBlocks.contains('employees');
-      bool hasWhere = droppedBlocks.contains('WHERE');
-      bool hasCondition = droppedBlocks.any((block) =>
-          block.contains("department = 'HR'"));
-      bool hasSemicolon = droppedBlocks.contains(';');
+      // Get expected correct blocks from database
+      List<String> expectedCorrectBlocks = _parseBlocks(gameConfig!['correct_blocks'], 'correct');
 
-      isCorrect = hasSelect && hasSpecificColumns && hasFrom && hasEmployees &&
-          hasWhere && hasCondition && hasSemicolon;
+      print('🎯 SQL EXPECTED CORRECT BLOCKS: $expectedCorrectBlocks');
+      print('🎯 SQL USER DROPPED BLOCKS: $droppedBlocks');
+
+      // METHOD 1: Check if user has all correct blocks and no extra correct blocks
+      bool hasAllCorrectBlocks = expectedCorrectBlocks.every((block) => droppedBlocks.contains(block));
+      bool noExtraCorrectBlocks = droppedBlocks.every((block) => expectedCorrectBlocks.contains(block));
+
+      // METHOD 2: Check string comparison (normalized for SQL)
+      String userAnswer = droppedBlocks.join(' ');
+      String normalizedUserAnswer = userAnswer
+          .replaceAll(' ', '')
+          .replaceAll('\n', '')
+          .replaceAll('"', "'")
+          .toLowerCase();
+
+      if (gameConfig!['correct_answer'] != null) {
+        String expectedAnswer = gameConfig!['correct_answer'].toString();
+        String normalizedExpected = expectedAnswer
+            .replaceAll(' ', '')
+            .replaceAll('\n', '')
+            .replaceAll('"', "'")
+            .toLowerCase();
+
+        print('📝 SQL USER ANSWER: $userAnswer');
+        print('📝 SQL NORMALIZED USER: $normalizedUserAnswer');
+        print('🎯 SQL EXPECTED ANSWER: $expectedAnswer');
+        print('🎯 SQL NORMALIZED EXPECTED: $normalizedExpected');
+
+        bool stringMatch = normalizedUserAnswer == normalizedExpected;
+
+        // Use both methods for verification
+        isCorrect = (hasAllCorrectBlocks && noExtraCorrectBlocks) || stringMatch;
+
+        print('✅ SQL BLOCK CHECK: hasAllCorrectBlocks=$hasAllCorrectBlocks, noExtraCorrectBlocks=$noExtraCorrectBlocks');
+        print('✅ SQL STRING CHECK: stringMatch=$stringMatch');
+        print('✅ SQL FINAL RESULT: $isCorrect');
+      } else {
+        // Fallback: only use block comparison
+        isCorrect = hasAllCorrectBlocks && noExtraCorrectBlocks;
+        print('⚠️ No correct_answer in DB, using block comparison only: $isCorrect');
+      }
+    } else {
+      // Fallback check for basic SQL requirements
+      print('⚠️ No SQL game config, using fallback check');
+      bool hasSelect = droppedBlocks.any((block) => block.toLowerCase().contains('select'));
+      bool hasFrom = droppedBlocks.any((block) => block.toLowerCase().contains('from'));
+      bool hasWhere = droppedBlocks.any((block) => block.toLowerCase().contains('where'));
+      bool hasOrderBy = droppedBlocks.any((block) => block.toLowerCase().contains('order by'));
+
+      isCorrect = hasSelect && hasFrom && hasWhere && hasOrderBy;
+      print('✅ SQL FALLBACK CHECK: $isCorrect');
     }
 
     if (isCorrect) {
@@ -711,8 +816,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
 
       saveScoreToDatabase(score);
 
-      // PLAY SUCCESS SOUND BASED ON SCORE
-      if (score == 5) {
+      if (score == 3) {
         musicService.playSoundEffect('perfect.mp3');
       } else {
         musicService.playSoundEffect('success.mp3');
@@ -726,18 +830,18 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Excellent work SQL Developer!"),
+              Text("Excellent work SQL Intermediate!"),
               SizedBox(height: 10),
-              Text("Your Score: $score/5", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+              Text("Your Score: $score/3", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
               SizedBox(height: 10),
-              if (score == 5)
+              if (score == 3)
                 Text(
-                  "🎉 Perfect! You've unlocked SQL Advanced Level!",
+                  "🎉 Perfect! You've unlocked Level 2 SQL Medium!",
                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 )
               else
                 Text(
-                  "⚠️ Get a perfect score (5/5) to unlock Advanced Level!",
+                  "⚠️ Get a perfect score (3/3) to unlock the next level!",
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               SizedBox(height: 10),
@@ -745,19 +849,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
               Container(
                 padding: EdgeInsets.all(10),
                 color: Colors.black,
-                child: Text(
-                  _expectedOutput,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'monospace',
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-              SizedBox(height: 10),
-              Text(
-                "Your query successfully filtered HR department employees!",
-                style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                child: _buildQueryResultPreview(),
               ),
             ],
           ),
@@ -766,9 +858,9 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
               onPressed: () {
                 musicService.playSoundEffect('click.mp3');
                 Navigator.pop(context);
-                if (score == 5) {
+                if (score == 3) {
                   musicService.playSoundEffect('level_complete.mp3');
-                  Navigator.pushReplacementNamed(context, '/sql_level3');
+                  Navigator.pushReplacementNamed(context, '/sql_level2_medium');
                 } else {
                   Navigator.pushReplacementNamed(context, '/levels', arguments: {
                     'language': 'SQL',
@@ -776,12 +868,13 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
                   });
                 }
               },
-              child: Text(score == 5 ? "Next Level" : "Go Back"),
+              child: Text(score == 3 ? "Next Level" : "Go Back"),
             )
           ],
         ),
       );
     } else {
+      print('❌ SQL ANSWER INCORRECT');
       musicService.playSoundEffect('wrong.mp3');
 
       if (score > 1) {
@@ -790,7 +883,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("❌ Incorrect SQL query. -1 point. Current score: $score"),
+            content: Text("❌ Incorrect SQL arrangement. -1 point. Current score: $score"),
           ),
         );
       } else {
@@ -824,6 +917,33 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
     }
   }
 
+  Widget _buildQueryResultPreview() {
+    // Filter table data to show only Sales department employees, sorted by salary DESC
+    List<Map<String, dynamic>> filteredData = List.from(_tableData)
+      ..removeWhere((row) => row['department'] != 'Sales')
+      ..sort((a, b) => (b['salary'] as num).compareTo(a['salary'] as num));
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columns: [
+          DataColumn(label: Text('ID', style: TextStyle(color: Colors.white))),
+          DataColumn(label: Text('Name', style: TextStyle(color: Colors.white))),
+          DataColumn(label: Text('Department', style: TextStyle(color: Colors.white))),
+          DataColumn(label: Text('Salary', style: TextStyle(color: Colors.white))),
+        ],
+        rows: filteredData.map((row) {
+          return DataRow(cells: [
+            DataCell(Text(row['employee_id'].toString(), style: TextStyle(color: Colors.white))),
+            DataCell(Text(row['name'].toString(), style: TextStyle(color: Colors.white))),
+            DataCell(Text(row['department'].toString(), style: TextStyle(color: Colors.white))),
+            DataCell(Text(row['salary'].toString(), style: TextStyle(color: Colors.greenAccent))),
+          ]);
+        }).toList(),
+      ),
+    );
+  }
+
   String formatTime(int seconds) {
     final m = (seconds ~/ 60).toString().padLeft(2, '0');
     final s = (seconds % 60).toString().padLeft(2, '0');
@@ -840,9 +960,9 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
       child: Container(
         padding: EdgeInsets.all(16 * _scaleFactor),
         decoration: BoxDecoration(
-          color: Colors.green.withOpacity(0.95),
+          color: Colors.orange.withOpacity(0.95),
           borderRadius: BorderRadius.circular(12 * _scaleFactor),
-          border: Border.all(color: Colors.greenAccent, width: 2 * _scaleFactor),
+          border: Border.all(color: Colors.orangeAccent, width: 2 * _scaleFactor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.3),
@@ -858,7 +978,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
                 Icon(Icons.lightbulb, color: Colors.white, size: 20 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  '💡 SQL Medium Hint Activated!',
+                  '💡 SQL Hint Activated!',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16 * _scaleFactor,
@@ -901,7 +1021,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
         child: Container(
           padding: EdgeInsets.all(12 * _scaleFactor),
           decoration: BoxDecoration(
-            color: _availableHintCards > 0 ? Colors.green : Colors.grey,
+            color: _availableHintCards > 0 ? Colors.orange : Colors.grey,
             borderRadius: BorderRadius.circular(20 * _scaleFactor),
             boxShadow: [
               BoxShadow(
@@ -911,7 +1031,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
               )
             ],
             border: Border.all(
-              color: _availableHintCards > 0 ? Colors.greenAccent : Colors.grey,
+              color: _availableHintCards > 0 ? Colors.orangeAccent : Colors.grey,
               width: 2 * _scaleFactor,
             ),
           ),
@@ -935,14 +1055,14 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
     );
   }
 
-  // Database Table Visualization
-  Widget _buildDatabaseTable() {
+  // Database Table Preview Widget
+  Widget getDatabasePreview() {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(8 * _scaleFactor),
-        border: Border.all(color: Colors.green[700]!),
+        border: Border.all(color: Colors.grey[700]!),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -958,22 +1078,14 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
             ),
             child: Row(
               children: [
-                Icon(Icons.storage, color: Colors.green[400], size: 16 * _scaleFactor),
+                Icon(Icons.storage, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'employees table',
-                  style: TextStyle(
-                    color: Colors.green[400],
-                    fontSize: 12 * _scaleFactor,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-                Spacer(),
-                Text(
-                  '${_tableData.length} records',
+                  'Database Table: $_tableName',
                   style: TextStyle(
                     color: Colors.grey[400],
-                    fontSize: 10 * _scaleFactor,
+                    fontSize: 12 * _scaleFactor,
+                    fontFamily: 'monospace',
                   ),
                 ),
               ],
@@ -989,35 +1101,25 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
                 headingRowHeight: 40 * _scaleFactor,
                 columns: [
                   DataColumn(
-                    label: Text('ID', style: TextStyle(color: Colors.green[300], fontWeight: FontWeight.bold)),
+                    label: Text('employee_id', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
                   ),
                   DataColumn(
-                    label: Text('Name', style: TextStyle(color: Colors.green[300], fontWeight: FontWeight.bold)),
+                    label: Text('name', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
                   ),
                   DataColumn(
-                    label: Text('Age', style: TextStyle(color: Colors.green[300], fontWeight: FontWeight.bold)),
+                    label: Text('department', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
                   ),
                   DataColumn(
-                    label: Text('Department', style: TextStyle(color: Colors.green[300], fontWeight: FontWeight.bold)),
-                  ),
-                  DataColumn(
-                    label: Text('Salary', style: TextStyle(color: Colors.green[300], fontWeight: FontWeight.bold)),
+                    label: Text('salary', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
                   ),
                 ],
-                rows: _tableData.map((data) {
-                  return DataRow(
-                    cells: [
-                      DataCell(Text(data['id'].toString(), style: TextStyle(color: Colors.white))),
-                      DataCell(Text(data['name'].toString(), style: TextStyle(color: Colors.white))),
-                      DataCell(Text(data['age'].toString(), style: TextStyle(color: Colors.white))),
-                      DataCell(Text(data['department'].toString(),
-                          style: TextStyle(
-                              color: data['department'] == 'HR' ? Colors.yellow : Colors.white,
-                              fontWeight: data['department'] == 'HR' ? FontWeight.bold : FontWeight.normal
-                          ))),
-                      DataCell(Text('\$${data['salary']}', style: TextStyle(color: Colors.white))),
-                    ],
-                  );
+                rows: _tableData.map((row) {
+                  return DataRow(cells: [
+                    DataCell(Text(row['employee_id'].toString(), style: TextStyle(color: Colors.white))),
+                    DataCell(Text(row['name'].toString(), style: TextStyle(color: Colors.white))),
+                    DataCell(Text(row['department'].toString(), style: TextStyle(color: Colors.white))),
+                    DataCell(Text(row['salary'].toString(), style: TextStyle(color: Colors.greenAccent))),
+                  ]);
                 }).toList(),
               ),
             ),
@@ -1027,7 +1129,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
     );
   }
 
-  // SQL Query Preview Widget
+  // Organized SQL code preview
   Widget getCodePreview() {
     return Container(
       width: double.infinity,
@@ -1053,7 +1155,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
                 Icon(Icons.code, color: Colors.grey[400], size: 16 * _scaleFactor),
                 SizedBox(width: 8 * _scaleFactor),
                 Text(
-                  'filter_hr_employees.sql',
+                  'query.sql',
                   style: TextStyle(
                     color: Colors.grey[400],
                     fontSize: 12 * _scaleFactor,
@@ -1067,7 +1169,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
             padding: EdgeInsets.all(12 * _scaleFactor),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: _buildOrganizedCodePreview(),
+              children: _buildOrganizedSQLPreview(),
             ),
           ),
         ],
@@ -1075,46 +1177,31 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
     );
   }
 
-  List<Widget> _buildOrganizedCodePreview() {
+  List<Widget> _buildOrganizedSQLPreview() {
     List<Widget> codeLines = [];
 
     for (int i = 0; i < _codeStructure.length; i++) {
       String line = _codeStructure[i];
 
-      if (line.contains('SELECT id, name, department') ||
-          line.contains('FROM employees') ||
-          line.contains("WHERE department = 'HR'")) {
-        // Add user's dragged SQL query
-        codeLines.add(_buildUserQuerySection(line));
+      if (line.contains('-- Complete the SELECT statement below')) {
+        // Add user's dragged SQL code in the correct position
+        codeLines.add(_buildUserSQLSection());
       } else if (line.trim().isEmpty) {
         codeLines.add(SizedBox(height: 16 * _scaleFactor));
       } else {
-        codeLines.add(_buildSyntaxHighlightedLine(line, i + 1));
+        codeLines.add(_buildSQLSyntaxHighlightedLine(line, i + 1));
       }
     }
 
     return codeLines;
   }
 
-  Widget _buildUserQuerySection(String placeholder) {
-    List<String> relevantBlocks = [];
-
-    if (placeholder.contains('SELECT')) {
-      relevantBlocks = droppedBlocks.where((block) =>
-      block == 'SELECT' || block.contains('id, name, department')).toList();
-    } else if (placeholder.contains('FROM')) {
-      relevantBlocks = droppedBlocks.where((block) =>
-      block == 'FROM' || block == 'employees').toList();
-    } else if (placeholder.contains('WHERE')) {
-      relevantBlocks = droppedBlocks.where((block) =>
-      block == 'WHERE' || block.contains("department = 'HR'")).toList();
-    }
-
-    if (relevantBlocks.isEmpty) {
+  Widget _buildUserSQLSection() {
+    if (droppedBlocks.isEmpty) {
       return Container(
         padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
         child: Text(
-          placeholder,
+          '-- Drag SQL blocks here to build your query...',
           style: TextStyle(
             color: Colors.grey[600],
             fontSize: 12 * _scaleFactor,
@@ -1127,57 +1214,44 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
 
     return Container(
       padding: EdgeInsets.symmetric(vertical: 8 * _scaleFactor),
-      child: Wrap(
-        spacing: 4 * _scaleFactor,
-        runSpacing: 4 * _scaleFactor,
-        children: relevantBlocks.map((block) {
-          return Container(
-            margin: EdgeInsets.only(right: 4 * _scaleFactor),
-            child: Text(
-              block,
-              style: TextStyle(
-                color: _getSqlKeywordColor(block),
-                fontSize: 12 * _scaleFactor,
-                fontFamily: 'monospace',
-                fontWeight: FontWeight.bold,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (String block in droppedBlocks)
+            Container(
+              margin: EdgeInsets.only(bottom: 4 * _scaleFactor),
+              child: Text(
+                block,
+                style: TextStyle(
+                  color: Colors.greenAccent[400],
+                  fontSize: 12 * _scaleFactor,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          );
-        }).toList(),
+        ],
       ),
     );
   }
 
-  Color _getSqlKeywordColor(String block) {
-    if (block == 'SELECT' || block == 'FROM' || block == 'WHERE') {
-      return Color(0xFF569CD6); // SQL keywords - blue
-    } else if (block.contains('id, name, department')) {
-      return Color(0xFFDCDCAA); // Column list - yellow
-    } else if (block == 'employees') {
-      return Color(0xFF4EC9B0); // Table name - teal
-    } else if (block.contains("department = 'HR'")) {
-      return Color(0xFFCE9178); // Condition - orange
-    } else if (block == ';') {
-      return Colors.white; // Semicolon - white
-    }
-    return Colors.purpleAccent[400]!;
-  }
-
-  Widget _buildSyntaxHighlightedLine(String code, int lineNumber) {
+  Widget _buildSQLSyntaxHighlightedLine(String code, int lineNumber) {
     Color textColor = Colors.white;
     String displayCode = code;
 
-    // SQL syntax highlighting rules
+    // SQL Syntax highlighting rules
     if (code.trim().startsWith('--')) {
       textColor = Color(0xFF6A9955); // Comments - green
-    } else if (code.contains('SELECT') || code.contains('FROM') || code.contains('WHERE')) {
-      textColor = Color(0xFF569CD6); // SQL keywords - blue
-    } else if (code.contains('id, name, department')) {
-      textColor = Color(0xFFDCDCAA); // Column list - yellow
-    } else if (code.contains('employees')) {
-      textColor = Color(0xFF4EC9B0); // Table name - teal
-    } else if (code.contains("'HR'")) {
-      textColor = Color(0xFFCE9178); // String value - orange
+    } else if (code.toUpperCase().contains('SELECT') ||
+        code.toUpperCase().contains('FROM') ||
+        code.toUpperCase().contains('WHERE') ||
+        code.toUpperCase().contains('ORDER BY') ||
+        code.toUpperCase().contains('DESC')) {
+      textColor = Color(0xFF569CD6); // SQL Keywords - blue
+    } else if (code.contains('"') || code.contains("'")) {
+      textColor = Color(0xFFCE9178); // Strings - orange
+    } else if (code.contains('*')) {
+      textColor = Color(0xFFDCDCAA); // Wildcard - yellow
     }
 
     return Container(
@@ -1230,8 +1304,8 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
     if (isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: Text("🗃️ SQL - Level 2 (Medium)", style: TextStyle(fontSize: 18)),
-          backgroundColor: Colors.green[700],
+          title: Text("⚡ SQL Medium - Level 1", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.orange,
         ),
         body: Container(
           decoration: BoxDecoration(
@@ -1249,7 +1323,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CircularProgressIndicator(color: Colors.green[700]),
+                CircularProgressIndicator(color: Colors.orange),
                 SizedBox(height: 20),
                 Text(
                   "Loading SQL Medium Game Configuration...",
@@ -1270,8 +1344,8 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
     if (errorMessage != null && !gameStarted) {
       return Scaffold(
         appBar: AppBar(
-          title: Text("🗃️ SQL - Level 2 (Medium)", style: TextStyle(fontSize: 18)),
-          backgroundColor: Colors.green[700],
+          title: Text("⚡ SQL Medium - Level 1", style: TextStyle(fontSize: 18)),
+          backgroundColor: Colors.orange,
         ),
         body: Container(
           decoration: BoxDecoration(
@@ -1291,10 +1365,10 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.warning_amber, color: Colors.green[700], size: 50),
+                  Icon(Icons.warning_amber, color: Colors.orange, size: 50),
                   SizedBox(height: 20),
                   Text(
-                    "Configuration Warning",
+                    "SQL Configuration Warning",
                     style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10),
@@ -1306,7 +1380,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
                   SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: _loadGameConfig,
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green[700]),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
                     child: Text("Retry Loading"),
                   ),
                   SizedBox(height: 10),
@@ -1317,7 +1391,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
                         'difficulty': 'Medium'
                       });
                     },
-                    child: Text("Back to Levels", style: TextStyle(color: Colors.green[700])),
+                    child: Text("Back to Levels", style: TextStyle(color: Colors.orange)),
                   ),
                 ],
               ),
@@ -1342,8 +1416,8 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("🗃️ SQL - Level 2 (Medium)", style: TextStyle(fontSize: 18 * _scaleFactor)),
-        backgroundColor: Colors.green[700],
+        title: Text("⚡ SQL Medium - Level 1", style: TextStyle(fontSize: 18 * _scaleFactor)),
+        backgroundColor: Colors.orange,
         actions: gameStarted
             ? [
           Padding(
@@ -1394,45 +1468,6 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: EdgeInsets.all(20 * _scaleFactor),
-              decoration: BoxDecoration(
-                color: Colors.green[700]!.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(20 * _scaleFactor),
-                border: Border.all(color: Colors.greenAccent, width: 3 * _scaleFactor),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 10 * _scaleFactor,
-                    offset: Offset(0, 5 * _scaleFactor),
-                  )
-                ],
-              ),
-              child: Column(
-                children: [
-                  Icon(Icons.storage, color: Colors.white, size: 50 * _scaleFactor),
-                  SizedBox(height: 10 * _scaleFactor),
-                  Text(
-                    "SQL DEVELOPER",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24 * _scaleFactor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 5 * _scaleFactor),
-                  Text(
-                    "Filtering & Specific Columns",
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 16 * _scaleFactor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 30 * _scaleFactor),
-
             ElevatedButton.icon(
               onPressed: gameConfig != null ? () {
                 final musicService = Provider.of<MusicService>(context, listen: false);
@@ -1440,31 +1475,30 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
                 startGame();
               } : null,
               icon: Icon(Icons.play_arrow, size: 20 * _scaleFactor),
-              label: Text(gameConfig != null ? "Start Medium Level" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
+              label: Text(gameConfig != null ? "Start" : "Config Missing", style: TextStyle(fontSize: 16 * _scaleFactor)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 24 * _scaleFactor, vertical: 12 * _scaleFactor),
-                backgroundColor: gameConfig != null ? Colors.green[700] : Colors.grey,
+                backgroundColor: gameConfig != null ? Colors.orange : Colors.grey,
               ),
             ),
             SizedBox(height: 20 * _scaleFactor),
 
-            // Display available hint cards in start screen
             Container(
               padding: EdgeInsets.all(12 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.green[700]!.withOpacity(0.2),
+                color: Colors.orange.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.green[700]!),
+                border: Border.all(color: Colors.orange),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.lightbulb_outline, color: Colors.green[700], size: 20 * _scaleFactor),
+                  Icon(Icons.lightbulb_outline, color: Colors.orange, size: 20 * _scaleFactor),
                   SizedBox(width: 8 * _scaleFactor),
                   Text(
                     'Hint Cards: $_availableHintCards',
                     style: TextStyle(
-                      color: Colors.green[700],
+                      color: Colors.orange,
                       fontSize: 16 * _scaleFactor,
                       fontWeight: FontWeight.bold,
                     ),
@@ -1474,7 +1508,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
             ),
             SizedBox(height: 10 * _scaleFactor),
             Text(
-              'Use hint cards for advanced SQL guidance!',
+              'Use hint cards during the game for SQL help!',
               style: TextStyle(
                 color: Colors.white70,
                 fontSize: 12 * _scaleFactor,
@@ -1483,18 +1517,18 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
 
             if (levelCompleted)
               Padding(
-                padding: EdgeInsets.only(top: 20 * _scaleFactor),
+                padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "✅ Medium level completed with perfect score!",
+                      "✅ SQL Level 1 Medium completed with perfect score!",
                       style: TextStyle(color: Colors.green, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "You've unlocked SQL Advanced Level!",
-                      style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
+                      "You've unlocked Level 2 SQL Medium!",
+                      style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1502,18 +1536,18 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
               )
             else if (hasPreviousScore && previousScore > 0)
               Padding(
-                padding: EdgeInsets.only(top: 20 * _scaleFactor),
+                padding: EdgeInsets.only(top: 10 * _scaleFactor),
                 child: Column(
                   children: [
                     Text(
-                      "📊 Your previous score: $previousScore/5",
-                      style: TextStyle(color: Colors.green[700], fontSize: 16 * _scaleFactor),
+                      "📊 Your previous SQL score: $previousScore/3",
+                      style: TextStyle(color: Colors.orange, fontSize: 16 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 5 * _scaleFactor),
                     Text(
-                      "Try again to get a perfect score and unlock Advanced Level!",
-                      style: TextStyle(color: Colors.green[700], fontSize: 14 * _scaleFactor),
+                      "Try again to get a perfect score and unlock Level 2!",
+                      style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1521,18 +1555,18 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
               )
             else if (hasPreviousScore && previousScore == 0)
                 Padding(
-                  padding: EdgeInsets.only(top: 20 * _scaleFactor),
+                  padding: EdgeInsets.only(top: 10 * _scaleFactor),
                   child: Column(
                     children: [
                       Text(
-                        "😅 Your previous score: $previousScore/5",
-                        style: TextStyle(color: Colors.green[700], fontSize: 16 * _scaleFactor),
+                        "😅 Your previous SQL score: $previousScore/3",
+                        style: TextStyle(color: Colors.red, fontSize: 16 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 5 * _scaleFactor),
                       Text(
-                        "Don't give up! Practice makes perfect!",
-                        style: TextStyle(color: Colors.green[700], fontSize: 14 * _scaleFactor),
+                        "Don't give up! You can do better this time!",
+                        style: TextStyle(color: Colors.orange, fontSize: 14 * _scaleFactor),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1544,46 +1578,47 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
               padding: EdgeInsets.all(16 * _scaleFactor),
               margin: EdgeInsets.all(16 * _scaleFactor),
               decoration: BoxDecoration(
-                color: Colors.green[100]!.withOpacity(0.9),
+                color: Colors.orange[50]!.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12 * _scaleFactor),
-                border: Border.all(color: Colors.green[300]!),
+                border: Border.all(color: Colors.orange[200]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    gameConfig?['objective'] ?? "🎯 SQL Medium Level Objective",
-                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.green[900]),
+                    gameConfig?['objective'] ?? "🎯 SQL Medium Level 1 Objective",
+                    style: TextStyle(fontSize: 18 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.orange[800]),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    gameConfig?['objective'] ?? "Learn to select specific columns and filter data using WHERE clause",
+                    gameConfig?['objective'] ?? "Learn to write SQL queries with specific column selection, filtering with WHERE clause, and sorting with ORDER BY",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.green[800]),
+                    style: TextStyle(fontSize: 14 * _scaleFactor, color: Colors.orange[700]),
                   ),
                   SizedBox(height: 10 * _scaleFactor),
                   Text(
-                    "🎁 Get a perfect score (5/5) to unlock Advanced Level!",
+                    "🎁 Get a perfect score (3/3) to unlock Level 2 SQL Medium!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 12 * _scaleFactor,
-                        color: Colors.green[700],
+                        color: Colors.purple,
                         fontWeight: FontWeight.bold,
                         fontStyle: FontStyle.italic
+                    ),
+                  ),
+                  SizedBox(height: 10 * _scaleFactor),
+                  Text(
+                    "🏆 2× POINTS MULTIPLIER",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 14 * _scaleFactor,
+                        color: Colors.orange,
+                        fontWeight: FontWeight.bold
                     ),
                   ),
                 ],
               ),
             ),
-
-            // Database Preview
-            SizedBox(height: 20 * _scaleFactor),
-            Text(
-              "📊 Sample Database Table:",
-              style: TextStyle(color: Colors.white, fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 10 * _scaleFactor),
-            _buildDatabaseTable(),
           ],
         ),
       ),
@@ -1600,7 +1635,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text('📖 SQL Challenge Story', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text('📖 SQL Short Story', style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               TextButton.icon(
                 onPressed: () {
@@ -1618,42 +1653,34 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
           SizedBox(height: 10 * _scaleFactor),
           Text(
             isTagalog
-                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Medium Level ng SQL! Matuto kung paano pumili ng specific na columns at mag-filter ng data gamit ang WHERE clause.')
-                : (gameConfig?['story_english'] ?? 'This is SQL Medium Level! Learn how to select specific columns and filter data using WHERE clause.'),
+                ? (gameConfig?['story_tagalog'] ?? 'Ito ay Medium Level 1 ng SQL database query! Hamon sa SELECT statements, WHERE filtering, at ORDER BY sorting.')
+                : (gameConfig?['story_english'] ?? 'This is SQL Medium Level 1! Challenge yourself with SELECT queries, WHERE filtering, and ORDER BY sorting.'),
             textAlign: TextAlign.justify,
             style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white70),
           ),
           SizedBox(height: 20 * _scaleFactor),
 
-          // Database Table Preview
-          Text("📊 Database Table: employees", style: TextStyle(fontSize: 16 * _scaleFactor, fontWeight: FontWeight.bold, color: Colors.white)),
-          SizedBox(height: 10 * _scaleFactor),
-          _buildDatabaseTable(),
+          Text(_instructionText,
+              style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white),
+              textAlign: TextAlign.center),
           SizedBox(height: 20 * _scaleFactor),
 
-          Container(
-            padding: EdgeInsets.all(16 * _scaleFactor),
-            decoration: BoxDecoration(
-              color: Colors.green[700]!.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(12 * _scaleFactor),
-              border: Border.all(color: Colors.greenAccent),
-            ),
-            child: Text(_instructionText,
-                style: TextStyle(fontSize: 16 * _scaleFactor, color: Colors.white, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center),
-          ),
+          // Database Table Preview
+          Text("📊 Database Table Preview", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _scaleFactor, color: Colors.white)),
+          SizedBox(height: 10 * _scaleFactor),
+          getDatabasePreview(),
           SizedBox(height: 20 * _scaleFactor),
 
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 160 * _scaleFactor,
-              maxHeight: 250 * _scaleFactor,
+              minHeight: 140 * _scaleFactor,
+              maxHeight: 200 * _scaleFactor,
             ),
             padding: EdgeInsets.all(16 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[100]!.withOpacity(0.9),
-              border: Border.all(color: Colors.green[700]!, width: 2.5 * _scaleFactor),
+              border: Border.all(color: Colors.orange, width: 2.5 * _scaleFactor),
               borderRadius: BorderRadius.circular(20 * _scaleFactor),
             ),
             child: DragTarget<String>(
@@ -1673,49 +1700,49 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
               },
               builder: (context, candidateData, rejectedData) {
                 return SingleChildScrollView(
-                    child: Wrap(
-                      spacing: 8 * _scaleFactor,
-                      runSpacing: 8 * _scaleFactor,
-                      alignment: WrapAlignment.center,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: droppedBlocks.map((block) {
-                        return Draggable<String>(
-                          data: block,
-                          feedback: Material(
-                            color: Colors.transparent,
-                            child: puzzleBlock(block, _getSqlBlockColor(block)),
-                          ),
-                          childWhenDragging: puzzleBlock(block, _getSqlBlockColor(block).withOpacity(0.5)),
-                          child: puzzleBlock(block, _getSqlBlockColor(block)),
-                          onDragStarted: () {
-                            final musicService = Provider.of<MusicService>(context, listen: false);
-                            musicService.playSoundEffect('block_pickup.mp3');
+                  child: Wrap(
+                    spacing: 8 * _scaleFactor,
+                    runSpacing: 8 * _scaleFactor,
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: droppedBlocks.map((block) {
+                      return Draggable<String>(
+                        data: block,
+                        feedback: Material(
+                          color: Colors.transparent,
+                          child: puzzleBlock(block, Colors.orangeAccent),
+                        ),
+                        childWhenDragging: puzzleBlock(block, Colors.orangeAccent.withOpacity(0.5)),
+                        child: puzzleBlock(block, Colors.orangeAccent),
+                        onDragStarted: () {
+                          final musicService = Provider.of<MusicService>(context, listen: false);
+                          musicService.playSoundEffect('block_pickup.mp3');
 
-                            setState(() {
-                              currentlyDraggedBlock = block;
-                            });
-                          },
-                          onDragEnd: (details) {
-                            setState(() {
-                              currentlyDraggedBlock = null;
-                            });
+                          setState(() {
+                            currentlyDraggedBlock = block;
+                          });
+                        },
+                        onDragEnd: (details) {
+                          setState(() {
+                            currentlyDraggedBlock = null;
+                          });
 
-                            if (!isAnsweredCorrectly && !details.wasAccepted) {
-                              Future.delayed(Duration(milliseconds: 50), () {
-                                if (mounted) {
-                                  setState(() {
-                                    if (!allBlocks.contains(block)) {
-                                      allBlocks.add(block);
-                                    }
-                                    droppedBlocks.remove(block);
-                                  });
-                                }
-                              });
-                            }
-                          },
-                        );
-                      }).toList(),
-                    ),
+                          if (!isAnsweredCorrectly && !details.wasAccepted) {
+                            Future.delayed(Duration(milliseconds: 50), () {
+                              if (mounted) {
+                                setState(() {
+                                  if (!allBlocks.contains(block)) {
+                                    allBlocks.add(block);
+                                  }
+                                  droppedBlocks.remove(block);
+                                });
+                              }
+                            });
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
                 );
               },
             ),
@@ -1730,13 +1757,12 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
           Container(
             width: double.infinity,
             constraints: BoxConstraints(
-              minHeight: 120 * _scaleFactor,
+              minHeight: 100 * _scaleFactor,
             ),
             padding: EdgeInsets.all(12 * _scaleFactor),
             decoration: BoxDecoration(
               color: Colors.grey[800]!.withOpacity(0.3),
               borderRadius: BorderRadius.circular(12 * _scaleFactor),
-              border: Border.all(color: Colors.green[700]!.withOpacity(0.5)),
             ),
             child: Wrap(
               spacing: 8 * _scaleFactor,
@@ -1750,13 +1776,13 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
                   data: block,
                   feedback: Material(
                     color: Colors.transparent,
-                    child: puzzleBlock(block, _getSqlBlockColor(block)),
+                    child: puzzleBlock(block, Colors.orange),
                   ),
                   childWhenDragging: Opacity(
                     opacity: 0.4,
-                    child: puzzleBlock(block, _getSqlBlockColor(block)),
+                    child: puzzleBlock(block, Colors.orange),
                   ),
-                  child: puzzleBlock(block, _getSqlBlockColor(block)),
+                  child: puzzleBlock(block, Colors.orange),
                   onDragStarted: () {
                     final musicService = Provider.of<MusicService>(context, listen: false);
                     musicService.playSoundEffect('block_pickup.mp3');
@@ -1797,7 +1823,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
             icon: Icon(Icons.play_arrow, size: 18 * _scaleFactor),
             label: Text("Execute Query", style: TextStyle(fontSize: 16 * _scaleFactor)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green[700],
+              backgroundColor: Colors.orange,
               padding: EdgeInsets.symmetric(
                 horizontal: 24 * _scaleFactor,
                 vertical: 16 * _scaleFactor,
@@ -1820,23 +1846,6 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
     );
   }
 
-  Color _getSqlBlockColor(String block) {
-    if (block == 'SELECT' || block == 'FROM' || block == 'WHERE') {
-      return Colors.blue; // SQL keywords
-    } else if (block.contains('id, name, department')) {
-      return Colors.orange; // Column list
-    } else if (block == 'employees') {
-      return Colors.green; // Table name
-    } else if (block.contains("department = 'HR'")) {
-      return Colors.purple; // Condition
-    } else if (block == ';') {
-      return Colors.grey; // Semicolon
-    } else if (isIncorrectBlock(block)) {
-      return Colors.red; // Incorrect blocks
-    }
-    return Colors.teal; // Default
-  }
-
   Widget puzzleBlock(String text, Color color) {
     final textPainter = TextPainter(
       text: TextSpan(
@@ -1844,7 +1853,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 11 * _scaleFactor, // Slightly smaller for complex blocks
+          fontSize: 12 * _scaleFactor,
           color: Colors.black,
         ),
       ),
@@ -1854,7 +1863,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
 
     final textWidth = textPainter.width;
     final minWidth = 80 * _scaleFactor;
-    final maxWidth = 280 * _scaleFactor;
+    final maxWidth = 240 * _scaleFactor;
 
     return Container(
       constraints: BoxConstraints(
@@ -1886,7 +1895,7 @@ class _SqlLevel1MediumState extends State<SqlLevel1Medium> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          fontSize: 11 * _scaleFactor,
+          fontSize: 12 * _scaleFactor,
           color: Colors.black,
           shadows: [
             Shadow(

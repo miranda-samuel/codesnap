@@ -13,7 +13,7 @@ class TrainingModeScreen extends StatefulWidget {
   State<TrainingModeScreen> createState() => _TrainingModeScreenState();
 }
 
-class _TrainingModeScreenState extends State<TrainingModeScreen> {
+class _TrainingModeScreenState extends State<TrainingModeScreen> with SingleTickerProviderStateMixin {
   // Training modes
   int _selectedTrainingMode = 0; // 0 = Main Game, 1 = Daily Challenge, 2 = Bonus Game
   List<String> trainingModes = ['Main Game Training', 'Daily Challenge Training', 'Bonus Game'];
@@ -38,6 +38,14 @@ class _TrainingModeScreenState extends State<TrainingModeScreen> {
   bool _showBonusGameTutorial = true;
   int _currentTutorialStep = 0;
   bool _showBlockHint = false;
+
+  // ANIMATED HAND VARIABLES
+  late AnimationController _handController;
+  late Animation<Offset> _handAnimation;
+  bool _showHand = false;
+  String _handInstruction = "";
+  Offset _handPosition = Offset.zero;
+  double _handSize = 60.0;
 
   // Daily Challenge Training Variables
   final List<Map<String, dynamic>> dailyChallenges = [
@@ -125,39 +133,96 @@ class _TrainingModeScreenState extends State<TrainingModeScreen> {
     _startGameMusic();
     _loadUserData();
     resetBlocks(); // Initialize main game blocks
+
+    // Initialize hand animation
+    _handController = AnimationController(
+      duration: Duration(milliseconds: 1500),
+      vsync: this,
+    );
+
+    _handAnimation = Tween<Offset>(
+      begin: Offset(-0.1, 0),
+      end: Offset(0.1, 0),
+    ).animate(CurvedAnimation(
+      parent: _handController,
+      curve: Curves.easeInOut,
+    ));
+
+    _handController.repeat(reverse: true);
   }
 
-  void _startGameMusic() {
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final musicService = Provider.of<MusicService>(context, listen: false);
-      await musicService.stopBackgroundMusic();
-      await musicService.playSoundEffect('game_start.mp3');
-    });
-  }
-
-  void _calculateScaleFactor() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final mediaQuery = MediaQuery.of(context);
-      final screenWidth = mediaQuery.size.width;
-
-      setState(() {
-        if (screenWidth < _baseScreenWidth) {
-          _scaleFactor = screenWidth / _baseScreenWidth;
-        } else {
-          _scaleFactor = 1.0;
-        }
-      });
-    });
-  }
-
-  Future<void> _loadUserData() async {
-    final user = await UserPreferences.getUser();
+  // === ANIMATED HAND METHODS ===
+  void _showAnimatedHand(Offset position, String instruction) {
     setState(() {
-      _userId = user['id'];
+      _showHand = true;
+      _handPosition = position;
+      _handInstruction = instruction;
+    });
+
+    // Auto-hide hand after 5 seconds
+    Future.delayed(Duration(seconds: 5), () {
+      if (mounted) {
+        _hideAnimatedHand();
+      }
     });
   }
 
-  // === TUTORIAL METHODS FOR ALL MODES ===
+  void _hideAnimatedHand() {
+    setState(() {
+      _showHand = false;
+      _handInstruction = "";
+    });
+  }
+
+  void _moveHandToNewPosition(Offset newPosition, String newInstruction) {
+    setState(() {
+      _handPosition = newPosition;
+      _handInstruction = newInstruction;
+    });
+  }
+
+  Widget _buildAnimatedHand() {
+    if (!_showHand) return SizedBox.shrink();
+
+    return Positioned(
+      left: _handPosition.dx,
+      top: _handPosition.dy,
+      child: Column(
+        children: [
+          SlideTransition(
+            position: _handAnimation,
+            child: Container(
+              width: _handSize,
+              height: _handSize,
+              child: Icon(
+                Icons.back_hand,
+                color: Colors.yellow,
+                size: _handSize,
+              ),
+            ),
+          ),
+          SizedBox(height: 8),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              _handInstruction,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // === SIMPLIFIED TUTORIAL METHODS WITH ANIMATED HANDS ===
   void _showWelcomeDialog(int mode) {
     String title = "";
     String description = "";
@@ -231,7 +296,7 @@ class _TrainingModeScreenState extends State<TrainingModeScreen> {
               final musicService = Provider.of<MusicService>(context, listen: false);
               musicService.playSoundEffect('click.mp3');
               Navigator.pop(context);
-              _showTutorialStep1(mode);
+              _startTutorialWithHands(mode);
             },
             child: Text("START TUTORIAL", style: TextStyle(color: Colors.tealAccent)),
           ),
@@ -240,150 +305,89 @@ class _TrainingModeScreenState extends State<TrainingModeScreen> {
     );
   }
 
-  void _showTutorialStep1(int mode) {
+  void _startTutorialWithHands(int mode) {
     setState(() {
       _currentTutorialStep = 1;
     });
 
-    String title = "";
-    String message = "";
-    IconData icon = Icons.touch_app;
-
     switch (mode) {
       case 0: // Main Game
-        title = "Step 1: Drag Blocks";
-        message = "Tap and drag the blue code blocks to the drop area below.\n\nTry dragging the 'print' block first!";
-        icon = Icons.touch_app;
+        _startMainGameTutorial();
         break;
       case 1: // Daily Challenge
-        title = "Step 1: Collect Blocks";
-        message = "Tap on the falling code blocks to collect them.\n\nThe blocks will automatically fill in the code!";
-        icon = Icons.touch_app;
+        _startDailyChallengeTutorial();
         break;
       case 2: // Bonus Game
-        title = "Step 1: Read the Question";
-        message = "Read the question carefully. You can switch between English and Tagalog using the translate button.";
-        icon = Icons.quiz;
+        _startBonusGameTutorial();
         break;
     }
+  }
 
-    Future.delayed(Duration(milliseconds: 300), () {
-      _showTutorialDialog(title, message, icon, mode);
+  void _startMainGameTutorial() {
+    // Step 1: Show hand on first block
+    Future.delayed(Duration(milliseconds: 500), () {
+      _showAnimatedHand(Offset(50, 500), "Drag this block");
+
+      // Step 2: After 3 seconds, show hand on drop area - MAS MATAAS NA
+      Future.delayed(Duration(seconds: 3), () {
+        _moveHandToNewPosition(Offset(100, 150), "Drop here"); // FROM 300 to 150
+
+        // Step 3: After 3 more seconds, show hand on run button
+        Future.delayed(Duration(seconds: 3), () {
+          _moveHandToNewPosition(Offset(150, 700), "Tap to run code");
+
+          // Final step: Hide hand and show completion
+          Future.delayed(Duration(seconds: 3), () {
+            _hideAnimatedHand();
+            _setTutorialCompleted(0);
+            _showReadyDialog(0);
+          });
+        });
+      });
     });
   }
 
-  void _showTutorialStep2(int mode) {
-    setState(() {
-      _currentTutorialStep = 2;
-      if (mode == 0) _showBlockHint = true;
-    });
+  void _startDailyChallengeTutorial() {
+    // Step 1: Show hand on falling blocks
+    Future.delayed(Duration(milliseconds: 500), () {
+      _showAnimatedHand(Offset(150, 200), "Tap falling blocks");
 
-    String title = "";
-    String message = "";
-    IconData icon = Icons.code;
+      // Step 2: Show hand on submit button
+      Future.delayed(Duration(seconds: 3), () {
+        _moveHandToNewPosition(Offset(150, 600), "Tap to submit");
 
-    switch (mode) {
-      case 0: // Main Game
-        title = "Step 2: Build the Code";
-        message = "Now drag the other correct blocks:\n( ) and \"Hello World\"\n\nArrange them to form: print(\"Hello World\")";
-        icon = Icons.code;
-        break;
-      case 1: // Daily Challenge
-        title = "Step 2: Complete the Code";
-        message = "Collect all required blocks to complete the code.\n\nRequired blocks are green, optional ones are blue.";
-        icon = Icons.code;
-        break;
-      case 2: // Bonus Game
-        title = "Step 2: Select Answer";
-        message = "Tap on your chosen answer. You have 10 seconds to answer each question!";
-        icon = Icons.help_outline;
-        break;
-    }
-
-    Future.delayed(Duration(milliseconds: 300), () {
-      _showTutorialDialog(title, message, icon, mode);
+        // Final step
+        Future.delayed(Duration(seconds: 3), () {
+          _hideAnimatedHand();
+          _setTutorialCompleted(1);
+          _showReadyDialog(1);
+        });
+      });
     });
   }
 
-  void _showTutorialStep3(int mode) {
-    setState(() {
-      _currentTutorialStep = 3;
+  void _startBonusGameTutorial() {
+    // Step 1: Show hand on first answer option (MAS MATAAS NA)
+    Future.delayed(Duration(milliseconds: 500), () {
+      _showAnimatedHand(Offset(80, 250), "Tap to select answer");
+
+      // Step 2: Move to another answer option (MAS MATAAS)
+      Future.delayed(Duration(seconds: 3), () {
+        _moveHandToNewPosition(Offset(180, 300), "Tap any option");
+
+        // Step 3: Show hand on submit button
+        Future.delayed(Duration(seconds: 2), () {
+          _moveHandToNewPosition(Offset(150, 550), "Then tap submit");
+
+          // Final step
+          Future.delayed(Duration(seconds: 3), () {
+            _hideAnimatedHand();
+            _setTutorialCompleted(2);
+            _showReadyDialog(2);
+          });
+        });
+      });
     });
-
-    String title = "";
-    String message = "";
-    IconData icon = Icons.play_arrow;
-
-    switch (mode) {
-      case 0: // Main Game
-        title = "Step 3: Run Your Code";
-        message = "Once you have all the correct blocks, press the 'Run Code' button to check your solution!";
-        icon = Icons.play_arrow;
-        break;
-      case 1: // Daily Challenge
-        title = "Step 3: Submit Solution";
-        message = "Press the 'SUBMIT CODE' button when you're done. Complete before time runs out!";
-        icon = Icons.play_arrow;
-        break;
-      case 2: // Bonus Game
-        title = "Step 3: Submit Answer";
-        message = "Press the 'Submit Answer' button to check your answer. Score points for correct answers!";
-        icon = Icons.check;
-        break;
-    }
-
-    Future.delayed(Duration(milliseconds: 300), () {
-      _showTutorialDialog(title, message, icon, mode);
-    });
-  }
-
-  void _showTutorialDialog(String title, String message, IconData icon, int mode) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: Color(0xFF1E1E1E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(icon, color: Colors.tealAccent),
-            SizedBox(width: 10),
-            Text(title, style: TextStyle(color: Colors.white)),
-          ],
-        ),
-        content: Text(message,
-            style: TextStyle(color: Colors.white70, fontSize: 14),
-            textAlign: TextAlign.center),
-        actions: [
-          if (_currentTutorialStep < 3)
-            TextButton(
-              onPressed: () {
-                final musicService = Provider.of<MusicService>(context, listen: false);
-                musicService.playSoundEffect('click.mp3');
-                Navigator.pop(context);
-                if (_currentTutorialStep == 1) {
-                  _showTutorialStep2(mode);
-                } else if (_currentTutorialStep == 2) {
-                  _showTutorialStep3(mode);
-                }
-              },
-              child: Text("NEXT", style: TextStyle(color: Colors.tealAccent)),
-            )
-          else
-            TextButton(
-              onPressed: () {
-                final musicService = Provider.of<MusicService>(context, listen: false);
-                musicService.playSoundEffect('click.mp3');
-                Navigator.pop(context);
-                // Set tutorial to false only for the current mode
-                _setTutorialCompleted(mode);
-                _showReadyDialog(mode);
-              },
-              child: Text("GOT IT!", style: TextStyle(color: Colors.tealAccent)),
-            ),
-        ],
-      ),
-    );
   }
 
   void _setTutorialCompleted(int mode) {
@@ -435,7 +439,7 @@ class _TrainingModeScreenState extends State<TrainingModeScreen> {
         break;
       case 2: // Bonus Game
         title = "Ready for Bonus Game!";
-        tips = "Remember:\n• Read questions carefully\n• Answer quickly\n• Score points for correct answers";
+        tips = "Remember:\n• Tap answer options to select\n• Submit your choice\n• Switch between English/Tagalog\n• Answer quickly before time runs out";
         icon = Icons.quiz;
         break;
     }
@@ -471,7 +475,7 @@ class _TrainingModeScreenState extends State<TrainingModeScreen> {
                   : mode == 1
                   ? Text('Goal: Complete the code',
                   style: TextStyle(color: Colors.green, fontFamily: 'monospace', fontSize: 12))
-                  : Text('Goal: Answer all questions',
+                  : Text('Goal: Answer all questions correctly',
                   style: TextStyle(color: Colors.green, fontFamily: 'monospace', fontSize: 12)),
             ),
           ],
@@ -490,29 +494,41 @@ class _TrainingModeScreenState extends State<TrainingModeScreen> {
     );
   }
 
-  // === MAIN GAME TRAINING METHODS ===
+  // === ORIGINAL GAME METHODS (PRESERVED) ===
+  void _startGameMusic() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final musicService = Provider.of<MusicService>(context, listen: false);
+      await musicService.stopBackgroundMusic();
+      await musicService.playSoundEffect('game_start.mp3');
+    });
+  }
+
+  void _calculateScaleFactor() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final mediaQuery = MediaQuery.of(context);
+      final screenWidth = mediaQuery.size.width;
+
+      setState(() {
+        if (screenWidth < _baseScreenWidth) {
+          _scaleFactor = screenWidth / _baseScreenWidth;
+        } else {
+          _scaleFactor = 1.0;
+        }
+      });
+    });
+  }
+
+  Future<void> _loadUserData() async {
+    final user = await UserPreferences.getUser();
+    setState(() {
+      _userId = user['id'];
+    });
+  }
+
   void resetBlocks() {
-    // Simple blocks for displaying "Hello World"
-    List<String> correctBlocks = [
-      'print',
-      '(',
-      '"Hello World"',
-      ')'
-    ];
-
-    // Incorrect/distractor blocks
-    List<String> incorrectBlocks = [
-      'cout',
-      'printf',
-      'System.out.print',
-      'echo',
-    ];
-
-    // Combine correct and incorrect blocks, then shuffle
-    allBlocks = [
-      ...correctBlocks,
-      ...incorrectBlocks,
-    ]..shuffle();
+    List<String> correctBlocks = ['print', '(', '"Hello World"', ')'];
+    List<String> incorrectBlocks = ['cout', 'printf', 'System.out.print', 'echo'];
+    allBlocks = [...correctBlocks, ...incorrectBlocks]..shuffle();
   }
 
   void startMainGameTraining() {
@@ -530,7 +546,6 @@ class _TrainingModeScreenState extends State<TrainingModeScreen> {
       resetBlocks();
     });
 
-    // Auto-show tutorial for main game if not completed yet
     Future.delayed(Duration(milliseconds: 500), () {
       if (mounted && _shouldShowTutorial(0)) {
         _showWelcomeDialog(0);
@@ -614,17 +629,11 @@ class _TrainingModeScreenState extends State<TrainingModeScreen> {
       droppedBlocks.clear();
       countdownTimer?.cancel();
       resetBlocks();
-      // Don't reset tutorial here - only reset when going back to mode selection
     });
   }
 
   bool isIncorrectBlock(String block) {
-    List<String> incorrectBlocks = [
-      'cout',
-      'printf',
-      'System.out.print',
-      'echo',
-    ];
+    List<String> incorrectBlocks = ['cout', 'printf', 'System.out.print', 'echo'];
     return incorrectBlocks.contains(block);
   }
 
@@ -632,8 +641,6 @@ class _TrainingModeScreenState extends State<TrainingModeScreen> {
     if (isAnsweredCorrectly || droppedBlocks.isEmpty) return;
 
     final musicService = Provider.of<MusicService>(context, listen: false);
-
-    // Check if any incorrect blocks are used
     bool hasIncorrectBlock = droppedBlocks.any((block) => isIncorrectBlock(block));
 
     if (hasIncorrectBlock) {
@@ -670,7 +677,6 @@ class _TrainingModeScreenState extends State<TrainingModeScreen> {
       return;
     }
 
-    // Check for correct answer: print("Hello World")
     String answer = droppedBlocks.join('');
     String normalizedAnswer = answer.replaceAll(' ', '').toLowerCase();
     String expected = 'print("helloworld")';
@@ -962,7 +968,6 @@ class _TrainingModeScreenState extends State<TrainingModeScreen> {
       _showModeSelection = false;
     });
 
-    // Auto-show tutorial for daily challenge if not completed yet
     Future.delayed(Duration(milliseconds: 500), () {
       if (mounted && _shouldShowTutorial(1)) {
         _showWelcomeDialog(1);
@@ -1081,7 +1086,7 @@ class _TrainingModeScreenState extends State<TrainingModeScreen> {
     String baseCode = currentChallenge['incompleteCode'];
 
     if (_collectedBlocks.isNotEmpty) {
-      String newCode = baseCode.replaceFirst('______', _collectedBlocks.join('\n    '));
+      String newCode = baseCode.replaceFirst('____', _collectedBlocks.join('\n    '));
       _codeController.text = newCode;
     }
   }
@@ -1146,7 +1151,7 @@ class _TrainingModeScreenState extends State<TrainingModeScreen> {
   }
 
   bool _validateCodeForTraining(String userCode, String solution) {
-    if (userCode.contains('______') ||
+    if (userCode.contains('____') ||
         userCode.trim() == dailyChallenges[_currentChallengeIndex]['incompleteCode'].trim()) {
       return false;
     }
@@ -1620,7 +1625,6 @@ class _TrainingModeScreenState extends State<TrainingModeScreen> {
       _bonusCurrentQuestionIndex = 0;
     });
 
-    // Auto-show tutorial for bonus game if not completed yet
     Future.delayed(Duration(milliseconds: 500), () {
       if (mounted && _shouldShowTutorial(2)) {
         _showWelcomeDialog(2);
@@ -1935,6 +1939,7 @@ class _TrainingModeScreenState extends State<TrainingModeScreen> {
     _fallingAnimationTimer?.cancel();
     _bonusCountdownTimer?.cancel();
     _codeController.dispose();
+    _handController.dispose();
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final musicService = Provider.of<MusicService>(context, listen: false);
@@ -2012,25 +2017,32 @@ class _TrainingModeScreenState extends State<TrainingModeScreen> {
           ),
         ] : [],
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF0D1B2A),
-              Color(0xFF1B263B),
-              Color(0xFF415A77),
-            ],
+      body: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF0D1B2A),
+                  Color(0xFF1B263B),
+                  Color(0xFF415A77),
+                ],
+              ),
+            ),
+            child: _showModeSelection
+                ? _buildModeSelectionScreen()
+                : (_selectedTrainingMode == 0
+                ? (gameStarted ? buildGameUI() : buildMainGameStartScreen())
+                : _selectedTrainingMode == 1
+                ? buildDailyChallengeUI()
+                : (_bonusGameStarted ? buildBonusGameUI() : buildBonusStartScreen())),
           ),
-        ),
-        child: _showModeSelection
-            ? _buildModeSelectionScreen()
-            : (_selectedTrainingMode == 0
-            ? (gameStarted ? buildGameUI() : buildMainGameStartScreen())
-            : _selectedTrainingMode == 1
-            ? buildDailyChallengeUI()
-            : (_bonusGameStarted ? buildBonusGameUI() : buildBonusStartScreen())),
+
+          // ANIMATED HAND OVERLAY
+          _buildAnimatedHand(),
+        ],
       ),
     );
   }
